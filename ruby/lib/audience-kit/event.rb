@@ -1,12 +1,18 @@
-class Event
-  attr_reader :data
+# frozen_string_literal: true
 
-  def self.find(id)
-    Event.new API_CONNECTION.get("/v1/events/#{id}").body['event']
-  end
+module Audience
+  module Kit
+    # A event fetched from the AudienceKit API; +data+ is the raw JSON hash.
+    class Event
+      attr_reader :data
 
-  def initialize(data)
-    @data = data
-    puts "Event => #{data}"
+      def self.find(id)
+        new Kit.get("/v1/events/#{id}")["event"]
+      end
+
+      def initialize(data)
+        @data = data
+      end
+    end
   end
 end

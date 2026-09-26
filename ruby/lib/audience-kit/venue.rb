@@ -1,12 +1,18 @@
-class Venue
-  attr_reader :data
+# frozen_string_literal: true
 
-  def self.find(id)
-    Venue.new API_CONNECTION.get("/v1/venues/#{id}").body['venue']
-  end
+module Audience
+  module Kit
+    # A venue fetched from the AudienceKit API; +data+ is the raw JSON hash.
+    class Venue
+      attr_reader :data
 
-  def initialize(data)
-    @data = data
-    puts "Venue => #{data}"
+      def self.find(id)
+        new Kit.get("/v1/venues/#{id}")["venue"]
+      end
+
+      def initialize(data)
+        @data = data
+      end
+    end
   end
 end

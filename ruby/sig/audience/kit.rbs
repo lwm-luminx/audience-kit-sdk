@@ -1,6 +1,31 @@
 module Audience
   module Kit
     VERSION: String
-    # See the writing guide of rbs: https://github.com/ruby/rbs#guides
+    DEFAULT_BASE_URL: String
+
+    class Error < StandardError
+    end
+
+    attr_writer self.base_url: String?
+    attr_writer self.token: String?
+    attr_writer self.connection: untyped
+
+    def self.base_url: () -> String
+    def self.token: () -> String?
+    def self.configure: () { (singleton(Kit)) -> void } -> singleton(Kit)
+    def self.connection: () -> untyped
+    def self.get: (String path) -> untyped
+
+    class Event
+      attr_reader data: Hash[String, untyped]
+      def self.find: (untyped id) -> Event
+      def initialize: (Hash[String, untyped] data) -> void
+    end
+
+    class Venue
+      attr_reader data: Hash[String, untyped]
+      def self.find: (untyped id) -> Venue
+      def initialize: (Hash[String, untyped] data) -> void
+    end
   end
 end

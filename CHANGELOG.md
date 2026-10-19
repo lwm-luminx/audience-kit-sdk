@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.20.0 (2026-10-19)
+
+Tonight's lineup and karaoke signups. Additive; needs the API's `Appearance.songRequest`, the `SINGER` role and
+`SongRequestWindow.paused` (audience-kit next).
+
+- `AudienceSession.lineup(venueID:)` returns a `VenueLineup`: the running order (`LineupEntry`, with `acts`,
+  `singers`, `karaokeEntries` and `singerNumber(of:)`), what's on stage and up next, the karaoke window
+  (`KaraokeWindow`: open, paused, the reason it's closed, the user's own signups) and who runs the venue's karaoke
+  (`VenueKaraoke`: AudienceKit, or a partner's join link and session code).
+- `signUpToSing(venueID:_:)` takes a `KaraokeSignup` (song, artist, who's singing, a note);
+  `withdrawSongRequest(id:)` takes one back. `SongRequest` is the signup.
+- AudienceKitUI: `VenueHostRow`, `VenueLineupStrip`, `KaraokeQueue`, `MySignupCard`, `KaraokeSignupButton` and
+  `KaraokeSignupSheet`, drawn with the audience's design tokens (`.audiencePreset(_:)`, `Color(RGBAColor)`).
+
 ## 0.19.1 (2026-10-16)
 
 - `Person` carries `avatarUrl` and `bannerUrl`, and the people listing selects them, so a person's own profile photos

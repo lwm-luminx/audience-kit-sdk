@@ -297,6 +297,27 @@ Door staff see venues in `doorVenues()` and check codes with
 `scanAdmission(venueID:code:)`, which returns an `outcome` (`.admit`,
 `.reEntry`, `.expired`, ...) and a `message` for the door.
 
+## Lineup and karaoke
+
+A venue's lineup tonight is its running order, which the venue advances like a
+slide deck. Karaoke singers are on it too: entries with role `.singer` and their
+signup as `songRequest`, called up when the venue advances to them.
+
+```swift
+guard let lineup = try await client.lineup(venueID: venueID) else { return }
+lineup.acts      // hosts, DJs, performers, MCs and intermissions, in order
+lineup.singers   // the karaoke singers, in order; singerNumber(of:) numbers them
+lineup.karaoke   // whether signups are open (or paused), why not, and the user's own
+try await client.signUpToSing(venueID: venueID, KaraokeSignup(title: "Waterloo", artist: "ABBA"))
+try await client.withdrawSongRequest(id: signup.id)
+```
+
+AudienceKitUI draws it: `VenueHostRow` (the host on now, their links and Tip),
+`VenueLineupStrip` (the non-singers, as a strip) and `KaraokeQueue` (the
+singers, the user's signup and Sign up to sing, or a partner's Join and QR code
+when the venue runs KaraFun). Theme them with `.audiencePreset(theme.preset)`.
+The singer is pushed when they're up next (`kind: singer_up_next`).
+
 ## REST endpoints
 
 For anything GraphQL doesn't cover, send the request through the client so it

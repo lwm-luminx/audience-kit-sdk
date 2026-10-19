@@ -1,10 +1,11 @@
 import AudienceCore
 import Foundation
 
-// A venue's lineup tonight (its running order) and karaoke signups. A karaoke signup is a singer on the lineup: an
-// entry with role `.singer` carrying its `songRequest`, which the venue calls up by advancing the running order like
-// any other act. See `VenueLineup` for what an app shows from it and AudienceKitUI's `VenueLineupStrip` and
-// `KaraokeQueue` for the views.
+// A venue's lineup tonight (its running order), its karaoke signups and its song requests. A karaoke signup is a
+// singer on the lineup: an entry with role `.singer` carrying its `songRequest`, which the venue calls up by advancing
+// the running order like any other act. A song request has no lineup entry: it waits in the venue's song queue until
+// the host plays it (`UP`, "Now playing"), then is done or skipped. See `VenueLineup` for what an app shows from it
+// and AudienceKitUI's `VenueLineupStrip`, `KaraokeQueue` and `SongRequestsSection` for the views.
 
 /// One entry on a venue's lineup: someone (or several people) on, or an intermission. A karaoke singer is an entry
 /// with role ``Role/singer`` and the signup as ``songRequest``.
@@ -183,12 +184,21 @@ public struct SongRequest: Codable, Sendable, Hashable, Identifiable {
     /// Whether the signed-in user asked.
     public let mine: Bool
     public let state: State
-    /// The request in words: "Ada to sing Waterloo by ABBA".
+    /// The request in words: "Ada to sing Waterloo by ABBA", "Dancing Queen by ABBA".
     public let summary: String?
+    /// Its place in the night's queue of its kind, from 0.
+    public let position: Int?
+    /// When it was asked.
+    public let createdAt: Date?
+    /// When the host called it up (played it, or put the singer on).
+    public let calledAt: Date?
+    /// When it was played or sung, skipped or withdrawn.
+    public let finishedAt: Date?
 
     public init(id: String, kind: Kind = .karaoke, title: String, artist: String? = nil, singer: String? = nil,
                 requesterName: String? = nil, note: String? = nil, mine: Bool = false, state: State = .queued,
-                summary: String? = nil) {
+                summary: String? = nil, position: Int? = nil, createdAt: Date? = nil, calledAt: Date? = nil,
+                finishedAt: Date? = nil) {
         self.id = id
         self.kind = kind
         self.title = title
@@ -199,38 +209,61 @@ public struct SongRequest: Codable, Sendable, Hashable, Identifiable {
         self.mine = mine
         self.state = state
         self.summary = summary
+        self.position = position
+        self.createdAt = createdAt
+        self.calledAt = calledAt
+        self.finishedAt = finishedAt
     }
+
+    /// Whether it's a song to play, not a karaoke signup.
+    public var isSong: Bool { kind == .song }
 
     /// "Title · Artist", or the title alone.
     public var songLine: String { [title, artist].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · ") }
 }
 
-/// Whether a venue's room takes karaoke signups now (`Venue.requests.karaoke`), and the signed-in user's own tonight.
-public struct KaraokeWindow: Codable, Sendable, Hashable {
-    /// Whether the venue takes karaoke signups at all.
+/// Whether a venue's room takes requests of one kind now (`Venue.requests.karaoke` or `Venue.requests.song`), the
+/// signed-in user's own tonight and, for songs, the queue.
+public struct SongRequestWindow: Codable, Sendable, Hashable {
+    /// Whether the venue takes them at all: karaoke run with AudienceKit, or song requests switched on.
     public let permitted: Bool
-    /// Whether it does right now: a host is on and the venue hasn't paused signups.
+    /// Whether it does right now: a host (or, for songs, a DJ) is on and the venue hasn't paused them.
     public let open: Bool
-    /// Whether the venue paused signups for tonight; the singers already on the lineup still sing.
+    /// Whether the venue paused them for tonight; the singers already on the lineup still sing, the songs already
+    /// asked for still play.
     public let paused: Bool
     /// Why it doesn't, worded for the room ("Karaoke signups open when a host is on"); nil while open.
     public let closedReason: String?
-    /// The lineup entry taking signups: the host on now.
+    /// The lineup entry taking them: the host (or DJ) on now.
     public let host: LineupEntry?
-    /// The signed-in user's signups tonight, oldest first.
+    /// The signed-in user's requests of this kind tonight, oldest first.
     public let mine: [SongRequest]
+    /// Tonight's queue of this kind: what's waiting or up, in order. Fetched for songs only (karaoke singers are on
+    /// the lineup); empty for karaoke.
+    public let queue: [SongRequest]
 
     public init(permitted: Bool, open: Bool, paused: Bool = false, closedReason: String? = nil,
-                host: LineupEntry? = nil, mine: [SongRequest] = []) {
+                host: LineupEntry? = nil, mine: [SongRequest] = [], queue: [SongRequest] = []) {
         self.permitted = permitted
         self.open = open
         self.paused = paused
         self.closedReason = closedReason
         self.host = host
         self.mine = mine
+        self.queue = queue
     }
 
-    private enum CodingKeys: String, CodingKey { case permitted, open, paused, closedReason, host, mine }
+    /// What's playing now: the request the host called up, if any.
+    public var playing: SongRequest? { queue.first { $0.state == .up } }
+
+    /// How many requests are ahead of one still waiting: the one up and those before it; nil once it's called or
+    /// when it isn't in the queue.
+    public func requestsBefore(_ request: SongRequest) -> Int? {
+        guard request.state == .queued, let index = queue.firstIndex(where: { $0.id == request.id }) else { return nil }
+        return index
+    }
+
+    private enum CodingKeys: String, CodingKey { case permitted, open, paused, closedReason, host, mine, queue }
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -240,6 +273,7 @@ public struct KaraokeWindow: Codable, Sendable, Hashable {
         closedReason = try container.decodeIfPresent(String.self, forKey: .closedReason)
         host = try container.decodeIfPresent(LineupEntry.self, forKey: .host)
         mine = try container.decodeIfPresent(Connection<SongRequest>.self, forKey: .mine)?.nodes ?? []
+        queue = try container.decodeIfPresent(Connection<SongRequest>.self, forKey: .queue)?.nodes ?? []
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -250,8 +284,12 @@ public struct KaraokeWindow: Codable, Sendable, Hashable {
         try container.encodeIfPresent(closedReason, forKey: .closedReason)
         try container.encodeIfPresent(host, forKey: .host)
         try container.encode(Connection(nodes: mine), forKey: .mine)
+        try container.encode(Connection(nodes: queue), forKey: .queue)
     }
 }
+
+/// Karaoke signups' window (`Venue.requests.karaoke`): the same shape as song requests'.
+public typealias KaraokeWindow = SongRequestWindow
 
 /// Who runs a venue's karaoke (`Venue.karaoke`): AudienceKit's own signups (``isAudienceKit``), or a partner such as
 /// KaraFun with a session people join by link or QR code.
@@ -296,8 +334,22 @@ public struct KaraokeSignup: Sendable, Hashable {
     }
 }
 
-/// A venue's lineup tonight, in running order, and its karaoke signups: what ``AudienceSession/lineup(venueID:)``
-/// returns. The non-singers are ``acts`` and the karaoke singers ``singers``, each in running order.
+/// What a song request asks for: the song, and optionally its artist and a dedication or word for the host.
+public struct SongRequestDraft: Sendable, Hashable {
+    public var title: String
+    public var artist: String?
+    public var note: String?
+
+    public init(title: String, artist: String? = nil, note: String? = nil) {
+        self.title = title
+        self.artist = artist
+        self.note = note
+    }
+}
+
+/// A venue's lineup tonight, in running order, its karaoke signups and its song requests: what
+/// ``AudienceSession/lineup(venueID:)`` returns. The non-singers are ``acts`` and the karaoke singers ``singers``,
+/// each in running order.
 public struct VenueLineup: Sendable, Hashable {
     public let venueID: String
     public let venueName: String
@@ -311,9 +363,12 @@ public struct VenueLineup: Sendable, Hashable {
     public let karaoke: KaraokeWindow?
     /// Who runs the venue's karaoke; nil when it has none.
     public let karaokeSession: VenueKaraoke?
+    /// Song requests: whether they're taken, the user's own and the queue; nil when the API leaves them out.
+    public let songRequests: SongRequestWindow?
 
     public init(venueID: String, venueName: String, entries: [LineupEntry], onStageID: String? = nil,
-                upNextID: String? = nil, karaoke: KaraokeWindow? = nil, karaokeSession: VenueKaraoke? = nil) {
+                upNextID: String? = nil, karaoke: KaraokeWindow? = nil, karaokeSession: VenueKaraoke? = nil,
+                songRequests: SongRequestWindow? = nil) {
         self.venueID = venueID
         self.venueName = venueName
         self.entries = entries
@@ -321,6 +376,7 @@ public struct VenueLineup: Sendable, Hashable {
         self.upNextID = upNextID
         self.karaoke = karaoke
         self.karaokeSession = karaokeSession
+        self.songRequests = songRequests
     }
 
     /// Everyone who isn't a karaoke singer: hosts, DJs, performers, MCs and intermissions.
@@ -365,13 +421,17 @@ public struct VenueLineup: Sendable, Hashable {
         let mine = karaoke?.mine ?? []
         return mine.first { $0.state.isOpen } ?? mine.last
     }
+
+    /// The signed-in user's song requests tonight, newest first.
+    public var mySongRequests: [SongRequest] { (songRequests?.mine ?? []).reversed() }
 }
 
 // MARK: - Operations
 
 extension Queries {
     static let personSummaryFields = "id name avatarUrl"
-    static let songRequestFields = "id kind title artist singer requesterName note mine state summary"
+    static let songRequestFields = "id kind title artist singer requesterName note mine state summary position "
+        + "createdAt calledAt finishedAt"
     static let lineupEntryFields = """
     id kind role title state startTiming endTiming startsAt endsAt
     people { nodes { \(personSummaryFields) } }
@@ -394,6 +454,12 @@ extension Queries {
               permitted open paused closedReason
               host { \(lineupEntryFields) }
               mine { nodes { \(songRequestFields) } }
+            }
+            song {
+              permitted open paused closedReason
+              host { \(lineupEntryFields) }
+              mine { nodes { \(songRequestFields) } }
+              queue { nodes { \(songRequestFields) } }
             }
           }
         }
@@ -426,7 +492,10 @@ struct VenueLineupResponse: Decodable, Sendable {
             var onStage: Ref?
             var upNext: Ref?
         }
-        struct Requests: Decodable, Sendable { var karaoke: KaraokeWindow? }
+        struct Requests: Decodable, Sendable {
+            var karaoke: KaraokeWindow?
+            var song: SongRequestWindow?
+        }
         var id: String
         var name: String?
         var people: People
@@ -440,7 +509,8 @@ struct VenueLineupResponse: Decodable, Sendable {
         venues.venue.map { venue in
             VenueLineup(venueID: venue.id, venueName: venue.name ?? "", entries: venue.people.runningOrder.nodes,
                         onStageID: venue.people.onStage?.id, upNextID: venue.people.upNext?.id,
-                        karaoke: venue.requests?.karaoke, karaokeSession: venue.karaoke)
+                        karaoke: venue.requests?.karaoke, karaokeSession: venue.karaoke,
+                        songRequests: venue.requests?.song)
         }
     }
 }
@@ -450,7 +520,8 @@ struct RequestSongResponse: Decodable, Sendable { var requestSong: SongRequestPa
 struct WithdrawSongRequestResponse: Decodable, Sendable { var withdrawSongRequest: SongRequestPayload }
 
 extension AudienceSession {
-    /// A venue's lineup tonight with its karaoke singers and signups, or `nil` when the venue doesn't exist.
+    /// A venue's lineup tonight with its karaoke singers and signups and its song requests, or `nil` when the venue
+    /// doesn't exist.
     public func lineup(venueID: String) async throws -> VenueLineup? {
         try await graphQL(Queries.venueLineup, variables: ["id": .string(venueID)], operationName: "VenueLineup",
                           as: VenueLineupResponse.self).lineup
@@ -461,16 +532,32 @@ extension AudienceSession {
     /// otherwise this throws with the server's reason.
     @discardableResult
     public func signUpToSing(venueID: String, _ signup: KaraokeSignup) async throws -> SongRequest {
-        var variables: [String: GraphQLValue] = ["venueId": .string(venueID), "kind": .string("KARAOKE"),
-                                                 "title": .string(signup.title)]
-        if let artist = signup.artist, !artist.isEmpty { variables["artist"] = .string(artist) }
-        if let singer = signup.singer, !singer.isEmpty { variables["singer"] = .string(singer) }
-        if let note = signup.note, !note.isEmpty { variables["note"] = .string(note) }
+        try await requestSong(venueID: venueID, kind: "KARAOKE", title: signup.title, artist: signup.artist,
+                              singer: signup.singer, note: signup.note)
+    }
+
+    /// Asks the venue to play a song: it joins the night's song queue, and the room sees the request in chat. The
+    /// host plays it (it goes ``SongRequest/State/up``, and the user is pushed: `kind: song_request_playing`), then
+    /// marks it done or skips it. They must be at the venue, and the venue must be taking requests
+    /// (``SongRequestWindow/open`` on ``VenueLineup/songRequests``); otherwise this throws with the server's reason.
+    @discardableResult
+    public func requestSong(venueID: String, title: String, artist: String? = nil, note: String? = nil) async throws
+        -> SongRequest {
+        try await requestSong(venueID: venueID, kind: "SONG", title: title, artist: artist, singer: nil, note: note)
+    }
+
+    private func requestSong(venueID: String, kind: String, title: String, artist: String?, singer: String?,
+                             note: String?) async throws -> SongRequest {
+        var variables: [String: GraphQLValue] = ["venueId": .string(venueID), "kind": .string(kind),
+                                                 "title": .string(title)]
+        if let artist, !artist.isEmpty { variables["artist"] = .string(artist) }
+        if let singer, !singer.isEmpty { variables["singer"] = .string(singer) }
+        if let note, !note.isEmpty { variables["note"] = .string(note) }
         return try await graphQL(Queries.requestSong, variables: variables, operationName: "RequestSong",
                                  as: RequestSongResponse.self).requestSong.request
     }
 
-    /// Takes back one of the signed-in user's signups that hasn't been called up yet.
+    /// Takes back one of the signed-in user's signups or song requests that hasn't been called up yet.
     @discardableResult
     public func withdrawSongRequest(id: String) async throws -> SongRequest {
         try await graphQL(Queries.withdrawSongRequest, variables: ["id": .string(id)],

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.21.0 (2026-10-19)
+
+Song requests, next to karaoke signups. Additive; needs the API's `SongRequestWindow.queue` and `SongRequest`'s
+`position` and times (audience-kit next).
+
+- `VenueLineup.songRequests` is the venue's song window (`Venue.requests.song`): whether requests are taken, open or
+  paused and why not, who's taking them, the user's own tonight (`mySongRequests`, newest first) and the queue
+  (`playing`, `requestsBefore(_:)`). `KaraokeWindow` is now a name for the same type, `SongRequestWindow`, which
+  gains `queue` (fetched for songs only).
+- `requestSong(venueID:title:artist:note:)` asks the venue to play a song; `withdrawSongRequest(id:)` takes one back
+  while it waits. The user is pushed when the host plays it (`kind: song_request_playing`).
+- `SongRequest` carries `position`, `createdAt`, `calledAt`, `finishedAt` and `isSong`.
+- AudienceKitUI: `SongRequestsSection` (Now playing, Request a song, the user's requests with Withdraw),
+  `SongRequestButton`, `MySongRequestRow`, `SongRequestSheet` (song, artist, a dedication or note) and
+  `SongRequest.State.songStatus` ("In the queue", "Playing now", "Played", "Skipped").
+
 ## 0.20.0 (2026-10-19)
 
 Tonight's lineup and karaoke signups. Additive; needs the API's `Appearance.songRequest`, the `SINGER` role and

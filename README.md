@@ -318,6 +318,19 @@ singers, the user's signup and Sign up to sing, or a partner's Join and QR code
 when the venue runs KaraFun). Theme them with `.audiencePreset(theme.preset)`.
 The singer is pushed when they're up next (`kind: singer_up_next`).
 
+Song requests work the same way without a lineup entry: the request waits in
+the venue's song queue until the host plays it, then it's played or skipped.
+
+```swift
+lineup.songRequests       // whether requests are taken (or paused), why not, the queue and the user's own
+lineup.mySongRequests     // the user's requests tonight, newest first
+try await client.requestSong(venueID: venueID, title: "Dancing Queen", artist: "ABBA", note: "For Bo")
+```
+
+`SongRequestsSection` draws them: Now playing, Request a song (greyed with
+the venue's reason while closed) and the user's requests with Withdraw. The
+user is pushed when their song plays (`kind: song_request_playing`).
+
 ## REST endpoints
 
 For anything GraphQL doesn't cover, send the request through the client so it

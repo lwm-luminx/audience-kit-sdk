@@ -6,9 +6,9 @@
 set -euo pipefail
 
 base="${1:-origin/main}"
-version_file=Sources/AudienceCore/AudienceKitSDK.swift
+version_file=swift/Sources/AudienceCore/AudienceKitSDK.swift
 
-if git diff --quiet "$base"...HEAD -- Sources; then
+if git diff --quiet "$base"...HEAD -- swift/Sources; then
     echo "The SDK's sources are unchanged."
     exit 0
 fi

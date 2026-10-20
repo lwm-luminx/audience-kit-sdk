@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="JAVA_MODULE" version="4">
+  <component name="FacetManager">
+    <facet type="android" name="Android">
+      <configuration>
+        <option name="ALLOW_USER_CONFIGURATION" value="false" />
+        <option name="MANIFEST_FILE_RELATIVE_PATH" value="/audiencekit-android/src/main/AndroidManifest.xml" />
+        <option name="RES_FOLDER_RELATIVE_PATH" value="/audiencekit-android/src/main/res" />
+        <option name="ASSETS_FOLDER_RELATIVE_PATH" value="/audiencekit-android/src/main/assets" />
+        <option name="LIBS_FOLDER_RELATIVE_PATH" value="/audiencekit-android/libs" />
+        <option name="PROGUARD_LOGS_FOLDER_RELATIVE_PATH" value="/audiencekit-android/proguard_logs" />
+        <option name="PROJECT_TYPE" value="1" />
+      </configuration>
+    </facet>
+    <facet type="kotlin-language" name="Kotlin">
+      <configuration version="5" platform="JVM 17" allPlatforms="JVM [17]" useProjectSettings="false">
+        <compilerSettings />
+        <compilerArguments>
+          <stringArguments>
+            <stringArg name="jvmTarget" arg="17" />
+            <stringArg name="apiVersion" arg="2.0" />
+            <stringArg name="languageVersion" arg="2.0" />
+          </stringArguments>
+        </compilerArguments>
+      </configuration>
+    </facet>
+  </component>
+  <component name="NewModuleRootManager" inherit-compiler-output="true">
+    <exclude-output />
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/audiencekit/src/main/kotlin" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/audiencekit-android/src/main/kotlin" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/audiencekit/src/test/kotlin" isTestSource="true" />
+      <excludeFolder url="file://$MODULE_DIR$/.gradle" />
+      <excludeFolder url="file://$MODULE_DIR$/.kotlin" />
+      <excludeFolder url="file://$MODULE_DIR$/build" />
+      <excludeFolder url="file://$MODULE_DIR$/audiencekit/build" />
+      <excludeFolder url="file://$MODULE_DIR$/audiencekit-android/build" />
+    </content>
+    <orderEntry type="jdk" jdkName="Android API 37 Platform" jdkType="Android SDK" />
+    <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="Android Platform" level="project" />
+    <orderEntry type="library" name="Gradle__audience_kit" level="project" />
+  </component>
+</module>

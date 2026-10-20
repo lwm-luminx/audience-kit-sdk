@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  linux:
+  swift:
     runs-on: ubuntu-latest
     container: swift:6.1-noble
     steps:
@@ -14,15 +14,36 @@ jobs:
       - run: swift build
       - run: swift test
 
-  version:
-    # Each change to the SDK needs a new version: apps send it, and the API refuses ones below its minimum.
-    if: github.event_name == 'pull_request'
+  kotlin:
+    # core/ and android/ are one Gradle build at the root. The runner image ships the Android SDK (ANDROID_HOME), so
+    # audiencekit-android builds too.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
-          fetch-depth: 0
-      - run: scripts/check-version.sh origin/${{ github.base_ref }}
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build and test the JVM library and the Android library
+        run: ./gradlew build
+
+  graphql:
+    # The documents are string literals no codegen reads yet; check them against graphql/schema.graphql, the API's
+    # consumer schema as of the API's next branch (the monorepo copies it in when it changes). The published schema on
+    # developer.audiencekit.com is production's, which lags the fields the SDK already uses.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: GraphQL documents match the API schema
+        run: |
+          mkdir -p .graphql-check && cd .graphql-check
+          curl -fsSLO https://developer.audiencekit.com/graphql/check.mjs
+          npm install --silent --no-save --no-package-lock graphql@16
+          node check.mjs --schema ../graphql/schema.graphql --endpoint consumer ../swift/Sources ../android/audiencekit/src/main
 
   apple:
     # The update prompts' StoreKit, SwiftUI and UIKit code only builds on Apple platforms, which Linux skips.
@@ -31,3 +52,13 @@ jobs:
       - uses: actions/checkout@v4
       - run: swift build
       - run: xcodebuild build -scheme AudienceKit-Package -destination 'generic/platform=iOS Simulator' -quiet
+
+  version:
+    # Swift and Kotlin share one version (VERSION), and each change to the SDK needs a new one: apps send it, and the
+    # API refuses ones below its minimum.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: scripts/check-version.sh origin/${{ github.base_ref || 'main' }}

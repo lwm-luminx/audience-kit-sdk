@@ -1,6 +1,0 @@
-.gradle/
-build/
-/audiencekit/bin/
-local.properties
-.kotlin/
-.graphql-check/

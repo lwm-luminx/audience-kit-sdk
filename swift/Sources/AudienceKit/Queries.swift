@@ -81,7 +81,7 @@ enum Queries {
     /// The tribes people can identify with here, and the signed-in user's own.
     static let tribes = """
     query Tribes {
-      id tribes { \(tagFields) tribe }
+      id tribes: tags(tribes: true) { \(tagFields) tribe }
       me { self { id tribes { isPrivate tag { \(tagFields) tribe } } } }
     }
     """

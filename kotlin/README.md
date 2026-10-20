@@ -2,7 +2,7 @@
 
 Kotlin client for the AudienceKit API, for Android apps (and any JVM): sign people
 in with Facebook, then read an audience's venues, people, locales and events over
-GraphQL, and its branding over REST. It matches the [Swift SDK](https://github.com/audience-kit/audience-kit-sdk-swift)
+GraphQL, and its branding over REST. It matches the [Swift SDK](../swift/README.md)
 call for call.
 
 - Kotlin coroutines: every call is a `suspend` function that's safe on the main thread
@@ -23,14 +23,14 @@ Gradle composite build: check this repository out next to your app and add to th
 app's `settings.gradle.kts`:
 
 ```kotlin
-includeBuild("../audience-kit-sdk-android")
+includeBuild("../audience-kit-sdk/kotlin")
 ```
 
 then depend on it as if it were published:
 
 ```kotlin
 dependencies {
-    implementation("com.audiencekit:audiencekit-android:0.19.0")
+    implementation("com.audiencekit:audiencekit-android:0.22.0")
 }
 ```
 

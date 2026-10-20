@@ -23,7 +23,10 @@ plugins {
     alias(libs.plugins.kotlin.serialization) apply false
 }
 
+// One version for the whole SDK, Swift and Kotlin alike: the VERSION file at the repository root.
+val sdkVersion = rootDir.resolve("../VERSION").readText().trim()
+
 allprojects {
     group = "com.audiencekit"
-    version = "0.19.0"
+    version = sdkVersion
 }

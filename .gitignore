@@ -4,3 +4,9 @@
 xcuserdata/
 DerivedData/
 Package.resolved
+.gradle/
+build/
+/kotlin/audiencekit/bin/
+kotlin/local.properties
+.kotlin/
+.graphql-check/

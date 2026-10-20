@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    # The runner image ships the Android SDK (ANDROID_HOME), so audiencekit-android builds too.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build and test the JVM library and the Android library
+        run: ./gradlew build
+
+  graphql:
+    # The documents are string literals no codegen reads; check them against the API's published consumer schema.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: GraphQL documents match the API schema
+        run: |
+          mkdir -p .graphql-check && cd .graphql-check
+          curl -fsSLO https://developer.audiencekit.com/graphql/check.mjs
+          curl -fsSLO https://developer.audiencekit.com/graphql/schema.graphql
+          npm install --silent --no-save --no-package-lock graphql@16
+          node check.mjs --schema schema.graphql --endpoint consumer ../audiencekit/src/main
+
+  version:
+    # Each change to the SDK needs a new version: apps send it, and the API refuses ones below its minimum.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: scripts/check-version.sh origin/${{ github.base_ref }}

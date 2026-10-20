@@ -7,11 +7,12 @@ lineups and chat. One repository and one version for every platform.
 | Directory | What it is | Install |
 | --- | --- | --- |
 | [`swift/`](swift/README.md) | `AudienceCore`, `AudienceKit`, `AudienceKitUI` for iOS 16+, macOS 13+ and Linux | Swift Package Manager: `https://github.com/lwm-luminx/audience-kit-sdk.git` |
-| [`kotlin/`](kotlin/README.md) | `com.audiencekit:audiencekit` (JVM), `audiencekit-android`, and `audiencekit-core` (Kotlin Multiplatform) | Gradle composite build of `kotlin/` (Maven publishing to come) |
+| [`core/`](core/README.md) | `com.audiencekit:audiencekit-core`, the Kotlin Multiplatform code shared by every platform (JVM, Android, Apple) | Gradle |
+| [`android/`](android/README.md) | `com.audiencekit:audiencekit` (the Kotlin client, plain JVM) and `audiencekit-android` | Gradle composite build of the repository (Maven publishing to come) |
 | [`graphql/`](graphql/schema.graphql) | The API's consumer GraphQL schema the SDKs are checked against | |
 
-The Swift package's manifest is `Package.swift` at the root, because Swift Package Manager only reads one there; the
-Kotlin SDK is the Gradle build in `kotlin/`.
+Both builds sit at the root, because Swift Package Manager only reads a root manifest: `Package.swift` builds `swift/`,
+and the Gradle build (`settings.gradle.kts`) builds `core/` and `android/`.
 
 ## Versioning
 

@@ -1,6 +1,6 @@
 // AGP 9 compiles Kotlin itself (built-in Kotlin), so there's no separate Kotlin Android plugin.
 plugins {
-    id("com.android.library") // on the root build classpath; see ../build.gradle.kts
+    id("com.android.library") // on the root build classpath; see ../../build.gradle.kts
     `maven-publish`
 }
 

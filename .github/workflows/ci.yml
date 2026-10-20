@@ -15,11 +15,9 @@ jobs:
       - run: swift test
 
   kotlin:
-    # The runner image ships the Android SDK (ANDROID_HOME), so audiencekit-android builds too.
+    # core/ and android/ are one Gradle build at the root. The runner image ships the Android SDK (ANDROID_HOME), so
+    # audiencekit-android builds too.
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: kotlin
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -45,7 +43,7 @@ jobs:
           mkdir -p .graphql-check && cd .graphql-check
           curl -fsSLO https://developer.audiencekit.com/graphql/check.mjs
           npm install --silent --no-save --no-package-lock graphql@16
-          node check.mjs --schema ../graphql/schema.graphql --endpoint consumer ../swift/Sources ../kotlin/audiencekit/src/main
+          node check.mjs --schema ../graphql/schema.graphql --endpoint consumer ../swift/Sources ../android/audiencekit/src/main
 
   version:
     # Swift and Kotlin share one version (VERSION), and each change to the SDK needs a new one: apps send it, and the

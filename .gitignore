@@ -6,7 +6,7 @@ DerivedData/
 Package.resolved
 .gradle/
 build/
-/kotlin/audiencekit/bin/
-kotlin/local.properties
+/android/audiencekit/bin/
+local.properties
 .kotlin/
 .graphql-check/

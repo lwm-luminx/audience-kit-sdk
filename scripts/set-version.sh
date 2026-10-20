@@ -12,6 +12,6 @@ version="${1:?usage: scripts/set-version.sh X.Y.Z}"
 echo "$version" > VERSION
 sed -i.bak -E "s/(public static let version = \")[0-9.]+(\")/\1$version\2/" swift/Sources/AudienceCore/AudienceKitSDK.swift
 sed -i.bak -E "s/(public const val VERSION: String = \")[0-9.]+(\")/\1$version\2/" \
-    kotlin/audiencekit/src/main/kotlin/com/audiencekit/AudienceKitSDK.kt
-rm -f swift/Sources/AudienceCore/AudienceKitSDK.swift.bak kotlin/audiencekit/src/main/kotlin/com/audiencekit/AudienceKitSDK.kt.bak
+    android/audiencekit/src/main/kotlin/com/audiencekit/AudienceKitSDK.kt
+rm -f swift/Sources/AudienceCore/AudienceKitSDK.swift.bak android/audiencekit/src/main/kotlin/com/audiencekit/AudienceKitSDK.kt.bak
 echo "The SDK is now $version. Add a CHANGELOG.md entry for it."

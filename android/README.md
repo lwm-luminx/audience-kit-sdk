@@ -8,7 +8,7 @@ call for call.
 - Kotlin coroutines: every call is a `suspend` function that's safe on the main thread
 - Facebook Login stays in your app: the SDK takes the access token Facebook gives you
 - Three libraries:
-  - `com.audiencekit:audiencekit-core`: a Kotlin Multiplatform prototype containing
+  - `com.audiencekit:audiencekit-core` (in `../core`): a Kotlin Multiplatform prototype containing
     GraphQL variables, coordinates and endpoint routing, shared by JVM and Apple targets.
   - `com.audiencekit:audiencekit`: the client, models and GraphQL. Plain JVM, so it
     runs in unit tests without an emulator. Depends only on kotlinx-coroutines and
@@ -23,7 +23,7 @@ Gradle composite build: check this repository out next to your app and add to th
 app's `settings.gradle.kts`:
 
 ```kotlin
-includeBuild("../audience-kit-sdk/kotlin")
+includeBuild("../audience-kit-sdk")
 ```
 
 then depend on it as if it were published:

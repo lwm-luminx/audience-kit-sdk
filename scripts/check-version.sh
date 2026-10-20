@@ -9,8 +9,8 @@ cd "$(dirname "$0")/.."
 
 base="${1:-origin/main}"
 swift_file=swift/Sources/AudienceCore/AudienceKitSDK.swift
-kotlin_file=kotlin/audiencekit/src/main/kotlin/com/audiencekit/AudienceKitSDK.kt
-sources=(Package.swift swift/Sources kotlin/audiencekit/src/main kotlin/audiencekit-android/src/main kotlin/audiencekit-core/src/commonMain)
+kotlin_file=android/audiencekit/src/main/kotlin/com/audiencekit/AudienceKitSDK.kt
+sources=(Package.swift swift/Sources core/src/commonMain android/audiencekit/src/main android/audiencekit-android/src/main)
 
 constant() { grep -Eo '"[0-9]+(\.[0-9]+)+"' "$1" | head -1 | tr -d '"'; }
 version="$(tr -d '[:space:]' < VERSION)"

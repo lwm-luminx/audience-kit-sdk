@@ -2,7 +2,7 @@
 // The member-facing AudienceKit Swift SDK: what an audience's own app (Hot Mess)
 // builds on. The staff-side management modules are not part of this package.
 // Swift Package Manager only reads a manifest at the repository root, so this one sits beside
-// kotlin/ and points into swift/; the Kotlin SDK is the Gradle build in kotlin/.
+// core/ (Kotlin Multiplatform) and android/ and points into swift/.
 import PackageDescription
 
 let package = Package(

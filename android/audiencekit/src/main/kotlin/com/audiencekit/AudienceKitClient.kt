@@ -14,6 +14,7 @@ import java.io.IOException
 import java.net.URI
 import java.net.URISyntaxException
 import java.net.URLEncoder
+import kotlin.time.TimeSource
 
 /** A change to the client's session. */
 public enum class SessionEvent {
@@ -65,6 +66,8 @@ public class APIRequest(
     public val body: ByteArray? = null,
     /** Whether to send the session token. A 401 on an authenticated request ends the session. */
     public val authenticated: Boolean = true,
+    /** Extra headers, sent alongside the client's own. */
+    public val headers: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -74,12 +77,14 @@ public class APIRequest(
  * carries the session token as `Authorization: Bearer <token>`. When the API rejects it, the call throws
  * [AudienceKitException.Unauthorized] and [sessionEvents] emits [SessionEvent.SESSION_ENDED].
  *
- * Every call is a `suspend` function that is safe to call from the main thread.
+ * Every call is a `suspend` function that is safe to call from the main thread. A [monitor], when given, is told
+ * about each GraphQL operation.
  */
 public class AudienceKitClient(
     public val configuration: AudienceKitConfiguration,
     private val tokenStore: TokenStore = InMemoryTokenStore(),
     private val transport: HttpTransport = UrlConnectionTransport(),
+    public val monitor: GraphQLMonitor? = null,
 ) {
     private val sessionChannel = Channel<SessionEvent>(Channel.UNLIMITED)
 
@@ -363,13 +368,35 @@ public class AudienceKitClient(
             GraphQLRequest.serializer(),
             GraphQLRequest(query = query, variables = variables, operationName = operationName),
         )
-        val request = APIRequest(method = "POST", path = endpoint.path(audienceId), body = body.toByteArray())
+        val (type, name) = GraphQLOperationEvent.describe(query, operationName)
+        val request = APIRequest(
+            method = "POST",
+            path = endpoint.path(audienceId),
+            body = body.toByteArray(),
+            headers = buildMap {
+                put("X-APOLLO-OPERATION-TYPE", type)
+                name?.let { put("X-APOLLO-OPERATION-NAME", it) }
+            },
+        )
 
-        val text = data(request).toString(Charsets.UTF_8)
-        val envelope = decode(GraphQLResponse.serializer(deserializer), text, json)
+        val started = TimeSource.Monotonic.markNow()
+        val result = runCatching {
+            val text = data(request).toString(Charsets.UTF_8)
+            val envelope = decode(GraphQLResponse.serializer(deserializer), text, json)
 
-        if (!envelope.errors.isNullOrEmpty()) throw AudienceKitException.GraphQL(envelope.errors)
-        return envelope.data ?: throw AudienceKitException.Decoding("The response had no data.")
+            if (!envelope.errors.isNullOrEmpty()) throw AudienceKitException.GraphQL(envelope.errors)
+            envelope.data ?: throw AudienceKitException.Decoding("The response had no data.")
+        }
+        monitor?.record(
+            GraphQLOperationEvent(
+                name = name,
+                type = type,
+                endpoint = endpoint,
+                duration = started.elapsedNow(),
+                error = result.exceptionOrNull()?.let { it.message ?: it.toString() },
+            ),
+        )
+        return result.getOrThrow()
     }
 
     /** [graphQL] for a `@Serializable` type, e.g. `client.graphQL<MyResponse>(query)`. */
@@ -617,6 +644,7 @@ public class AudienceKitClient(
             }
             if (request.body != null) put("Content-Type", "application/json")
             token?.let { put("Authorization", "Bearer $it") }
+            putAll(request.headers)
         }
 
         return HttpRequest(method = request.method, url = url, headers = headers, body = request.body)

@@ -395,6 +395,38 @@ private func makeClient(
         #expect(GraphQLEndpoint.allCases.map { $0.path(audienceID: "a") } == ["/v1/audience/a/graphql", "/v1/audience/a/staffql"])
     }
 
+    @Test func labelsEachOperationAndTellsTheMonitor() async throws {
+        final class Recorder: GraphQLMonitor, @unchecked Sendable {
+            private let lock = NSLock()
+            private var recorded: [GraphQLOperationEvent] = []
+            var events: [GraphQLOperationEvent] { lock.withLock { recorded } }
+            func record(_ event: GraphQLOperationEvent) { lock.withLock { recorded.append(event) } }
+        }
+        struct Name: Decodable, Sendable { let name: String }
+        let stub = Stub { request in
+            (try? request.jsonBody())?["operationName"] as? String == "Fails"
+                ? .json(status: 200, body: #"{"errors":[{"message":"Nope"}]}"#)
+                : .json(status: 200, body: #"{"data":{"name":"Hot Mess"}}"#)
+        }
+        let recorder = Recorder()
+        let store = InMemoryCredentialStore(credential: makeCredential(baseURL: stub.baseURL, token: "session-token",
+                                                                       audienceId: audienceID))
+        let client = AudienceKitClient(configuration: AudienceKitConfiguration(baseURL: stub.baseURL, audienceID: audienceID),
+                                       credentialStore: store, session: stub.session, monitor: recorder)
+
+        _ = try await client.graphQL("query AudienceName { name }", as: Name.self)
+        _ = try? await client.graphQL("mutation { name }", operationName: "Fails", as: Name.self)
+
+        // Apollo's headers, which New Relic's mobile agents record with the request.
+        #expect(stub.requests[0].header("X-APOLLO-OPERATION-NAME") == "AudienceName")
+        #expect(stub.requests[0].header("X-APOLLO-OPERATION-TYPE") == "query")
+        #expect(stub.requests[1].header("X-APOLLO-OPERATION-NAME") == "Fails")
+        #expect(stub.requests[1].header("X-APOLLO-OPERATION-TYPE") == "mutation")
+        #expect(recorder.events.map(\.name) == ["AudienceName", "Fails"])
+        #expect(recorder.events.allSatisfy { $0.kind == .completed && $0.transport == .http && $0.duration != nil })
+        #expect(recorder.events[0].error == nil && recorder.events[1].error != nil)
+    }
+
     @Test func sendsVariables() async throws {
         let stub = Stub { _ in .json(status: 200, body: #"{"data":{"node":{"__typename":"Venue","id":"v-1"}}}"#) }
         let (client, _) = makeClient(stub)

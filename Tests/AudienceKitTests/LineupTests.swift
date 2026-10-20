@@ -48,9 +48,20 @@ private let lineupJSON = """
   "requests":{"karaoke":{"permitted":true,"open":false,"paused":true,"closedReason":"Signups are paused",
     "host":\(entry("host", role: "HOST", state: "ON", title: "Trixie")),
     "mine":{"nodes":[{"id":"r-s4","kind":"KARAOKE","title":"Dancing Queen","artist":"ABBA","singer":"Ada",
-      "requesterName":"Ada L.","note":null,"mine":true,"state":"QUEUED","summary":"Ada to sing Dancing Queen by ABBA"}]}}}
+      "requesterName":"Ada L.","note":null,"mine":true,"state":"QUEUED","summary":"Ada to sing Dancing Queen by ABBA"}]}},
+    "song":{"permitted":true,"open":true,"paused":false,"closedReason":null,
+      "host":\(entry("host", role: "HOST", state: "ON", title: "Trixie")),
+      "mine":{"nodes":[\(song("q1", "Toxic", state: "DONE", mine: true)),\(song("q3", "Waterloo", mine: true))]},
+      "queue":{"nodes":[\(song("q2", "Dancing Queen", state: "UP")),\(song("q4", "Believe")),
+        \(song("q3", "Waterloo", mine: true))]}}}
 }}}}
 """
+
+private func song(_ id: String, _ title: String, state: String = "QUEUED", mine: Bool = false) -> String {
+    #"{"id":"\#(id)","kind":"SONG","title":"\#(title)","artist":"ABBA","singer":null,"requesterName":"Ada L.","# +
+        #""note":null,"mine":\#(mine),"state":"\#(state)","summary":"\#(title) by ABBA","position":0,"# +
+        #""createdAt":"2026-10-19T21:04:05Z","calledAt":null,"finishedAt":null}"#
+}
 
 @Suite struct LineupTests {
     @Test func readsTheLineupWithItsSingersAndSignups() async throws {
@@ -104,6 +115,48 @@ private let lineupJSON = """
         let withdrawn = try await client.withdrawSongRequest(id: "r-1")
         #expect(withdrawn.state == .withdrawn && !withdrawn.state.isOpen)
         #expect(try #require(stub.requests.last).jsonBody()["variables"] as? [String: String] == ["id": "r-1"])
+    }
+
+    @Test func readsSongRequestsWithTheQueueAndTheUsersOwn() async throws {
+        let stub = Stub { _ in .json(status: 200, body: lineupJSON) }
+        let lineup = try #require(try await lineupClient(stub).lineup(venueID: "v-1"))
+        let songs = try #require(lineup.songRequests)
+
+        #expect(songs.permitted && songs.open && !songs.paused && songs.closedReason == nil)
+        #expect(songs.host?.displayName == "Trixie")
+        #expect(songs.playing?.title == "Dancing Queen")
+        #expect(songs.queue.map(\.id) == ["q2", "q4", "q3"])
+        #expect(lineup.mySongRequests.map(\.id) == ["q3", "q1"])
+        let waterloo = try #require(lineup.mySongRequests.first)
+        #expect(waterloo.isSong && waterloo.singer == nil && waterloo.createdAt != nil)
+        #expect(songs.requestsBefore(waterloo) == 2)
+        #expect(songs.requestsBefore(try #require(lineup.mySongRequests.last)) == nil)
+        #expect(lineup.karaoke?.queue.isEmpty == true)
+        let query = try #require(stub.requests.first).jsonBody()["query"] as? String ?? ""
+        #expect(query.contains("song {") && query.contains("queue { nodes"))
+    }
+
+    @Test func requestsASongAndTakesItBack() async throws {
+        let request = #"{"id":"q-1","kind":"SONG","title":"Dancing Queen","artist":"ABBA","singer":null,"#
+            + #""requesterName":"Ada L.","note":"For Bo","mine":true,"state":"QUEUED","summary":"Dancing Queen by ABBA","#
+            + #""position":3,"createdAt":"2026-10-19T21:04:05.123Z","calledAt":null,"finishedAt":null}"#
+        let stub = Stub { request_ in
+            let operation = (try? request_.jsonBody()["operationName"] as? String) ?? ""
+            let withdrawn = request.replacingOccurrences(of: "QUEUED", with: "WITHDRAWN")
+            return .json(status: 200, body: operation == "RequestSong"
+                ? #"{"data":{"requestSong":{"request":\#(request)}}}"#
+                : #"{"data":{"withdrawSongRequest":{"request":\#(withdrawn)}}}"#)
+        }
+        let client = lineupClient(stub)
+
+        let asked = try await client.requestSong(venueID: "v-1", title: "Dancing Queen", artist: "ABBA", note: "For Bo")
+        #expect(asked.isSong && asked.state == .queued && asked.position == 3 && asked.note == "For Bo")
+        #expect(try #require(stub.requests.first).jsonBody()["variables"] as? [String: String]
+            == ["venueId": "v-1", "kind": "SONG", "title": "Dancing Queen", "artist": "ABBA", "note": "For Bo"])
+
+        let withdrawn = try await client.withdrawSongRequest(id: asked.id)
+        #expect(withdrawn.state == .withdrawn)
+        #expect(try #require(stub.requests.last).jsonBody()["variables"] as? [String: String] == ["id": "q-1"])
     }
 
     @Test func roundTripsALineupEntry() throws {

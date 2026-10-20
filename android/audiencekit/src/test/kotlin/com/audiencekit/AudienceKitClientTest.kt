@@ -33,6 +33,7 @@ private fun makeClient(
     audienceId: String? = AUDIENCE_ID,
     token: String? = "session-token",
     environment: AudienceKitEnvironment = AudienceKitEnvironment.PRODUCTION,
+    monitor: GraphQLMonitor? = null,
 ): Pair<AudienceKitClient, InMemoryTokenStore> {
     val store = InMemoryTokenStore(token)
     val configuration = AudienceKitConfiguration(
@@ -42,7 +43,7 @@ private fun makeClient(
         facebookAppId = "842337999153841",
         environment = environment,
     )
-    return AudienceKitClient(configuration, store, stub) to store
+    return AudienceKitClient(configuration, store, stub, monitor) to store
 }
 
 /** The next event, or null when none is waiting. */
@@ -525,6 +526,44 @@ class GraphQLTest {
         val (client, _) = makeClient(stub)
 
         assertFailsWith<AudienceKitException.Decoding> { client.venues() }
+    }
+
+    @Test
+    fun labelsEachOperationAndTellsTheMonitor() = runTest {
+        val events = mutableListOf<GraphQLOperationEvent>()
+        val stub = StubTransport { request ->
+            if (request.jsonBody().string("query")!!.startsWith("mutation")) {
+                StubTransport.json(200, """{"errors":[{"message":"Nope"}]}""")
+            } else {
+                StubTransport.json(200, venuesResponse)
+            }
+        }
+        val (client, _) = makeClient(stub, monitor = GraphQLMonitor { events += it })
+
+        client.venues()
+        assertFailsWith<AudienceKitException.GraphQL> {
+            client.graphQL<JsonObject>("mutation Leave(\$id: ID!) { leave(id: \$id) { id } }")
+        }
+
+        val (venues, leave) = stub.requests
+        assertEquals("query", venues.header("X-APOLLO-OPERATION-TYPE"))
+        assertEquals("Venues", venues.header("X-APOLLO-OPERATION-NAME"))
+        assertEquals("mutation", leave.header("X-APOLLO-OPERATION-TYPE"))
+        assertEquals("Leave", leave.header("X-APOLLO-OPERATION-NAME"))
+
+        assertEquals(listOf("Venues", "Leave"), events.map { it.name })
+        assertEquals(listOf("query", "mutation"), events.map { it.type })
+        assertNull(events[0].error)
+        assertTrue(events[1].error != null)
+        assertTrue(events.all { it.endpoint == GraphQLEndpoint.CONSUMER })
+    }
+
+    @Test
+    fun describesAnOperationFromItsDocument() {
+        assertEquals("query" to null, GraphQLOperationEvent.describe("{ me { id } }"))
+        assertEquals("subscription" to "Room", GraphQLOperationEvent.describe("subscription Room(\$v: ID!) { venueChat }"))
+        assertEquals("query" to "Given", GraphQLOperationEvent.describe("query Named { a }", operationName = "Given"))
+        assertEquals("mutation" to null, GraphQLOperationEvent.describe("fragment F on A { b } mutation { c }"))
     }
 }
 

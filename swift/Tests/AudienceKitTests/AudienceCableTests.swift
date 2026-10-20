@@ -347,3 +347,55 @@ private func credential(_ token: String, staff: Bool = false) -> Credential {
         #expect(ping.result == nil)
     }
 }
+
+// MARK: - Monitoring
+
+private final class Recorder: GraphQLMonitor, @unchecked Sendable {
+    private let lock = NSLock()
+    private var recordedOperations: [GraphQLOperationEvent] = []
+    private var recordedSockets: [CableSocketEvent] = []
+    var operations: [GraphQLOperationEvent] { lock.withLock { recordedOperations } }
+    var sockets: [CableSocketEvent] { lock.withLock { recordedSockets } }
+    func record(_ event: GraphQLOperationEvent) { lock.withLock { recordedOperations.append(event) } }
+    func record(_ event: CableSocketEvent) { lock.withLock { recordedSockets.append(event) } }
+}
+
+@Suite struct GraphQLMonitoring {
+    @Test func describesAnOperationFromItsDocument() {
+        #expect(GraphQLOperationEvent.describe(query: "subscription Room($v: ID!) { venueChat(venueId: $v) { __typename } }")
+            == ("subscription", "Room"))
+        #expect(GraphQLOperationEvent.describe(query: "# endpoint: staff\nmutation { a }") == ("mutation", nil))
+        #expect(GraphQLOperationEvent.describe(query: "{ me { id } }") == ("query", nil))
+        #expect(GraphQLOperationEvent.describe(query: "query Me { me { id } }", operationName: "Other") == ("query", "Other"))
+        #expect(GraphQLOperationEvent.describe(query: "fragment F on User { id } query Me { me { ...F } }")
+            == ("query", "Me"))
+    }
+
+    @Test func tellsTheMonitorAboutEachCableOperationAndTheSocket() async throws {
+        let sockets = Sockets()
+        let recorder = Recorder()
+        let cable = AudienceCable(configuration: configuration, monitor: recorder,
+                                  credential: { credential("session-jwt") }, openSocket: { sockets.open($0) })
+        var events = await cable.subscribe(query: "subscription Room { venueChat(venueId: \"v\") { __typename } }",
+                                           audienceID: "aud").makeAsyncIterator()
+        let socket = try #require(sockets.all.first)
+        socket.push(#"{"type":"welcome"}"#)
+        try await eventually { socket.sent.count == 1 }
+        let identifier = try #require(socket.sent[0]["identifier"] as? String)
+        socket.push(json(["type": "confirm_subscription", "identifier": identifier]))
+        guard case .subscribed? = await events.next() else { Issue.record("not subscribed"); return }
+        socket.push(json(["identifier": identifier, "message": ["result": ["data": ["venueChat": NSNull()]], "more": true]]))
+        guard case .result? = await events.next() else { Issue.record("no result"); return }
+        socket.push(json(["identifier": identifier,
+                          "message": ["result": ["errors": [["message": "Gone"]]], "more": false]]))
+        guard case .result? = await events.next() else { Issue.record("no last result"); return }
+        #expect(await events.next() == nil)
+
+        try await eventually { recorder.operations.count == 4 }
+        #expect(recorder.operations.map(\.kind) == [.subscribed, .result, .result, .ended])
+        #expect(recorder.operations.allSatisfy { $0.name == "Room" && $0.type == "subscription" && $0.transport == .cable })
+        #expect(recorder.operations[1].duration != nil && recorder.operations[2].duration == nil)
+        #expect(recorder.operations[2].error == "Gone")
+        #expect(recorder.sockets.first?.kind == .connected)
+    }
+}

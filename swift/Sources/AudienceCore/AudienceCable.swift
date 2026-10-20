@@ -51,6 +51,11 @@ public actor AudienceCable {
         let continuation: AsyncStream<Event>.Continuation
         /// The `execute` command's `data`, sent after every confirmation.
         let execute: String
+        /// Its type and name, for the monitor.
+        let type: String
+        let name: String?
+        /// When it last went out, until its first result after that.
+        var sentAt: ContinuousClock.Instant?
     }
 
     private let configuration: AudienceKitConfiguration
@@ -60,6 +65,8 @@ public actor AudienceCable {
     private let openSocket: @Sendable (URLRequest) -> any CableSocket
     private let credential: @Sendable () -> Credential?
     private let unauthorized: @Sendable (String?) -> Void
+    /// The app's monitoring, told about each operation and the socket (``GraphQLMonitor``).
+    private let monitor: (any GraphQLMonitor)?
     /// How long without a frame before the socket counts as gone.
     public nonisolated let silenceLimit: Duration
     /// The token the open socket was signed with, handed to `unauthorized` when the server refuses it.
@@ -83,20 +90,23 @@ public actor AudienceCable {
     /// connection as `unauthorized` (an ended session), so the owner can sign out.
     public init(configuration: AudienceKitConfiguration, endpoint: GraphQLEndpoint = .consumer, url: URL? = nil,
                 session: URLSession = .shared, silenceLimit: Duration = .seconds(12),
+                monitor: (any GraphQLMonitor)? = nil,
                 credential: @escaping @Sendable () -> Credential?,
                 unauthorized: @escaping @Sendable (String?) -> Void = { _ in }) {
         self.init(configuration: configuration, endpoint: endpoint, url: url, silenceLimit: silenceLimit,
-                  credential: credential, unauthorized: unauthorized) {
+                  monitor: monitor, credential: credential, unauthorized: unauthorized) {
             WebSocketTaskSocket(session.webSocketTask(with: $0))
         }
     }
 
     /// A cable over another socket (tests drive the protocol with one).
     public init(configuration: AudienceKitConfiguration, endpoint: GraphQLEndpoint = .consumer, url: URL? = nil,
-                silenceLimit: Duration = .seconds(12), credential: @escaping @Sendable () -> Credential?,
+                silenceLimit: Duration = .seconds(12), monitor: (any GraphQLMonitor)? = nil,
+                credential: @escaping @Sendable () -> Credential?,
                 unauthorized: @escaping @Sendable (String?) -> Void = { _ in },
                 openSocket: @escaping @Sendable (URLRequest) -> any CableSocket) {
         self.configuration = configuration
+        self.monitor = monitor
         self.address = url
         self.endpoint = endpoint
         self.silenceLimit = silenceLimit
@@ -155,9 +165,11 @@ public actor AudienceCable {
         let identifier = Self.graphQLIdentifier(audienceID: audienceID, channelID: UUID().uuidString.lowercased(),
                                                 endpoint: endpoint)
         let (stream, continuation) = AsyncStream<Event>.makeStream(bufferingPolicy: .unbounded)
+        let described = GraphQLOperationEvent.describe(query: query, operationName: operationName)
         operations[identifier] = Operation(continuation: continuation,
                                            execute: Self.executeData(query: query, variables: variables,
-                                                                     operationName: operationName))
+                                                                     operationName: operationName),
+                                           type: described.type, name: described.name)
         continuation.onTermination = { [weak self] _ in
             Task { await self?.remove(identifier) }
         }
@@ -186,7 +198,8 @@ public actor AudienceCable {
     // MARK: - Private
 
     private func remove(_ identifier: String) {
-        guard operations.removeValue(forKey: identifier) != nil else { return }
+        guard let operation = operations.removeValue(forKey: identifier) else { return }
+        record(.ended, operation)
         if welcomed { send(command: "unsubscribe", identifier: identifier) }
         if operations.isEmpty {
             reconnectTask?.cancel()
@@ -259,6 +272,7 @@ public actor AudienceCable {
     private func socketFailed(_ reason: String?, generation: Int) {
         guard generation == self.generation, socket != nil else { return }
         closeSocket()
+        record(socket: .disconnected, reason: reason, reconnects: true)
         broadcast(.disconnected(reason: reason, reconnects: true))
         scheduleReconnect()
     }
@@ -301,13 +315,17 @@ public actor AudienceCable {
         case "welcome":
             welcomed = true
             attempts = 0
+            record(socket: .connected)
             for identifier in operations.keys.sorted() { send(command: "subscribe", identifier: identifier) }
         case "confirm_subscription":
             guard let identifier = frame.identifier, let operation = operations[identifier] else { return }
             send(command: "message", identifier: identifier, data: operation.execute)
+            operations[identifier]?.sentAt = .now
+            record(.subscribed, operation)
             operation.continuation.yield(.subscribed)
         case "reject_subscription":
             guard let identifier = frame.identifier, let operation = operations.removeValue(forKey: identifier) else { return }
+            record(.rejected, operation)
             operation.continuation.yield(.rejected)
             operation.continuation.finish()
             if operations.isEmpty { closeSocket() }
@@ -318,6 +336,7 @@ public actor AudienceCable {
             } else {
                 let refused = socketToken
                 closeSocket()
+                record(socket: .disconnected, reason: frame.reason, reconnects: false)
                 broadcast(.disconnected(reason: frame.reason, reconnects: false))
                 disconnect()
                 // Action Cable's reject_unauthorized_connection: the session is gone, not just this channel.
@@ -327,9 +346,37 @@ public actor AudienceCable {
             break
         default:
             guard let identifier = frame.identifier, let operation = operations[identifier] else { return }
-            if let result = frame.result { operation.continuation.yield(.result(result)) }
+            if let result = frame.result {
+                operations[identifier]?.sentAt = nil
+                record(.result, operation, error: Self.errorMessage(in: result))
+                operation.continuation.yield(.result(result))
+            }
             if frame.more == false { finish(identifier) }
         }
+    }
+
+    // MARK: - Monitoring
+
+    /// Tells the monitor about an operation: for its first result since it went out, how long that took.
+    private func record(_ kind: GraphQLOperationEvent.Kind, _ operation: Operation, error: String? = nil) {
+        guard let monitor else { return }
+        let duration = kind == .result ? operation.sentAt.map { ContinuousClock.now - $0 } : nil
+        monitor.record(GraphQLOperationEvent(kind: kind, name: operation.name, type: operation.type,
+                                             transport: .cable, endpoint: endpoint, duration: duration,
+                                             error: error))
+    }
+
+    private func record(socket kind: CableSocketEvent.Kind, reason: String? = nil, reconnects: Bool? = nil) {
+        monitor?.record(CableSocketEvent(kind: kind, endpoint: endpoint, operations: operations.count, reason: reason,
+                                         reconnects: reconnects))
+    }
+
+    /// The first GraphQL error's message in a result, if it has any.
+    static func errorMessage(in result: Data) -> String? {
+        guard let object = try? JSONSerialization.jsonObject(with: result) as? [String: Any],
+              let errors = object["errors"] as? [[String: Any]], let first = errors.first
+        else { return nil }
+        return first["message"] as? String ?? "GraphQL error"
     }
 
     private func broadcast(_ event: Event) {

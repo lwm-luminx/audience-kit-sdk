@@ -41,19 +41,23 @@ public struct APIRequest: Sendable, Hashable {
     public var body: Data?
     /// Whether to send the session token. A 401 on an authenticated request ends the session.
     public var authenticated: Bool
+    /// Headers beyond the ones every call carries.
+    public var headers: [String: String]
 
     public init(
         method: String = "GET",
         path: String,
         queryItems: [URLQueryItem] = [],
         body: Data? = nil,
-        authenticated: Bool = true
+        authenticated: Bool = true,
+        headers: [String: String] = [:]
     ) {
         self.method = method
         self.path = path
         self.queryItems = queryItems
         self.body = body
         self.authenticated = authenticated
+        self.headers = headers
     }
 }
 
@@ -71,15 +75,19 @@ public actor AudienceSession {
     private nonisolated let credentialStore: any CredentialStore
     private let session: URLSession
     private var resolvedAudienceID: String?
+    /// The app's monitoring, told about every GraphQL operation (``GraphQLMonitor``).
+    public nonisolated let monitor: (any GraphQLMonitor)?
 
     public init(
         configuration: AudienceKitConfiguration,
         credentialStore: any CredentialStore = InMemoryCredentialStore(),
-        session: URLSession = .shared
+        session: URLSession = .shared,
+        monitor: (any GraphQLMonitor)? = nil
     ) {
         self.configuration = configuration
         self.credentialStore = credentialStore
         self.session = session
+        self.monitor = monitor
     }
 
     deinit {
@@ -295,12 +303,34 @@ public actor AudienceSession {
         as type: Response.Type = Response.self,
         decoder: JSONDecoder = .audienceKit
     ) async throws -> Response {
+        let operation = GraphQLOperationEvent.describe(query: query, operationName: operationName)
+        let started = ContinuousClock.now
+        do {
+            let result: Response = try await performGraphQL(query, variables: variables, operationName: operationName,
+                                                            operation: operation, endpoint: endpoint,
+                                                            decoder: decoder)
+            record(operation, endpoint: endpoint, since: started)
+            return result
+        } catch {
+            record(operation, endpoint: endpoint, since: started, error: error)
+            throw error
+        }
+    }
+
+    private func performGraphQL<Response: Decodable & Sendable>(
+        _ query: String, variables: [String: GraphQLValue]?, operationName: String?,
+        operation: (type: String, name: String?), endpoint: GraphQLEndpoint, decoder: JSONDecoder
+    ) async throws -> Response {
         let credential = try? credentialStore.load()
         let audienceID = try await audienceID()
         let body = try JSONEncoder().encode(
             GraphQLRequest(query: query, variables: variables, operationName: operationName)
         )
-        let request = APIRequest(method: "POST", path: endpoint.path(audienceID: audienceID), body: body)
+        // Apollo's operation headers, which New Relic's mobile agents record with each network request.
+        var headers = ["X-APOLLO-OPERATION-TYPE": operation.type]
+        if let name = operation.name { headers["X-APOLLO-OPERATION-NAME"] = name }
+        let request = APIRequest(method: "POST", path: endpoint.path(audienceID: audienceID), body: body,
+                                 headers: headers)
 
         let data = try await data(for: request, baseURL: credential?.origin ?? configuration.baseURL)
         let envelope = try Self.decode(GraphQLResponse<Response>.self, from: data, decoder: decoder)
@@ -308,6 +338,14 @@ public actor AudienceSession {
         if let errors = envelope.errors, !errors.isEmpty { throw AudienceKitError.graphQL(errors) }
         guard let result = envelope.data else { throw AudienceKitError.decoding("The response had no data.") }
         return result
+    }
+
+    private func record(_ operation: (type: String, name: String?), endpoint: GraphQLEndpoint,
+                        since started: ContinuousClock.Instant, error: (any Error)? = nil) {
+        monitor?.record(GraphQLOperationEvent(kind: .completed, name: operation.name, type: operation.type,
+                                              transport: .http, endpoint: endpoint,
+                                              duration: ContinuousClock.now - started,
+                                              error: error.map { String(describing: $0) }))
     }
 
     // MARK: - Realtime
@@ -323,7 +361,7 @@ public actor AudienceSession {
     {
         let store = credentialStore
         return AudienceCable(configuration: configuration, endpoint: endpoint, url: url, session: session,
-                             silenceLimit: silenceLimit, credential: { try? store.load() },
+                             silenceLimit: silenceLimit, monitor: monitor, credential: { try? store.load() },
                              unauthorized: { [weak self] token in
                                  Task { await self?.sessionRejected(token: token) }
                              })
@@ -418,6 +456,7 @@ public actor AudienceSession {
         urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
         let bearer = request.authenticated ? token ?? (try? credentialStore.load())?.token : nil
         urlRequest.setAudienceKitHeaders(environment: configuration.environment, token: bearer)
+        for (name, value) in request.headers { urlRequest.setValue(value, forHTTPHeaderField: name) }
 
         if let body = request.body {
             urlRequest.httpBody = body

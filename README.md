@@ -21,11 +21,11 @@ Gradle reads it; the Swift and Kotlin clients also carry it as a constant, becau
 call and the API refuses versions older than its minimum. So every change to either SDK takes a new version:
 
 ```sh
-scripts/set-version.sh 0.23.0   # writes VERSION and both constants
+scripts/set-version.sh 0.25.0   # writes VERSION and both constants
 scripts/check-version.sh        # CI runs this on every pull request
 ```
 
-Add the version's entry to [`CHANGELOG.md`](CHANGELOG.md), and tag the release (`0.23.0`, no `v`) so Swift Package
+Add the version's entry to [`CHANGELOG.md`](CHANGELOG.md), and tag the release (`0.25.0`, no `v`) so Swift Package
 Manager can resolve it.
 
 ## License

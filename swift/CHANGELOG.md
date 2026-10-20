@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.23.0 (2026-10-20)
+
+Update prompts for TestFlight and App Store installs (#386). Additive; needs the API's `GET /v1/app_release` and
+`app_release` on `GET /v1/branding` (audience-kit next).
+
+- AudienceCore: `InstallSource` (`testFlight`, `appStore`, `development`, `unknown`) from StoreKit 2's
+  `AppTransaction.shared` only (`sandbox`, `production`, `xcode`); a transaction that throws or doesn't verify is
+  `unknown`, and gets no prompts. `AppRelease` is the release config (links, and per channel the latest and oldest
+  working build, latest version and notes), `AudienceSession.appRelease(app:)` fetches it (`nil` for an unknown app),
+  and `branding(host:app:)` asks for it as `Branding.appRelease`. `AppReleaseState` and `AppReleaseStore`
+  (`UserDefaultsAppReleaseStore`, `InMemoryAppReleaseStore`) keep it between runs.
+- AudienceKit: `AudienceUpdates` (also `configureBetaUpdates(session:…)`) checks when the app comes to the foreground,
+  at most once a day (`checkNow()` skips the wait), compares `CFBundleVersion` with the install's channel and
+  publishes the `prompt`: `blocking` below the oldest working build (from the stored config, offline too), `soft`
+  below the latest unless "Not now" (`dismiss()`) skipped that build, `noTestFlight` when a TestFlight install can't
+  open `itms-beta://`. Development and unknown installs, and installs with no stored config, see nothing.
+  `openUpdate()` and `openAppStore()` try `itms-beta://`/`itms-apps://`, then the web links. The custom-UI hook is
+  `prompts` (an `AsyncStream`) or `onPrompt`. The decisions are `UpdateRules`, with no I/O.
+- AudienceKitUI: `.audienceUpdatePrompts()` presents them (sheet, full-screen blocking screen with no way out but
+  updating, a centred form sheet on iPad); `AudienceUpdatePromptPresenter` does the same for UIKit. `UpdateSheet`,
+  `UpdateScreen`, `UpdateBanner` and `AudienceUpdateBanner` draw them with the audience's tokens.
+- Apps list `itms-beta` and `itms-apps` in `LSApplicationQueriesSchemes`.
+
 ## 0.21.0 (2026-10-19)
 
 Song requests, next to karaoke signups. Additive; needs the API's `SongRequestWindow.queue` and `SongRequest`'s

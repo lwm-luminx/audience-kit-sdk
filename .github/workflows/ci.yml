@@ -45,6 +45,14 @@ jobs:
           npm install --silent --no-save --no-package-lock graphql@16
           node check.mjs --schema ../graphql/schema.graphql --endpoint consumer ../swift/Sources ../android/audiencekit/src/main
 
+  apple:
+    # The update prompts' StoreKit, SwiftUI and UIKit code only builds on Apple platforms, which Linux skips.
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift build
+      - run: xcodebuild build -scheme AudienceKit-Package -destination 'generic/platform=iOS Simulator' -quiet
+
   version:
     # Swift and Kotlin share one version (VERSION), and each change to the SDK needs a new one: apps send it, and the
     # API refuses ones below its minimum.

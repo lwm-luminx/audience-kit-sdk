@@ -1,14 +1,14 @@
 # Changelog
 
-One changelog for the whole SDK from 0.22.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
-(through 0.21.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
+One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
+(through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
-## 0.22.0 (2026-10-20)
+## 0.24.0 (2026-10-20)
 
 The Swift and Kotlin SDKs now live in one repository, lwm-luminx/audience-kit-sdk (formerly audience-kit-sdk-swift;
 audience-kit-sdk-android is merged in with its history), laid out as `swift/`, `core/` (Kotlin Multiplatform) and
-`android/`, and share one version. Kotlin jumps from 0.19.0 to 0.22.0 to
-meet Swift; there are no API changes on either side beyond the fix below.
+`android/`, and share one version. Kotlin jumps from 0.19.0 to 0.24.0 to
+meet Swift (0.23.0); there are no API changes on either side beyond the fix below.
 
 ### Breaking (for builds, not code)
 

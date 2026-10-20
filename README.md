@@ -331,6 +331,35 @@ try await client.requestSong(venueID: venueID, title: "Dancing Queen", artist: "
 the venue's reason while closed) and the user's requests with Withdraw. The
 user is pushed when their song plays (`kind: song_request_playing`).
 
+## Update prompts
+
+TestFlight testers and App Store users on an old build hear about the new one, and builds the API no longer
+supports are stopped with a way forward. Where the app came from is StoreKit 2's `AppTransaction` environment only:
+`sandbox` installs update in TestFlight, `production` ones on the App Store, and Xcode builds (or anything StoreKit
+can't verify) never see a prompt. The builds come from the API's release config, `GET /v1/app_release?app=<bundle id>`.
+
+```swift
+import AudienceKit
+import AudienceKitUI
+
+// At launch:
+AudienceUpdates.configure(session: client, appName: "Hot Mess")   // or configureBetaUpdates(session:)
+
+// At the root of the app:
+RootView()
+    .audiencePreset(theme.preset)
+    .audienceUpdatePrompts()
+```
+
+It checks when the app comes to the foreground, at most once a day (`checkNow()` for "Check for updates"), and keeps
+the config so it works offline. Below the channel's oldest working build is a full-screen blocking prompt; below its
+latest, a sheet that "Not now" skips until the next build; a TestFlight install without the TestFlight app is told to
+get the app from the App Store. List `itms-beta` and `itms-apps` in the app's `LSApplicationQueriesSchemes`.
+
+To draw your own, read `AudienceUpdates.prompt` (or `prompts`, `onPrompt`) and use `UpdateSheet`, `UpdateScreen` or
+`UpdateBanner`; for UIKit keep an `AudienceUpdatePromptPresenter`. `installSource`, `status`, `lastChecked` and
+`UpdateText` fill an About screen.
+
 ## REST endpoints
 
 For anything GraphQL doesn't cover, send the request through the client so it

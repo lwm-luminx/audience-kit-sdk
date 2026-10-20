@@ -7,6 +7,12 @@ public struct Branding: Codable, Sendable, Hashable {
         public var id: String
         public var name: String
         public var subdomain: String
+
+        public init(id: String, name: String, subdomain: String) {
+            self.id = id
+            self.name = name
+            self.subdomain = subdomain
+        }
     }
 
     /// An audience's theme as branding sends it: token overrides keyed by token name.
@@ -47,12 +53,36 @@ public struct Branding: Codable, Sendable, Hashable {
     /// Business-type Facebook app refuses a login that asks for permissions without one.
     public var facebookLoginConfigID: String?
     public var theme: Theme
+    /// The calling app's release config (`app_release`), when branding was asked for with `app=<bundle id>` and the
+    /// API knows the app: the same as ``AudienceSession/appRelease(app:)``.
+    public var appRelease: AppRelease?
 
     enum CodingKeys: String, CodingKey {
         case audience
         case facebookAppID = "facebook_app_id"
         case facebookLoginConfigID = "facebook_login_config_id"
         case theme
+        case appRelease = "app_release"
+    }
+
+    public init(audience: AudienceSummary, facebookAppID: String? = nil, facebookLoginConfigID: String? = nil,
+                theme: Theme, appRelease: AppRelease? = nil)
+    {
+        self.audience = audience
+        self.facebookAppID = facebookAppID
+        self.facebookLoginConfigID = facebookLoginConfigID
+        self.theme = theme
+        self.appRelease = appRelease
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        audience = try container.decode(AudienceSummary.self, forKey: .audience)
+        facebookAppID = try container.decodeIfPresent(String.self, forKey: .facebookAppID)
+        facebookLoginConfigID = try container.decodeIfPresent(String.self, forKey: .facebookLoginConfigID)
+        theme = try container.decode(Theme.self, forKey: .theme)
+        // A release config the SDK can't read never costs the app its branding.
+        appRelease = (try? container.decodeIfPresent(AppRelease.self, forKey: .appRelease)) ?? nil
     }
 }
 

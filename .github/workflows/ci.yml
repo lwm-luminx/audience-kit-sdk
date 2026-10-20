@@ -23,3 +23,11 @@ jobs:
         with:
           fetch-depth: 0
       - run: scripts/check-version.sh origin/${{ github.base_ref }}
+
+  apple:
+    # The update prompts' StoreKit, SwiftUI and UIKit code only builds on Apple platforms, which Linux skips.
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift build
+      - run: xcodebuild build -scheme AudienceKit-Package -destination 'generic/platform=iOS Simulator' -quiet

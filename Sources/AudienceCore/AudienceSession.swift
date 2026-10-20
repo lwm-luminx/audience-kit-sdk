@@ -243,13 +243,16 @@ public actor AudienceSession {
     // MARK: - Branding
 
     /// The audience's public branding for ``AudienceKitConfiguration/host`` (or `host`). No sign-in needed.
-    public func branding(host: String? = nil) async throws -> Branding {
+    ///
+    /// Pass `app` (a bundle ID) to have it carry that app's release config too, as ``Branding/appRelease``.
+    public func branding(host: String? = nil, app: String? = nil) async throws -> Branding {
         guard let host = host ?? configuration.host else {
             throw AudienceKitError.missingConfiguration("branding needs a host")
         }
 
-        let request = APIRequest(path: "/v1/branding", queryItems: [URLQueryItem(name: "host", value: host)],
-                                 authenticated: false)
+        var queryItems = [URLQueryItem(name: "host", value: host)]
+        if let app, !app.isEmpty { queryItems.append(URLQueryItem(name: "app", value: app)) }
+        let request = APIRequest(path: "/v1/branding", queryItems: queryItems, authenticated: false)
         let (data, response) = try await perform(request)
         guard (200 ..< 300).contains(response.statusCode) else {
             throw Self.error(forStatus: response.statusCode, data: data)

@@ -122,8 +122,8 @@ public class AppleWebSignIn(
         internal fun sha256Hex(value: String): String =
             MessageDigest.getInstance("SHA-256").digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
 
-        private fun encode(value: String) = URLEncoder.encode(value, Charsets.UTF_8).replace("+", "%20")
+        private fun encode(value: String) = URLEncoder.encode(value, Charsets.UTF_8.name()).replace("+", "%20")
 
-        private fun decode(value: String) = URLDecoder.decode(value, Charsets.UTF_8)
+        private fun decode(value: String) = URLDecoder.decode(value, Charsets.UTF_8.name())
     }
 }

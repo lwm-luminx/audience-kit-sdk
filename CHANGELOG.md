@@ -3,6 +3,11 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.25.1 (2026-10-21)
+
+- Kotlin: Sign in with Apple's URL encoding uses the `String` charset overloads of `URLEncoder`/`URLDecoder`. The
+  `Charset` ones are Android 13+ only, so older devices crashed with `NoSuchMethodError`.
+
 ## 0.25.0 (2026-10-20)
 
 GraphQL operations can be followed in an app's monitoring (New Relic, say), by name, over HTTP and over the cable.

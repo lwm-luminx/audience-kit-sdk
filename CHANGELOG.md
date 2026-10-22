@@ -3,6 +3,15 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.26.0 (2026-10-22)
+
+- Kotlin: the Action Cable client moves into the SDK from the Hot Mess app, so the consumer and staff apps share it.
+  `CableConnection` is the one socket every GraphQL subscription rides on, with reconnects and the silence watchdog;
+  `GraphQLCable` builds and reads the frames. `subscribe(endpoint = GraphQLEndpoint.STAFF)` runs an operation in the
+  staff view (`"endpoint": "staffql"` in its identifier, as on iOS). The handshake carries the token, the contract
+  version, the client and, for staging builds, the environment header (`CableConnection(configuration, token, factory)`).
+  The SDK has no websocket of its own: the app passes a `CableSocketFactory` on its HTTP stack (OkHttp's `newWebSocket`).
+
 ## 0.25.1 (2026-10-21)
 
 - Kotlin: Sign in with Apple's URL encoding uses the `String` charset overloads of `URLEncoder`/`URLDecoder`. The

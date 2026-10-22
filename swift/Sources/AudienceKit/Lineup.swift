@@ -302,17 +302,24 @@ public struct VenueKaraoke: Codable, Sendable, Hashable {
     public let joinUrl: String?
     /// The partner session's code, to type in or show under the QR code.
     public let sessionCode: String?
+    /// Whether tonight is one of the venue's karaoke nights; nil from an API that doesn't say. Its karaoke shows
+    /// only then, not on its other nights.
+    public let tonight: Bool?
 
     public init(provider: String? = nil, providerName: String? = nil, joinUrl: String? = nil,
-                sessionCode: String? = nil) {
+                sessionCode: String? = nil, tonight: Bool? = nil) {
         self.provider = provider
         self.providerName = providerName
         self.joinUrl = joinUrl
         self.sessionCode = sessionCode
+        self.tonight = tonight
     }
 
     /// Whether it's AudienceKit's own karaoke: signups in chat, singers on the lineup.
     public var isAudienceKit: Bool { provider == "audiencekit" }
+
+    /// A partner's session (KaraFun and the like) to show tonight: the venue has one and tonight is a karaoke night.
+    public var isPartnerSessionTonight: Bool { provider != nil && !isAudienceKit && tonight != false }
 
     /// The join link, when the partner session has one.
     public var joinURL: URL? { joinUrl.flatMap(URL.init(string:)) }
@@ -448,7 +455,7 @@ extension Queries {
             onStage { id }
             upNext { id }
           }
-          karaoke { provider providerName joinUrl sessionCode }
+          karaoke { provider providerName joinUrl sessionCode tonight }
           requests {
             karaoke {
               permitted open paused closedReason

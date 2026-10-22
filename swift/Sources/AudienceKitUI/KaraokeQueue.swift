@@ -51,7 +51,7 @@ public struct KaraokeQueue: View {
     private var singers: [LineupEntry] { lineup.singers }
 
     public var body: some View {
-        if let session = lineup.karaokeSession, session.provider != nil, !session.isAudienceKit {
+        if let session = lineup.karaokeSession, session.isPartnerSessionTonight {
             KaraokeJoinSection(session: session, title: title)
         } else if let window, window.permitted || !singers.isEmpty {
             VStack(alignment: .leading, spacing: DesignTokens.Spacing.s3) {

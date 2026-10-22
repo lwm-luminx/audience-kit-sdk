@@ -3,6 +3,26 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.27.0 (2026-10-22)
+
+Show control, for the API's 2026-10-22 release (segments, scenes, curtain calls and group trivia). It's a separate
+call from the lineup, so an older API only fails that call.
+
+- `AudienceSession.show(venueID:)` returns a `VenueShow`. It has one `ShowEntry` per lineup entry, with:
+  - its kind (`ACT`, `INTERMISSION` or `SEGMENT`) and activity (`TRIVIA`, `PROMPTS`)
+  - curtain call minutes
+  - scenes (each number of a set, with its performer and length)
+  - estimated length, projected start and end, and minutes late
+
+  `VenueShow` also has the next curtain call's readiness counts (`CurtainReadiness`, counts only) and tonight's
+  latest trivia round.
+- `TriviaRound` is a collaborative "Myth or Legend" round posted in the venue's chat. It carries the counts, the
+  user's vote, and, once revealed, the answer and the room's call. `voteTrivia(roundID:choice:)` votes or changes a
+  vote.
+- AudienceKitUI adds `TriviaRoundCard`, the round as a chat card. Each choice shows how the room is split, and the
+  card shows the answer once it's revealed.
+- `graphql/schema.graphql` is the API's consumer schema with show control.
+
 ## 0.26.0 (2026-10-22)
 
 - Kotlin: the Action Cable client moves into the SDK from the Hot Mess app, so the consumer and staff apps share it.

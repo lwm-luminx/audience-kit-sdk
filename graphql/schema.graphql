@@ -340,6 +340,48 @@ enum AdmissionStatus {
 }
 
 """
+What an iOS app's update prompts tell installs from one StoreKit 2 environment
+(TestFlight or the App Store): the build to offer and the oldest one that still
+works. Null fields mean no opinion.
+"""
+type AppReleaseChannel {
+  """
+  When latestBuild starts being offered (CI waits for TestFlight to process it).
+  """
+  availableAt: ISO8601DateTime
+
+  """
+  The newest build (CFBundleVersion).
+  """
+  latestBuild: Int
+
+  """
+  Its version, e.g. 2.1.
+  """
+  latestVersion: String
+
+  """
+  Builds below this must update before they can be used.
+  """
+  minimumBuild: Int
+
+  """
+  What's new, one line each.
+  """
+  notes: [String!]!
+
+  """
+  When it last changed.
+  """
+  updatedAt: ISO8601DateTime
+
+  """
+  Who changed it last: the CI token, or "admin".
+  """
+  updatedBy: String
+}
+
+"""
 A code App Review signs in with and the test account it signs in as: the demo
 venue's code (the main reviewer, in Hot Mess and the staff apps) or an
 AppReviewCode linked to its own account.
@@ -366,8 +408,8 @@ type AppReviewCode {
   label: String!
 
   """
-  Whether removeAppReviewCode can remove it: not the demo venue's code, which
-  createAppReviewCode or resetAppReview replaces.
+  Whether removeAppReviewCode can remove it: not the demo venue's main code,
+  which createAppReviewCode or resetAppReview replaces.
   """
   removable: Boolean!
 
@@ -390,9 +432,25 @@ ahead. Each runs in `position` order and can be advanced like a slide deck
 """
 type Appearance implements Node {
   """
+  A segment or intermission: what runs in the venue's chat while it's on; null for nothing.
+  """
+  activity: AppearanceActivity
+
+  """
   When advancing (or finishing it) took it off.
   """
   cameOffAt: ISO8601DateTime
+
+  """
+  An act the curtain rises on: places is called this many minutes before it (or
+  once it is up next), and it goes on only on a go (goNoGo). Null: no curtain call.
+  """
+  curtainCallMinutes: Int
+
+  """
+  endTiming DURATION: how long it runs once on.
+  """
+  durationMinutes: Int
 
   """
   How it ends.
@@ -405,9 +463,34 @@ type Appearance implements Node {
   endsAt: ISO8601DateTime
 
   """
+  What it is: an act, an intermission or a segment.
+  """
+  entryKind: AppearanceKind!
+
+  """
+  How long it is expected to run: its set length, else an act's scenes or tracks plus other time; null when nothing says.
+  """
+  estimatedMinutes: Int
+
+  """
   The event whose lineup it's on, built ahead; null for one on the venue night's own lineup.
   """
   event: Event
+
+  """
+  An act: time beyond its scenes or tracks, as set; null for the default (10 minutes).
+  """
+  extraMinutes: Int
+
+  """
+  Whether it stretches or shrinks to bring the show back on time.
+  """
+  flexible: Boolean!
+
+  """
+  An act's curtain call go/no-go: who is ready. Null without a curtain call, and for anyone not working the show.
+  """
+  goNoGo: GoNoGo
 
   """
   Its UUID.
@@ -415,9 +498,25 @@ type Appearance implements Node {
   id: ID!
 
   """
-  An act or an intermission.
+  An act or an intermission. Segments read as INTERMISSION here, for apps built
+  before them (they fail on values they do not know); entryKind has the full kind.
   """
   kind: AppearanceKind!
+
+  """
+  How many minutes after its set time it starts, as projected (negative: early); null without a set time.
+  """
+  lateMinutes: Int
+
+  """
+  The shortest it runs when it flexes, as set.
+  """
+  minMinutes: Int
+
+  """
+  How many of an act's scenes have no length or track (each counted as 4 minutes in the estimate).
+  """
+  missingTracks: Int!
 
   """
   The venue night it is on.
@@ -460,9 +559,24 @@ type Appearance implements Node {
   position: Int!
 
   """
+  When it is expected off: when it came off, its hard end, else its projected start plus its estimate.
+  """
+  projectedEndsAt: ISO8601DateTime
+
+  """
+  When it is expected on: when it went on, its hard time, else moved out behind what runs late.
+  """
+  projectedStartsAt: ISO8601DateTime
+
+  """
   What they are doing; null for an intermission.
   """
   role: AppearanceRole
+
+  """
+  An act's numbers, in order.
+  """
+  scenes: [Scene!]!
 
   """
   A singer's karaoke signup: the song, artist and who is singing it; null for everything else.
@@ -490,6 +604,21 @@ type Appearance implements Node {
   title: String
 
   """
+  Who moves its trivia along; null unless it runs trivia.
+  """
+  triviaDriver: TriviaDriver
+
+  """
+  When its trivia answers show; null unless it runs trivia.
+  """
+  triviaReveal: TriviaReveal
+
+  """
+  The trivia set it runs: its own, else the best match for its event or venue tags. Null unless it runs trivia.
+  """
+  triviaSet: TriviaSet
+
+  """
   Where.
   """
   venue: Venue!
@@ -498,6 +627,21 @@ type Appearance implements Node {
   When advancing put it on.
   """
   wentOnAt: ISO8601DateTime
+}
+
+"""
+What runs by itself in the venue's chat while a segment or intermission is on.
+"""
+enum AppearanceActivity {
+  """
+  The event's chat prompts carry on.
+  """
+  PROMPTS
+
+  """
+  Group trivia: the room talks each round over in the chat and votes together (Venue.trivia). No scores.
+  """
+  TRIVIA
 }
 
 """
@@ -550,6 +694,11 @@ enum AppearanceEndTiming {
   CLOSE
 
   """
+  durationMinutes after it goes on, or when the venue advances, whichever is first.
+  """
+  DURATION
+
+  """
   At its end time.
   """
   TIME
@@ -568,6 +717,12 @@ enum AppearanceKind {
   A break in the show.
   """
   INTERMISSION
+
+  """
+  A generic time block with a title, e.g. "Photos with cast" for 10 minutes
+  after an act (endTiming DURATION). It and an intermission can run an activity.
+  """
+  SEGMENT
 }
 
 """
@@ -665,6 +820,12 @@ type Audience implements IAudienceWithChat & IAudienceWithEvents & IAudienceWith
   appReview: AudienceAppReview!
 
   """
+  The published categories of promoted card, for "Cards you see". What a viewer
+  turns off stays on their device and is never sent here.
+  """
+  cardCategories: [CardCategory!]! @endpoint(in: [AUDIENCE, STAFF])
+
+  """
   The instance's IAudienceChat mixin. Left out of the schema where its module isn't installed.
   """
   chat: IAudienceChat! @endpoint(in: [AUDIENCE, STAFF])
@@ -752,6 +913,33 @@ type Audience implements IAudienceWithChat & IAudienceWithEvents & IAudienceWith
   karaoke: IAudienceKaraoke! @endpoint(in: [AUDIENCE, STAFF])
 
   """
+  A screen's cards, ranked by the server for this moment: what is on, where the
+  viewer is, their check-in. Ranking never uses tribes or anything else about
+  who they are. Not cached; ask again after refreshAfter.
+  """
+  layout(
+    """
+    What the app can draw.
+    """
+    client: LayoutClientInput!
+
+    """
+    The app's locale, used when there is no position (location off).
+    """
+    localeId: ID
+
+    """
+    The device's position, when it has one. Read, not recorded: reportLocation records it.
+    """
+    position: CoordinatesInput
+
+    """
+    The screen.
+    """
+    screen: LayoutScreen!
+  ): Layout! @endpoint(in: [AUDIENCE, STAFF])
+
+  """
   A locale in the audience by its UUID.
   """
   locale(
@@ -816,6 +1004,11 @@ type Audience implements IAudienceWithChat & IAudienceWithEvents & IAudienceWith
   ): AudienceMemberConnection! @requires(permissions: ["audience:read:*"])
 
   """
+  The apps its share links open, which its verified domains list in /.well-known. They change on /v1/tenants/graphql only.
+  """
+  mobileApps: [AudienceMobileApp!]!
+
+  """
   Display name.
   """
   name: String!
@@ -871,6 +1064,21 @@ type Audience implements IAudienceWithChat & IAudienceWithEvents & IAudienceWith
   push: IAudiencePush @requires(permissions: ["push:read:*"])
 
   """
+  A signed, expiring link to one of its venues, events or people; null when the path names nothing it shares.
+  """
+  shareLink(
+    """
+    How long it opens the page. Defaults to MONTH.
+    """
+    lifetime: ShareLinkLifetime = MONTH
+
+    """
+    The record's path: /venues/<id>, /events/<id> or /people/<id>.
+    """
+    path: String!
+  ): ShareLink
+
+  """
   How people can sign in to its apps and website. Its admin consoles and the staff apps always sign in as before.
   """
   signInMethods: [SignInMethod!]!
@@ -884,6 +1092,17 @@ type Audience implements IAudienceWithChat & IAudienceWithEvents & IAudienceWith
   The unique audience subdomain.
   """
   subdomain: String!
+
+  """
+  "Need support?": the emergency number and crisis and support lines for a region.
+  """
+  supportResources(
+    """
+    Where the guest is: an ISO 3166-2 subdivision (US-UT) or 3166-1 country
+    (US). Left out, or unknown, gives the default (US).
+    """
+    region: String
+  ): SupportResources! @endpoint(in: [AUDIENCE, STAFF])
 
   """
   Its tags for people, events and venues, by name.
@@ -916,6 +1135,11 @@ type Audience implements IAudienceWithChat & IAudienceWithEvents & IAudienceWith
   tipping: IAudienceTipping! @endpoint(in: [AUDIENCE, STAFF])
 
   """
+  The most tribes one person may identify with here: a quarter of its tribes, and at least one.
+  """
+  tribeCap: Int!
+
+  """
   The instance's IAudienceVenues mixin. Left out of the schema where its module isn't installed.
   """
   venues: IAudienceVenues!
@@ -933,12 +1157,12 @@ An audience's App Review period and reusable review code.
 """
 type AudienceAppReview {
   """
-  The demo audience review codes and the test accounts they sign in as, for platform administrators.
+  The App Review codes, shared by every audience, and the test accounts they sign in as, for platform administrators.
   """
   codes: [AppReviewCode!] @requires(permissions: ["platform:admin:*"])
 
   """
-  The demo audience reusable App Review code status.
+  The main App Review code status (the demo venue grant).
   """
   grant: VenueDeviceGrant @requires(permissions: ["audience:admin:*"])
 
@@ -1407,6 +1631,69 @@ type AudienceMemberEdge {
 }
 
 """
+One of the audience's apps that opens its share links
+(https://<domain>/venues/<id> and the like). Each verified domain's
+/.well-known/apple-app-site-association and assetlinks.json list them.
+"""
+type AudienceMobileApp implements Node {
+  """
+  iOS: the app's numeric Apple ID, for App Store links.
+  """
+  appStoreId: String
+
+  """
+  iOS: what App Store installs are told about updates.
+  """
+  appStoreRelease: AppReleaseChannel
+
+  """
+  The builds it is.
+  """
+  environment: ClientEnvironment!
+
+  """
+  Unique identifier.
+  """
+  id: ID!
+
+  """
+  The iOS bundle ID or the Android package name.
+  """
+  identifier: String!
+
+  """
+  The app, or an iOS App Clip.
+  """
+  kind: MobileAppKind!
+
+  """
+  iOS or Android.
+  """
+  platform: MobilePlatform!
+
+  """
+  Android: the SHA-256s of the certificates its builds are signed with (Play app
+  signing, upload, debug), colon hex. Its links verify only with one.
+  """
+  sha256CertFingerprints: [String!]!
+
+  """
+  iOS: the Apple Developer team ID.
+  """
+  teamId: String
+
+  """
+  iOS: what TestFlight installs are told about updates.
+  """
+  testflightRelease: AppReleaseChannel
+
+  """
+  iOS: the public TestFlight invite link.
+  """
+  testflightUrl: String
+}
+
+"""
 The local Payments implementation of an audience's keys.
 """
 type AudiencePayments implements IAudiencePayments {
@@ -1775,6 +2062,41 @@ type BannerPhoto {
 }
 
 """
+A card that needs nothing beyond its kind: the app loads its content as before (pings).
+"""
+type BasicCard implements ICard {
+  """
+  Stable for this card in this place, e.g. now.chat:<venue id>.
+  """
+  id: ID!
+
+  """
+  What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
+  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
+  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
+  pings, web or promo.slot. New kinds are added; a kind the app did not list in
+  cardKinds is never sent.
+  """
+  kind: String!
+
+  """
+  Its place on the screen, from 1 at the top.
+  """
+  rank: Int!
+
+  """
+  A heading the app may use; null to use its own.
+  """
+  title: String
+}
+
+"""
+Represents non-fractional signed whole numeric values. Since the value may
+exceed the size of a 32-bit integer, it's encoded as a string.
+"""
+scalar BigInt
+
+"""
 Binary data represented as an encoded string.
 """
 scalar Binary
@@ -1840,6 +2162,114 @@ type BlockedUserRemovePayload {
 }
 
 """
+A category of promoted card, from the published list (config/promo_cards.yml, in
+the audience's words), for the app's "Cards you see" settings. What the viewer
+turns off stays on their device.
+"""
+type CardCategory {
+  """
+  Examples, e.g. "STI testing, PrEP clinics".
+  """
+  description: String!
+
+  """
+  Whether people can turn it off. Never for announcements; not by default for
+  venues and events (people block the venue instead).
+  """
+  hideable: Boolean!
+
+  """
+  The category cards carry: venue, health, charity, ...
+  """
+  key: String!
+
+  """
+  Its name, e.g. "Health".
+  """
+  label: String!
+}
+
+"""
+Autogenerated input type of CardViewsRecord
+"""
+input CardViewsRecordInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The layout they were in, as Layout.id gave it.
+  """
+  layoutId: ID
+
+  """
+  The PromoCard ids shown, at most 10.
+  """
+  promoIds: [ID!]!
+}
+
+"""
+Autogenerated return type of CardViewsRecord.
+"""
+type CardViewsRecordPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  How many of the cards were counted.
+  """
+  recorded: Int!
+}
+
+"""
+A chat room's latest lines: the venue's (now.chat), branded for its event when
+one is on, or the locale's Small talk (now.smallTalk).
+"""
+type ChatCard implements ICard {
+  """
+  The event on at the venue, for the room's branding.
+  """
+  event: Event
+
+  """
+  Stable for this card in this place, e.g. now.chat:<venue id>.
+  """
+  id: ID!
+
+  """
+  What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
+  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
+  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
+  pings, web or promo.slot. New kinds are added; a kind the app did not list in
+  cardKinds is never sent.
+  """
+  kind: String!
+
+  """
+  The locale, for Small talk.
+  """
+  locale: Locale
+
+  """
+  Its place on the screen, from 1 at the top.
+  """
+  rank: Int!
+
+  """
+  A heading the app may use; null to use its own.
+  """
+  title: String
+
+  """
+  The venue, for its room.
+  """
+  venue: Venue
+}
+
+"""
 One of your friends, as a chat room names them.
 """
 type ChatFriend {
@@ -1852,6 +2282,36 @@ type ChatFriend {
   Their user ID.
   """
   userId: ID!
+}
+
+"""
+Autogenerated input type of ChatInitialsSet
+"""
+input ChatInitialsSetInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  Whether chat shows their initials.
+  """
+  enabled: Boolean!
+}
+
+"""
+Autogenerated return type of ChatInitialsSet.
+"""
+type ChatInitialsSetPayload {
+  """
+  The setting, after the change.
+  """
+  chatInitials: Boolean!
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
 }
 
 """
@@ -1898,6 +2358,11 @@ enum ChatKind {
   A photo, with the message as a caption.
   """
   PHOTO
+
+  """
+  One of the event's chat prompts (`prompt`), posted as the audience. The newest PINNED one shows under the room's title.
+  """
+  PROMPT
 
   """
   A song request or karaoke signup (`request`), with the message as a note to
@@ -2008,6 +2473,11 @@ interface ChatMessage {
   person: Person
 
   """
+  What's in a photo message's picture, for screen readers, when its poster said.
+  """
+  photoAlt: String
+
+  """
   The photo of a photo message or an announcement.
   """
   photoUrl: PhotoURL
@@ -2016,6 +2486,11 @@ interface ChatMessage {
   Whether it's the announcement pinned under the room's title.
   """
   pinned: Boolean!
+
+  """
+  Whether it was posted as the room's audience, like a prompt: shown with its name and mark, not a person.
+  """
+  postedAsAudience: Boolean!
 
   """
   Whether talent posted it as their listing (role HOST): `person` is who.
@@ -2032,6 +2507,16 @@ interface ChatMessage {
   the viewer is them, a friend of theirs, or an admin.
   """
   presence: Presence!
+
+  """
+  The prompt a PROMPT message puts to the room.
+  """
+  prompt: ChatPromptFrame
+
+  """
+  The prompt a TEXT message answers, if it does.
+  """
+  promptId: ID
 
   """
   Who removed it and why, for a removed message in a transcript asked with includeRemoved; null while it shows.
@@ -2221,6 +2706,11 @@ input ChatMessageSendOwnInput {
   message: String!
 
   """
+  The prompt it answers (a PROMPT message's prompt), in a venue's room.
+  """
+  promptId: ID
+
+  """
   A venue's room.
   """
   venueId: ID
@@ -2303,6 +2793,157 @@ type ChatPresenceChanged {
   Their user ID.
   """
   userId: ID!
+}
+
+"""
+A short question an event's chat room puts to the people in it, to get them
+talking to each other in the venue. Each shows once a night, in order (ChatPrompts).
+"""
+type ChatPrompt {
+  """
+  A trivia question's answer.
+  """
+  answer: String
+
+  """
+  How many messages in the room answer it.
+  """
+  answerCount: Int!
+
+  """
+  The ID of the prompt.
+  """
+  id: ID!
+
+  """
+  What it asks.
+  """
+  kind: ChatPromptKind!
+
+  """
+  Its place in the night, from 0.
+  """
+  position: Int!
+
+  """
+  When a trivia question's answer shows for everyone.
+  """
+  revealAt: ISO8601DateTime
+
+  """
+  How it went up, if it has.
+  """
+  shownAs: ChatPromptShownAs
+
+  """
+  When it went up, if it has.
+  """
+  shownAt: ISO8601DateTime
+
+  """
+  The question.
+  """
+  text: String!
+}
+
+"""
+The prompt a PROMPT message puts to the room, with its place in the night's prompts.
+"""
+type ChatPromptFrame {
+  """
+  A trivia question's answer: the apps hide it until tapped or revealAt.
+  """
+  answer: String
+
+  """
+  The ID of the prompt; answers send it as promptId.
+  """
+  id: ID!
+
+  """
+  What it asks.
+  """
+  kind: ChatPromptKind!
+
+  """
+  When the next rotates in, if one will.
+  """
+  nextAt: ISO8601DateTime
+
+  """
+  Which prompt of the night it is, from 1.
+  """
+  number: Int!
+
+  """
+  When the answer shows for everyone.
+  """
+  revealAt: ISO8601DateTime
+
+  """
+  How it went up.
+  """
+  shownAs: ChatPromptShownAs!
+
+  """
+  The question.
+  """
+  text: String!
+
+  """
+  How many the night will show, at most.
+  """
+  total: Int!
+}
+
+"""
+What a chat prompt (ChatPrompt) asks.
+"""
+enum ChatPromptKind {
+  """
+  Something to talk about with the people around you.
+  """
+  CONVERSATION
+
+  """
+  A question with an answer, hidden until tapped or revealAt.
+  """
+  TRIVIA
+}
+
+"""
+How a chat prompt went up in its room.
+"""
+enum ChatPromptShownAs {
+  """
+  Dropped into a quiet room as a card.
+  """
+  CARD
+
+  """
+  Rotated in, pinned under the room's title until the next one.
+  """
+  PINNED
+}
+
+"""
+A hand-written list of chat prompts staff can start an event from (ChatPrompts::STARTER_SETS).
+"""
+type ChatPromptStarterSet {
+  """
+  Its key, for setEventChatPrompts(starterSet:).
+  """
+  key: String!
+
+  """
+  What it is for ("Viewing party").
+  """
+  name: String!
+
+  """
+  Its prompts, unsaved.
+  """
+  prompts: [ChatPrompt!]!
 }
 
 """
@@ -2694,6 +3335,284 @@ type CoatCheckBuyPayload {
 }
 
 """
+Someone on the app the viewer has saved in their contacts, who has the viewer's number too.
+"""
+type ContactMatch {
+  """
+  The request between them while one is waiting for an answer, whichever of them sent it.
+  """
+  request: FriendRequest
+
+  """
+  Where the viewer stands with them.
+  """
+  status: ContactMatchStatus!
+
+  """
+  Who they are: "First L." until friends. The app shows the name the viewer saved them under from its own contacts.
+  """
+  user: Profile!
+}
+
+"""
+Autogenerated input type of ContactMatchNameSet
+"""
+input ContactMatchNameSetInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The first name friends would save them under.
+  """
+  firstName: String!
+
+  """
+  Their last name.
+  """
+  lastName: String!
+}
+
+"""
+Autogenerated return type of ContactMatchNameSet.
+"""
+type ContactMatchNameSetPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The viewer's contact matching, after the change.
+  """
+  contactMatching: ContactMatching!
+}
+
+"""
+Where the viewer stands with someone contact matching found.
+"""
+enum ContactMatchStatus {
+  """
+  Already friends.
+  """
+  FRIENDS
+
+  """
+  They asked the viewer: the app offers "Accept" and "Not now".
+  """
+  INCOMING
+
+  """
+  Nobody has asked yet: the app offers "Add".
+  """
+  NONE
+
+  """
+  The viewer asked; no answer yet (a quiet "Not now" also reads as this).
+  """
+  REQUESTED
+}
+
+"""
+The viewer's friend matching from contacts (#388). Phones send ContactMatching
+hashes, never names or numbers: SHA-256 hex of "first|last|+E164", names
+lower-cased with accents and everything but letters and digits removed.
+"""
+type ContactMatching {
+  """
+  When they may ask for another text code.
+  """
+  codeResendAt: ISO8601DateTime!
+
+  """
+  How many contacts their last check covered.
+  """
+  contactsChecked: Int!
+
+  """
+  Whether matching is on: they can find people and be found. Turns on with their
+  first checkContacts after verifyContactPhone.
+  """
+  enabled: Boolean!
+
+  """
+  The first name friends match them on.
+  """
+  firstName: String
+
+  """
+  Requests waiting on their answer, newest first.
+  """
+  incomingRequests: [FriendRequest!]!
+
+  """
+  When they last checked.
+  """
+  lastCheckedAt: ISO8601DateTime
+
+  """
+  The last name friends match them on.
+  """
+  lastName: String
+
+  """
+  Everyone found both ways, with where they stand. Empty while matching is off.
+  """
+  matches: [ContactMatch!]!
+
+  """
+  When they may check their contacts again (once a day).
+  """
+  nextCheckAt: ISO8601DateTime!
+
+  """
+  Their verified number in E.164. Only they ever see it.
+  """
+  phoneNumber: String
+
+  """
+  Whether they proved their number by text.
+  """
+  phoneVerified: Boolean!
+}
+
+"""
+Autogenerated input type of ContactMatchingDisable
+"""
+input ContactMatchingDisableInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+}
+
+"""
+Autogenerated return type of ContactMatchingDisable.
+"""
+type ContactMatchingDisablePayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The viewer's contact matching, after the change.
+  """
+  contactMatching: ContactMatching!
+}
+
+"""
+Autogenerated input type of ContactPhoneVerificationStart
+"""
+input ContactPhoneVerificationStartInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The first name friends would save them under.
+  """
+  firstName: String!
+
+  """
+  Their last name, as friends would save it.
+  """
+  lastName: String!
+
+  """
+  Their mobile number in E.164 ("+12065550142").
+  """
+  phoneNumber: String!
+}
+
+"""
+Autogenerated return type of ContactPhoneVerificationStart.
+"""
+type ContactPhoneVerificationStartPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The viewer's contact matching, after the change.
+  """
+  contactMatching: ContactMatching!
+}
+
+"""
+Autogenerated input type of ContactPhoneVerify
+"""
+input ContactPhoneVerifyInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The six digits from the text.
+  """
+  code: String!
+}
+
+"""
+Autogenerated return type of ContactPhoneVerify.
+"""
+type ContactPhoneVerifyPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The viewer's contact matching, after the change.
+  """
+  contactMatching: ContactMatching!
+}
+
+"""
+Autogenerated input type of ContactsCheck
+"""
+input ContactsCheckInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  How many contacts were read, for "We checked 457 contacts".
+  """
+  contactCount: Int!
+
+  """
+  At most 10,000 hashes, in any order.
+  """
+  hashes: [String!]!
+}
+
+"""
+Autogenerated return type of ContactsCheck.
+"""
+type ContactsCheckPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The viewer's contact matching, after the change.
+  """
+  contactMatching: ContactMatching!
+
+  """
+  Everyone found, as contactMatching.matches.
+  """
+  matches: [ContactMatch!]!
+}
+
+"""
 Autogenerated input type of ContentReport
 """
 input ContentReportInput {
@@ -2741,6 +3660,81 @@ type ContentReportPayload {
   Whether the report was filed.
   """
   reported: Boolean!
+}
+
+"""
+Autogenerated input type of ContributionSubmit
+"""
+input ContributionSubmitInput {
+  """
+  Anything else the reviewer should know.
+  """
+  body: String
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  Links or photos that show it is right.
+  """
+  evidence: [SubmissionEvidenceInput!] = []
+
+  """
+  What it proposes.
+  """
+  kind: SubmissionKind!
+
+  """
+  The city it is filed from (the city page).
+  """
+  localeId: ID
+
+  """
+  For a missing venue or event: the member says it isn't the existingVenue or existingEvent it matched, so file it anyway.
+  """
+  notListed: Boolean = false
+
+  """
+  The fields it proposes, by kind: see doc/CONTRIBUTIONS.md.
+  """
+  proposed: JSON = {}
+
+  """
+  The venue, event or recurring night it is about; none for a missing one.
+  """
+  targetId: ID
+}
+
+"""
+Autogenerated return type of ContributionSubmit.
+"""
+type ContributionSubmitPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The listed event a missing event already is.
+  """
+  existingEvent: Event
+
+  """
+  The listed venue a missing venue already is.
+  """
+  existingVenue: Venue
+
+  """
+  Whether someone had already suggested the same thing.
+  """
+  merged: Boolean!
+
+  """
+  The suggestion, unless it was already listed.
+  """
+  submission: Submission
 }
 
 """
@@ -3061,6 +4055,26 @@ type CoverTier {
 }
 
 """
+The next curtain call's readiness for anyone to see: counts per area, never who.
+"""
+type CurtainReadiness {
+  """
+  The act the curtain rises on.
+  """
+  act: Appearance!
+
+  """
+  Venue, then talent, then support staff.
+  """
+  counts: [ReadinessCount!]!
+
+  """
+  Where it stands.
+  """
+  verdict: GoNoGoVerdict!
+}
+
+"""
 A venue's custom karaoke URL connection (Karaoke::CustomUrl): its standing session URL.
 """
 type CustomUrlAccount implements IKaraokeAccount {
@@ -3308,7 +4322,7 @@ type EquipmentTrack {
 """
 An event hosted at a venue or awaiting a venue.
 """
-type Event implements HasBanner & HasTags & IEventWithKaraoke & IEventWithPeople & IEventWithPhotography & IEventWithPing & IEventWithPosts & IEventWithRSVP & IEventWithTickets & IEventWithVenue & Node {
+type Event implements HasBanner & HasTags & IEventWithChat & IEventWithKaraoke & IEventWithPeople & IEventWithPhotography & IEventWithPing & IEventWithPosts & IEventWithRSVP & IEventWithTickets & IEventWithVenue & Node {
   """
   Identifier of the event's banner photo.
   """
@@ -3318,6 +4332,11 @@ type Event implements HasBanner & HasTags & IEventWithKaraoke & IEventWithPeople
   Its event or series photo, else a host photo, else its venue hero photo.
   """
   bannerUrl: PhotoURL
+
+  """
+  The instance's IEventChat mixin, when available to the viewer.
+  """
+  chat: IEventChat @requires(permissions: ["events:write:mine", "events:write:my_troupes", "events:write:venue"])
 
   """
   Description of the event.
@@ -3514,6 +4533,51 @@ type EventAttendeeEdge {
 }
 
 """
+The local Chat implementation of an event's chat prompts.
+"""
+type EventChatView implements IEventChat {
+  """
+  How long the room is quiet before a prompt drops in as a card (at most one every 30 minutes); null for never.
+  """
+  idleMinutes: Int
+
+  """
+  When the next prompt rotates in, if one will.
+  """
+  nextPromptAt: ISO8601DateTime
+
+  """
+  At most this many prompts a night.
+  """
+  nightlyCap: Int!
+
+  """
+  Whether prompts wait while an act is on stage.
+  """
+  pauseDuringActs: Boolean!
+
+  """
+  Its prompts, in the order they show.
+  """
+  prompts: [ChatPrompt!]!
+
+  """
+  Whether the room shows its prompts.
+  """
+  promptsEnabled: Boolean!
+
+  """
+  How often the pinned prompt changes, from when the event starts; null when it doesn't rotate.
+  """
+  rotateMinutes: Int
+
+  """
+  Hand-written lists to start from.
+  """
+  starterSets: [ChatPromptStarterSet!]!
+}
+
+"""
 The connection type for Event.
 """
 type EventConnection {
@@ -3680,6 +4744,12 @@ The local People implementation of an event's lineup.
 """
 type EventPeopleView implements IEventPeople {
   """
+  How many of its people you can't see until you sign in, as 'plus other
+  performers': the Community ones, to someone signed out. 0 when signed in.
+  """
+  hiddenPerformerCount: Int!
+
+  """
   The people hosting it.
   """
   hosts(
@@ -3753,6 +4823,11 @@ type EventPeopleView implements IEventPeople {
     """
     last: Int
   ): AppearanceConnection!
+
+  """
+  Its support staff, e.g. who is on photography. Empty for anyone not working the show.
+  """
+  supportStaff: [StaffAssignment!]!
 }
 
 """
@@ -4355,6 +5430,50 @@ enum EventWindow {
 }
 
 """
+The next events at the venue, or in the locale (events.upcoming).
+"""
+type EventsCard implements ICard {
+  """
+  The events, soonest first.
+  """
+  events: [Event!]!
+
+  """
+  Stable for this card in this place, e.g. now.chat:<venue id>.
+  """
+  id: ID!
+
+  """
+  What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
+  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
+  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
+  pings, web or promo.slot. New kinds are added; a kind the app did not list in
+  cardKinds is never sent.
+  """
+  kind: String!
+
+  """
+  The locale, when they are the locale's.
+  """
+  locale: Locale
+
+  """
+  Its place on the screen, from 1 at the top.
+  """
+  rank: Int!
+
+  """
+  A heading the app may use; null to use its own.
+  """
+  title: String
+
+  """
+  The venue, when they are the venue's.
+  """
+  venue: Venue
+}
+
+"""
 The local Events implementation of a venue or locale's events.
 """
 type EventsView implements ILocaleEvents & IVenueEvents {
@@ -4764,6 +5883,136 @@ type FriendEdge {
 }
 
 """
+A request to be friends, sent after contact matching found two people with each other saved.
+"""
+type FriendRequest {
+  """
+  When it was sent.
+  """
+  createdAt: ISO8601DateTime!
+
+  """
+  Who was asked.
+  """
+  friend: Profile!
+
+  """
+  The id respondToFriendRequest takes.
+  """
+  id: ID!
+
+  """
+  Where it stands, as the viewer sees it.
+  """
+  status: FriendRequestStatus!
+
+  """
+  Who asked.
+  """
+  user: Profile!
+}
+
+"""
+Autogenerated input type of FriendRequestRespond
+"""
+input FriendRequestRespondInput {
+  """
+  True to accept, false for "Not now".
+  """
+  accept: Boolean!
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  An incomingRequests id.
+  """
+  requestId: ID!
+}
+
+"""
+Autogenerated return type of FriendRequestRespond.
+"""
+type FriendRequestRespondPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The viewer's contact matching, after the change.
+  """
+  contactMatching: ContactMatching!
+
+  """
+  The request, as it now stands.
+  """
+  friendRequest: FriendRequest!
+}
+
+"""
+Autogenerated input type of FriendRequestSend
+"""
+input FriendRequestSendInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  Who to ask: a contactMatching.matches user id.
+  """
+  userId: ID!
+}
+
+"""
+Autogenerated return type of FriendRequestSend.
+"""
+type FriendRequestSendPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The viewer's contact matching, after the change.
+  """
+  contactMatching: ContactMatching!
+
+  """
+  The request, as it now stands.
+  """
+  friendRequest: FriendRequest!
+}
+
+"""
+Where a friend request stands.
+"""
+enum FriendRequestStatus {
+  """
+  Accepted: they're friends.
+  """
+  ACCEPTED
+
+  """
+  The person asked chose "Not now". Only they see this; the sender sees PENDING.
+  """
+  DISMISSED
+
+  """
+  Not answered yet.
+  """
+  PENDING
+
+  """
+  The sender turned contact matching off before an answer.
+  """
+  WITHDRAWN
+}
+
+"""
 A venue where some of the signed-in user's friends have been lately, with how many.
 """
 type FriendVenue {
@@ -4827,6 +6076,53 @@ scalar GeoJSON
 A geographic point or boundary.
 """
 scalar Geography
+
+"""
+An act's curtain call go/no-go: the venue, the talent the curtain rises on and
+the required support staff each say they are ready (setReadiness). Advancing
+onto the act waits for GO unless forced.
+"""
+type GoNoGo {
+  """
+  How many are ready, per area.
+  """
+  counts: [ReadinessCount!]!
+
+  """
+  The act the curtain rises on.
+  """
+  curtainCall: Appearance!
+
+  """
+  What it waits on: the venue, then the talent in running order, then the support staff.
+  """
+  items: [ReadinessItem!]!
+
+  """
+  Where it stands.
+  """
+  verdict: GoNoGoVerdict!
+}
+
+"""
+Where a curtain call's go/no-go stands.
+"""
+enum GoNoGoVerdict {
+  """
+  Everyone is ready: advancing raises the curtain.
+  """
+  GO
+
+  """
+  Someone said not ready.
+  """
+  NO_GO
+
+  """
+  Some haven't answered yet.
+  """
+  PENDING
+}
 
 """
 A photo of a place from Google, stored on our CDN. Google asks that its author be shown with it.
@@ -5709,6 +7005,82 @@ interface IAudienceWithVenues @holder(field: "venues", mixin: "IAudienceVenues")
 }
 
 """
+One card in a screen layout, in rank order. The app skips a kind it does not know.
+"""
+interface ICard {
+  """
+  Stable for this card in this place, e.g. now.chat:<venue id>.
+  """
+  id: ID!
+
+  """
+  What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
+  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
+  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
+  pings, web or promo.slot. New kinds are added; a kind the app did not list in
+  cardKinds is never sent.
+  """
+  kind: String!
+
+  """
+  Its place on the screen, from 1 at the top.
+  """
+  rank: Int!
+
+  """
+  A heading the app may use; null to use its own.
+  """
+  title: String
+}
+
+"""
+How an event's chat room (its venue's, while it's on) gets people talking: the
+prompts it shows, and when (ChatPrompts). Its staff only. Change it with
+setEventChatPrompts.
+"""
+interface IEventChat @mixin(extensionKey: "chat", field: "chat", on: ["Event"]) @requires(permissions: ["events:write:mine", "events:write:my_troupes", "events:write:venue"]) {
+  """
+  How long the room is quiet before a prompt drops in as a card (at most one every 30 minutes); null for never.
+  """
+  idleMinutes: Int
+
+  """
+  When the next prompt rotates in, if one will.
+  """
+  nextPromptAt: ISO8601DateTime
+
+  """
+  At most this many prompts a night.
+  """
+  nightlyCap: Int!
+
+  """
+  Whether prompts wait while an act is on stage.
+  """
+  pauseDuringActs: Boolean!
+
+  """
+  Its prompts, in the order they show.
+  """
+  prompts: [ChatPrompt!]!
+
+  """
+  Whether the room shows its prompts.
+  """
+  promptsEnabled: Boolean!
+
+  """
+  How often the pinned prompt changes, from when the event starts; null when it doesn't rotate.
+  """
+  rotateMinutes: Int
+
+  """
+  Hand-written lists to start from.
+  """
+  starterSets: [ChatPromptStarterSet!]!
+}
+
+"""
 An event's cover, inside its tickets (Event.tickets { cover }): its own for the
 night, or its venue's. Its charge is also one of tickets.offers.
 """
@@ -5728,6 +7100,12 @@ interface IEventCover @mixin(extensionKey: "cover", field: "cover", null: false,
 Who is hosting or playing an event.
 """
 interface IEventPeople @mixin(extensionKey: "people", field: "people", null: false, on: ["Event"]) {
+  """
+  How many of its people you can't see until you sign in, as 'plus other
+  performers': the Community ones, to someone signed out. 0 when signed in.
+  """
+  hiddenPerformerCount: Int!
+
   """
   The people hosting it.
   """
@@ -5802,6 +7180,11 @@ interface IEventPeople @mixin(extensionKey: "people", field: "people", null: fal
     """
     last: Int
   ): AppearanceConnection!
+
+  """
+  Its support staff, e.g. who is on photography. Empty for anyone not working the show.
+  """
+  supportStaff: [StaffAssignment!]!
 }
 
 """
@@ -6084,6 +7467,16 @@ interface IEventVenue @mixin(extensionKey: "venues", field: "venue", null: false
   Its venue. Null while it is to be announced.
   """
   venue: Venue
+}
+
+"""
+Event with the chat module's IEventChat mixin.
+"""
+interface IEventWithChat @holder(field: "chat", mixin: "IEventChat") {
+  """
+  The instance's IEventChat mixin, when available to the viewer.
+  """
+  chat: IEventChat @requires(permissions: ["events:write:mine", "events:write:my_troupes", "events:write:venue"])
 }
 
 """
@@ -6650,6 +8043,16 @@ interface ILocaleWithPeople @holder(field: "people", mixin: "ILocalePeople") {
 }
 
 """
+Locale with the posts module's IPosts mixin.
+"""
+interface ILocaleWithPosts @holder(field: "posts", mixin: "IPosts") {
+  """
+  The instance's IPosts mixin. Left out of the schema where its module isn't installed.
+  """
+  posts: IPosts!
+}
+
+"""
 Locale with the listings module's IListingProfile mixin.
 """
 interface ILocaleWithProfile @holder(field: "profile", mixin: "IListingProfile") {
@@ -6921,6 +8324,16 @@ interface IPersonWithMusic @facet(tag: "music") @holder(field: "music", mixin: "
 }
 
 """
+Person with the posts module's IPosts mixin.
+"""
+interface IPersonWithPosts @holder(field: "posts", mixin: "IPosts") {
+  """
+  The instance's IPosts mixin. Left out of the schema where its module isn't installed.
+  """
+  posts: IPosts!
+}
+
+"""
 Person with the listings module's IListingProfile mixin.
 """
 interface IPersonWithProfile @holder(field: "profile", mixin: "IListingProfile") {
@@ -7128,11 +8541,14 @@ interface IPlacesProfile @mixin(extensionKey: "places", field: "places", null: f
 }
 
 """
-A venue's posts on itself, one of its events or an event series.
+Posts on a venue, event, series or person, or a locale's updates (doc/design-system/Posts.md).
 """
-interface IPosts @mixin(extensionKey: "posts", field: "posts", null: false, on: ["Venue", "Event", "EventSeries"]) {
+interface IPosts @mixin(extensionKey: "posts", field: "posts", null: false, on: ["Venue", "Event", "EventSeries", "Person", "Locale"]) {
   """
-  The venue's posts on it, pinned first, then newest.
+  A venue's own posts (as the venue, on it, its events and series); an event's
+  by its venue and the people on it; a series'; a person's own; a locale's
+  updates from the last 14 days. Pinned first, then newest; a locale's newest
+  first. Posts from venues and people the viewer hid are left out.
   """
   list(
     """
@@ -7149,6 +8565,11 @@ interface IPosts @mixin(extensionKey: "posts", field: "posts", null: false, on: 
     Returns the first _n_ elements from the list.
     """
     first: Int
+
+    """
+    Whose posts: everyone, venues, talent, or (signed in) posts on events the viewer is going to.
+    """
+    from: PostsFrom = ALL
 
     """
     Returns the last _n_ elements from the list.
@@ -7311,7 +8732,9 @@ interface IUser implements HasTribes {
   name: String
 
   """
-  The user profile photo.
+  The user profile photo: full size for the user themself, their friends and the
+  audience's staff; the tiny copy chat rooms show (48 pixels square, or none for
+  initials) for anyone else.
   """
   photo: Photo
 
@@ -7564,7 +8987,7 @@ interface IVenueCover @mixin(extensionKey: "cover", field: "cover", null: false,
   ): PaymentAccount @requires(permissions: ["payments:read:mine"])
 
   """
-  The time zone its nights are counted in.
+  The IANA time zone its nights are counted in: its cover zone, else its locale's.
   """
   timeZone: String
 
@@ -7695,9 +9118,36 @@ interface IVenueMusic @mixin(extensionKey: "music", field: "music", null: false,
 }
 
 """
+Pair me up to chat at a venue: pairs two people there to talk about a shared
+topic. A facet projected from Venue.pairUpEnabled: every venue has it unless it opted out.
+"""
+interface IVenuePairUp @facet(tag: "pair_up") @mixin(extensionKey: "pair_up", field: "pairUp", on: ["Venue"], tag: "pair_up") {
+  """
+  Whether the viewer can opt in now: the app places them at the venue.
+  """
+  here: Boolean!
+
+  """
+  The viewer's Pair me up here tonight; null until they opt in (joinPairUp), and once it expires.
+  """
+  mine: PairUpState
+}
+
+"""
 Who is on at a venue (Appearance), with or without an event: its lineup, running order and who's on now.
 """
 interface IVenuePeople @mixin(extensionKey: "people", field: "people", null: false, on: ["Venue"]) {
+  """
+  The next curtain call's readiness as counts, for anyone (guests too). Null unless the act up next has a curtain call.
+  """
+  curtainReadiness: CurtainReadiness
+
+  """
+  The go/no-go of the act up next in tonight's running order, when it has a
+  curtain call. Null otherwise, and for anyone not working the show.
+  """
+  goNoGo: GoNoGo
+
   """
   The acts on a night that have a time (or have gone on), in running order.
   """
@@ -7792,6 +9242,16 @@ interface IVenuePeople @mixin(extensionKey: "people", field: "people", null: fal
   ): AppearanceConnection!
 
   """
+  A night's support staff on the venue's own show, then its events'. Empty for anyone not working the show.
+  """
+  supportStaff(
+    """
+    Another night than tonight.
+    """
+    night: ISO8601Date
+  ): [StaffAssignment!]!
+
+  """
   What advancing tonight's running order puts on next.
   """
   upNext: Appearance
@@ -7872,6 +9332,28 @@ interface IVenueTicketsWithCover @holder(field: "cover", mixin: "IVenueCover") {
 }
 
 """
+Group trivia in a venue's chat (doc/SHOW_CONTROL.md): runs while a trivia
+segment (or an intermission given a set) is on the lineup, so it never competes
+with the talent.
+"""
+interface IVenueTrivia @mixin(extensionKey: "trivia", field: "trivia", null: false, on: ["Venue"]) {
+  """
+  Tonight's latest round: open, or the last revealed. Null before the first.
+  """
+  current: TriviaRound
+
+  """
+  The lineup entry running trivia now; null while none is.
+  """
+  segment: Appearance
+
+  """
+  The trivia sets, those whose topics meet the venue's tags first.
+  """
+  sets: [TriviaSet!]!
+}
+
+"""
 Venue with the chat module's IVenueChat mixin.
 """
 interface IVenueWithChat @holder(field: "chat", mixin: "IVenueChat") {
@@ -7919,6 +9401,16 @@ interface IVenueWithMusic @holder(field: "music", mixin: "IVenueMusic") {
   The instance's IVenueMusic mixin. Left out of the schema where its module isn't installed.
   """
   music: IVenueMusic!
+}
+
+"""
+Venue with the pair_up module's IVenuePairUp mixin.
+"""
+interface IVenueWithPairUp @facet(tag: "pair_up") @holder(field: "pairUp", mixin: "IVenuePairUp") {
+  """
+  The instance's IVenuePairUp mixin, when available. Null unless it has the pair_up facet (its facets).
+  """
+  pairUp: IVenuePairUp
 }
 
 """
@@ -7989,6 +9481,16 @@ interface IVenueWithTickets @holder(field: "tickets", mixin: "IVenueTickets") {
   The instance's IVenueTickets mixin. Left out of the schema where its module isn't installed.
   """
   tickets: IVenueTickets!
+}
+
+"""
+Venue with the trivia module's IVenueTrivia mixin.
+"""
+interface IVenueWithTrivia @holder(field: "trivia", mixin: "IVenueTrivia") {
+  """
+  The instance's IVenueTrivia mixin. Left out of the schema where its module isn't installed.
+  """
+  trivia: IVenueTrivia!
 }
 
 """
@@ -8177,6 +9679,62 @@ type KaraokeQueueEntry {
   The song.
   """
   title: String
+}
+
+"""
+A screen's cards, ranked by the server for this moment (Layouts). When it can't
+be fetched, the app falls back to its own built-in order.
+"""
+type Layout {
+  """
+  The cards, top first.
+  """
+  cards: [ICard!]!
+
+  """
+  This ranking, for recordCardViews.
+  """
+  id: ID!
+
+  """
+  Seconds until the app should ask again.
+  """
+  refreshAfter: Int!
+}
+
+"""
+What the app asking for a layout can draw.
+"""
+input LayoutClientInput {
+  """
+  Its marketing version (2.2.0), for logs only: ranking never depends on it.
+  """
+  appVersion: String
+
+  """
+  Every card kind it can draw (now.stage, venues.nearby, promo.slot, ...). No other kind is returned.
+  """
+  cardKinds: [String!]!
+}
+
+"""
+A screen whose cards the server ranks (Audience.layout).
+"""
+enum LayoutScreen {
+  """
+  Now: where the viewer is and what is on.
+  """
+  NOW
+
+  """
+  People, under the Local/Everyone picker.
+  """
+  PEOPLE
+
+  """
+  The locale's venues, under the map.
+  """
+  VENUES
 }
 
 """
@@ -8475,7 +10033,7 @@ type LmStudioModerationProvider implements IModerationProvider & IProvider {
 """
 A geographic area containing venues and featured people.
 """
-type Locale implements HasBanner & HasTimestamps & ILocaleWithChat & ILocaleWithEvents & ILocaleWithFriends & ILocaleWithLiquor & ILocaleWithPeople & ILocaleWithProfile & ILocaleWithVenues & Node {
+type Locale implements HasBanner & HasTimestamps & ILocaleWithChat & ILocaleWithEvents & ILocaleWithFriends & ILocaleWithLiquor & ILocaleWithPeople & ILocaleWithPosts & ILocaleWithProfile & ILocaleWithVenues & Node {
   """
   A photo of the place, for the top of its screens.
   """
@@ -8550,6 +10108,11 @@ type Locale implements HasBanner & HasTimestamps & ILocaleWithChat & ILocaleWith
   The instance's ILocalePeople mixin. Left out of the schema where its module isn't installed.
   """
   people: ILocalePeople!
+
+  """
+  The instance's IPosts mixin. Left out of the schema where its module isn't installed.
+  """
+  posts: IPosts!
 
   """
   The instance's IListingProfile mixin. Left out of the schema where its module isn't installed.
@@ -8771,6 +10334,11 @@ type LocaleMessage implements ChatMessage & HasTribes & Node {
   person: Person
 
   """
+  What's in a photo message's picture, for screen readers, when its poster said.
+  """
+  photoAlt: String
+
+  """
   The photo of a photo message or an announcement.
   """
   photoUrl: PhotoURL
@@ -8779,6 +10347,11 @@ type LocaleMessage implements ChatMessage & HasTribes & Node {
   Whether it's the announcement pinned under the room's title.
   """
   pinned: Boolean!
+
+  """
+  Whether it was posted as the room's audience, like a prompt: shown with its name and mark, not a person.
+  """
+  postedAsAudience: Boolean!
 
   """
   Whether talent posted it as their listing (role HOST): `person` is who.
@@ -8795,6 +10368,16 @@ type LocaleMessage implements ChatMessage & HasTribes & Node {
   the viewer is them, a friend of theirs, or an admin.
   """
   presence: Presence!
+
+  """
+  The prompt a PROMPT message puts to the room.
+  """
+  prompt: ChatPromptFrame
+
+  """
+  The prompt a TEXT message answers, if it does.
+  """
+  promptId: ID
 
   """
   Who removed it and why, for a removed message in a transcript asked with includeRemoved; null while it shows.
@@ -9054,6 +10637,36 @@ type MetaMetro {
 }
 
 """
+What kind of app it is.
+"""
+enum MobileAppKind {
+  """
+  The full app.
+  """
+  APP
+
+  """
+  An iOS App Clip: opens a link's page without installing the app.
+  """
+  APP_CLIP
+}
+
+"""
+The platform an app runs on.
+"""
+enum MobilePlatform {
+  """
+  Android.
+  """
+  ANDROID
+
+  """
+  iPhone and iPad.
+  """
+  IOS
+}
+
+"""
 An amount of money: whole cents of a currency. $10.00 is { cents: 1000, currency: "usd" }.
 """
 type Money {
@@ -9072,6 +10685,16 @@ type Money {
 Changes supported by the audience API.
 """
 type Mutation {
+  """
+  Accepts your pairing's topic. Once both of you accept, each sees who to look for.
+  """
+  acceptPairUp(
+    """
+    Parameters for PairUpAccept
+    """
+    input: PairUpAcceptInput!
+  ): PairUpAcceptPayload @requires(permissions: ["pair_up:write:self"])
+
   """
   Records that the signed-in user agreed to the terms of use, which forbid
   objectionable content and abuse. The apps ask before anyone chats.
@@ -9122,6 +10745,18 @@ type Mutation {
   ): CoverBuyPayload @requires(permissions: ["cover:write:self"])
 
   """
+  Cancels a pairing at any point: neither of you sees the other from then on.
+  Cancelling your pairing takes you out of Pair me up for tonight (your partner
+  looks for someone new); a bonus topic just ends.
+  """
+  cancelPairUp(
+    """
+    Parameters for PairUpCancel
+    """
+    input: PairUpCancelInput!
+  ): PairUpCancelPayload @requires(permissions: ["pair_up:write:self"])
+
+  """
   Takes back the user's RSVP to an event, as if they'd never answered (UNSURE).
   Someone holding a ticket to it is still going: refund the ticket to stop going.
   """
@@ -9131,6 +10766,28 @@ type Mutation {
     """
     input: RSVPCancelInput!
   ): RSVPCancelPayload @requires(permissions: ["rsvp:write:self"])
+
+  """
+  Cancels your open safety alert: you're OK now. Staff on shift are told.
+  """
+  cancelSafetyAlert(
+    """
+    Parameters for SafetyAlertCancel
+    """
+    input: SafetyAlertCancelInput!
+  ): SafetyAlertCancelPayload @requires(permissions: ["users:write:self"])
+
+  """
+  Checks the hashed contacts from the viewer's phone (ContactMatching: SHA-256
+  hex of "first|last|+E164", one per number; contacts without a first and last
+  name left out) and turns matching on. Replaces their last check. Once a day.
+  """
+  checkContacts(
+    """
+    Parameters for ContactsCheck
+    """
+    input: ContactsCheckInput!
+  ): ContactsCheckPayload @requires(permissions: ["users:write:self"])
 
   """
   Checks a cover payment with its provider after the app finishes paying, so the pass works before the webhook arrives.
@@ -9153,7 +10810,8 @@ type Mutation {
   ): TipConfirmPayload @requires(permissions: ["tipping:write:self"])
 
   """
-  Comments on a venue's post, as the signed-in user. Someone banned from the venue's chat can't.
+  Comments on a venue's or a person's post, as the signed-in user. Someone
+  banned from the venue's chat can't, and nobody can once its comments are closed.
   """
   createPostComment(
     """
@@ -9174,6 +10832,17 @@ type Mutation {
   ): AccountDeletePayload @requires(permissions: ["users:write:self"])
 
   """
+  Turns contact matching off: deletes their number, match name and every code,
+  at once, and withdraws requests they sent that nobody answered. Friends they made stay.
+  """
+  disableContactMatching(
+    """
+    Parameters for ContactMatchingDisable
+    """
+    input: ContactMatchingDisableInput!
+  ): ContactMatchingDisablePayload @requires(permissions: ["users:write:self"])
+
+  """
   Ends the signed-in user's ping.
   """
   endPing(
@@ -9185,7 +10854,8 @@ type Mutation {
 
   """
   Identifies the signed-in user with one of the audience's tribes, or changes
-  whether that's private. Private is the default: only people in the same tribe see it.
+  whether that's private. Private is the default: only people in the same tribe
+  see it. Refused past audience.tribeCap tribes.
   """
   identifyWithTribe(
     """
@@ -9193,6 +10863,17 @@ type Mutation {
     """
     input: TribeIdentifyInput!
   ): TribeIdentifyPayload @requires(permissions: ["users:write:self"])
+
+  """
+  Opts in to Pair me up at a venue for tonight (only while the app places you
+  there), or changes the hint your partner sees. After a meeting, looks for someone new.
+  """
+  joinPairUp(
+    """
+    Parameters for PairUpJoin
+    """
+    input: PairUpJoinInput!
+  ): PairUpJoinPayload @requires(permissions: ["pair_up:write:self"])
 
   """
   Says the signed-in user is in for a ping, for one pick or (with no target) the whole ping.
@@ -9203,6 +10884,16 @@ type Mutation {
     """
     input: PingJoinInput!
   ): PingJoinPayload @requires(permissions: ["ping:write:self"])
+
+  """
+  Leaves Pair me up at a venue for tonight, cancelling your pairing if you have one.
+  """
+  leavePairUp(
+    """
+    Parameters for PairUpLeave
+    """
+    input: PairUpLeaveInput!
+  ): PairUpLeavePayload @requires(permissions: ["pair_up:write:self"])
 
   """
   Takes the signed-in user out of a ping they're in.
@@ -9223,6 +10914,17 @@ type Mutation {
     """
     input: TribeLeaveInput!
   ): TribeLeavePayload @requires(permissions: ["users:write:self"])
+
+  """
+  Hides a venue's or a person's posts from the signed-in user, or shows them
+  again. Name exactly one of venueId and personId.
+  """
+  mutePostAuthor(
+    """
+    Parameters for PostAuthorMute
+    """
+    input: PostAuthorMuteInput!
+  ): PostAuthorMutePayload @requires(permissions: ["posts:write:self"])
 
   """
   Pays a Square venue's cover with a payment token from Square's In-App Payments
@@ -9248,6 +10950,16 @@ type Mutation {
   ): TipPayPayload @requires(permissions: ["tipping:write:self"])
 
   """
+  Records that promoted cards were on screen. Send only the cards actually shown.
+  """
+  recordCardViews(
+    """
+    Parameters for CardViewsRecord
+    """
+    input: CardViewsRecordInput!
+  ): CardViewsRecordPayload @requires(permissions: ["users:write:self"])
+
+  """
   Refunds a cover. Buyers can refund their own until it's scanned at the door or
   the night is over; the venue's door staff and the audience's admins can refund
   any paid cover.
@@ -9270,6 +10982,16 @@ type Mutation {
   ): DeviceRegisterPayload @requires(permissions: ["users:write:self"])
 
   """
+  Sends your open safety alert again: staff on shift hear it again, and the venue's managers too. At most every 30 seconds.
+  """
+  remindSafetyAlert(
+    """
+    Parameters for SafetyAlertRemind
+    """
+    input: SafetyAlertRemindInput!
+  ): SafetyAlertRemindPayload @requires(permissions: ["users:write:self"])
+
+  """
   Removes one of your own messages from its chat room. Everyone in the room stops seeing it at once.
   """
   removeMyChatMessage(
@@ -9280,7 +11002,8 @@ type Mutation {
   ): ChatMessageRemoveOwnPayload @requires(permissions: ["chat:write:self"])
 
   """
-  Removes a comment on a venue's post: its author's own, or any on the venue's posts for its managers and admins.
+  Removes a comment on a post: its author's own, or any on a post for whoever
+  manages its poster (the venue's managers, the talent listing's) and admins.
   """
   removePostComment(
     """
@@ -9304,10 +11027,11 @@ type Mutation {
   ): ChatMessageReportPayload @requires(permissions: ["chat:write:self"])
 
   """
-  Reports a message, person, venue, ping or photo to the audience's admins, who
-  see it in the console's Reports queue at once. Optionally blocks the person
-  responsible, when there is one: a message's sender (not for posts as the venue
-  or a person), the person themself, a ping's sender.
+  Reports a message, person, venue, ping, photo, post or comment to the
+  audience's admins, who see it in the console's Reports queue at once.
+  Optionally blocks the person responsible, when there is one: a message's
+  sender (not for posts as the venue or a person), the person themself, a ping's
+  sender, a comment's author.
   """
   reportContent(
     """
@@ -9340,6 +11064,17 @@ type Mutation {
   ): LocationReportPayload @requires(permissions: ["users:write:self"])
 
   """
+  Says a venue reported closed is still open. A reviewer decides; the venue is
+  back in tonight's views sooner when enough people (or its staff) say so.
+  """
+  reportVenueOpen(
+    """
+    Parameters for VenueOpenReport
+    """
+    input: VenueOpenReportInput!
+  ): VenueOpenReportPayload @requires(permissions: ["users:write:self"])
+
+  """
   Asks for a song, or signs up to sing one, in a venue's chat room. Everyone in
   the room sees the REQUEST line, and the host finds it in the queue. Refused
   while the venue is not taking requests of that kind (see Venue.requests for why).
@@ -9352,6 +11087,17 @@ type Mutation {
   ): SongRequestCreatePayload @requires(permissions: ["requests:write:self"])
 
   """
+  Answers a friend request someone sent the viewer. Accepting makes them friends
+  and tells the sender; "Not now" hides it and tells nobody.
+  """
+  respondToFriendRequest(
+    """
+    Parameters for FriendRequestRespond
+    """
+    input: FriendRequestRespondInput!
+  ): FriendRequestRespondPayload @requires(permissions: ["users:write:self"])
+
+  """
   Sets the user's RSVP to an event in AudienceKit. It isn't sent to Facebook,
   which no longer lets apps RSVP for people. A ticket holder stays going
   whatever they answer.
@@ -9362,6 +11108,29 @@ type Mutation {
     """
     input: EventRSVPInput!
   ): EventRSVPPayload @requires(permissions: ["rsvp:write:self"])
+
+  """
+  Scans a Pair me up code. Your partner's confirms you met (both see You met!);
+  someone else's gives the two of you a fresh topic instead. Anything else says
+  why, without changing anything.
+  """
+  scanPairUpCode(
+    """
+    Parameters for PairUpCodeScan
+    """
+    input: PairUpCodeScanInput!
+  ): PairUpCodeScanPayload @requires(permissions: ["pair_up:write:self"])
+
+  """
+  Asks someone contact matching found to be friends, and pushes them. Asking
+  someone who already asked the viewer accepts their request.
+  """
+  sendFriendRequest(
+    """
+    Parameters for FriendRequestSend
+    """
+    input: FriendRequestSendInput!
+  ): FriendRequestSendPayload @requires(permissions: ["users:write:self"])
 
   """
   Says something in a chat room as yourself. The message reaches everyone following the room at once.
@@ -9384,6 +11153,61 @@ type Mutation {
   ): PingSendPayload @requires(permissions: ["ping:write:self"])
 
   """
+  Tells the staff on shift at the venue you're at that you feel unsafe (only
+  while the app places you there). Where you are and what is going on are
+  optional; send it first and add them after (updateSafetyAlert). While your
+  alert there is open, sending again adds to it.
+  """
+  sendSafetyAlert(
+    """
+    Parameters for SafetyAlertSend
+    """
+    input: SafetyAlertSendInput!
+  ): SafetyAlertSendPayload @requires(permissions: ["users:write:self"])
+
+  """
+  Sends a message in a safety alert's private thread: from the guest who sent it
+  while it is open, or from staff at its venue. Never shown in venue chat.
+  """
+  sendSafetyAlertMessage(
+    """
+    Parameters for SafetyAlertMessageSend
+    """
+    input: SafetyAlertMessageSendInput!
+  ): SafetyAlertMessageSendPayload @requires(permissions: ["users:write:self", "chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"])
+
+  """
+  Shows the signed-in user's initials in chat rooms instead of their photo, or their photo again.
+  """
+  setChatInitials(
+    """
+    Parameters for ChatInitialsSet
+    """
+    input: ChatInitialsSetInput!
+  ): ChatInitialsSetPayload @requires(permissions: ["users:write:self"])
+
+  """
+  Changes the first and last name friends match the viewer on. Their own codes follow at once.
+  """
+  setContactMatchName(
+    """
+    Parameters for ContactMatchNameSet
+    """
+    input: ContactMatchNameSetInput!
+  ): ContactMatchNameSetPayload @requires(permissions: ["users:write:self"])
+
+  """
+  Says who is ready for a curtain call: the venue, a performer or someone on the
+  support staff. The show runs on GO (advanceLineup waits for it unless forced).
+  """
+  setReadiness(
+    """
+    Parameters for ReadinessSet
+    """
+    input: ReadinessSetInput!
+  ): ReadinessSetPayload @requires(permissions: ["people:write:mine", "people:write:my_troupes", "events:write:venue", "users:write:self"])
+
+  """
   Turns on or off pushes about new messages in chat rooms the signed-in user
   left in the last 30 minutes (at most one every 10 minutes per room). Off until
   they turn it on.
@@ -9394,6 +11218,39 @@ type Mutation {
     """
     input: RecentChatPushSetInput!
   ): RecentChatPushSetPayload @requires(permissions: ["users:write:self"])
+
+  """
+  A fresh QR code to show your partner once you both accept. It works once, only
+  for them, and replaces the one you showed before.
+  """
+  showPairUpCode(
+    """
+    Parameters for PairUpCodeShow
+    """
+    input: PairUpCodeShowInput!
+  ): PairUpCodeShowPayload @requires(permissions: ["pair_up:write:self"])
+
+  """
+  Skips the topic for a new one (both accept again), or the partner: both look
+  for someone new and aren't paired together again tonight.
+  """
+  skipPairUp(
+    """
+    Parameters for PairUpSkip
+    """
+    input: PairUpSkipInput!
+  ): PairUpSkipPayload @requires(permissions: ["pair_up:write:self"])
+
+  """
+  Saves the name friends will match the viewer on and texts a six-digit code to
+  their mobile number (verifyContactPhone). Up to five codes a day, 30 seconds apart.
+  """
+  startContactPhoneVerification(
+    """
+    Parameters for ContactPhoneVerificationStart
+    """
+    input: ContactPhoneVerificationStartInput!
+  ): ContactPhoneVerificationStartPayload @requires(permissions: ["users:write:self"])
 
   """
   Starts tipping a performer in the app, through their own Stripe or Square
@@ -9412,6 +11269,19 @@ type Mutation {
   ): TipStartPayload @requires(permissions: ["tipping:write:self"])
 
   """
+  Suggests a missing venue or event, a correction, a closure, a tag or a
+  performer for the audience's listings. A reviewer decides; nothing changes
+  until they approve. Local rules are corrected with submitLocalRulesCorrection,
+  by venue staff.
+  """
+  submitContribution(
+    """
+    Parameters for ContributionSubmit
+    """
+    input: ContributionSubmitInput!
+  ): ContributionSubmitPayload @requires(permissions: ["users:write:self"])
+
+  """
   Unblocks someone the signed-in user blocked.
   """
   unblockUser(
@@ -9420,6 +11290,39 @@ type Mutation {
     """
     input: BlockedUserRemoveInput!
   ): BlockedUserRemovePayload @requires(permissions: ["users:write:self"])
+
+  """
+  Adds where you are and what is going on to your open safety alert. Concerns
+  add to the ones you picked; left-out arguments keep what you said.
+  """
+  updateSafetyAlert(
+    """
+    Parameters for SafetyAlertUpdate
+    """
+    input: SafetyAlertUpdateInput!
+  ): SafetyAlertUpdatePayload @requires(permissions: ["users:write:self"])
+
+  """
+  Checks the code startContactPhoneVerification texted. Right, the number is
+  theirs: it moves off any other account that had it. Five tries per code.
+  """
+  verifyContactPhone(
+    """
+    Parameters for ContactPhoneVerify
+    """
+    input: ContactPhoneVerifyInput!
+  ): ContactPhoneVerifyPayload @requires(permissions: ["users:write:self"])
+
+  """
+  Votes in a trivia round: someone at the venue picks a choice (changing it is
+  fine while voting is open). Only counts are shown; nobody is named or scored.
+  """
+  voteTrivia(
+    """
+    Parameters for TriviaVoteCast
+    """
+    input: TriviaVoteCastInput!
+  ): TriviaVoteCastPayload @requires(permissions: ["trivia:write:self"])
 
   """
   Takes back a song request or karaoke signup of yours that is still waiting. Its chat line shows it withdrawn.
@@ -9593,6 +11496,483 @@ type PageInfo {
 }
 
 """
+Autogenerated input type of PairUpAccept
+"""
+input PairUpAcceptInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The pairing.
+  """
+  matchId: ID!
+}
+
+"""
+Autogenerated return type of PairUpAccept.
+"""
+type PairUpAcceptPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The viewer's Pair me up at the venue as it now stands.
+  """
+  pairUp: PairUpState
+}
+
+"""
+Autogenerated input type of PairUpCancel
+"""
+input PairUpCancelInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The pairing.
+  """
+  matchId: ID!
+}
+
+"""
+Autogenerated return type of PairUpCancel.
+"""
+type PairUpCancelPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The viewer's Pair me up at the venue as it now stands.
+  """
+  pairUp: PairUpState
+}
+
+"""
+Autogenerated input type of PairUpCodeScan
+"""
+input PairUpCodeScanInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  What the QR code carries.
+  """
+  code: String!
+
+  """
+  The venue you're at.
+  """
+  venueId: ID!
+}
+
+"""
+Autogenerated return type of PairUpCodeScan.
+"""
+type PairUpCodeScanPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The met pairing (MET) or the fresh topic (DIFFERENT).
+  """
+  match: PairUpMatch
+
+  """
+  What the scan did.
+  """
+  outcome: PairUpScanOutcome!
+
+  """
+  The viewer's Pair me up at the venue as it now stands.
+  """
+  pairUp: PairUpState
+}
+
+"""
+Autogenerated input type of PairUpCodeShow
+"""
+input PairUpCodeShowInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The pairing.
+  """
+  matchId: ID!
+}
+
+"""
+Autogenerated return type of PairUpCodeShow.
+"""
+type PairUpCodeShowPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  What the QR code carries.
+  """
+  code: String!
+
+  """
+  The viewer's Pair me up at the venue as it now stands.
+  """
+  pairUp: PairUpState
+}
+
+"""
+Why a pairing ended.
+"""
+enum PairUpEndReason {
+  """
+  A block now stands between them.
+  """
+  BLOCKED
+
+  """
+  One of them cancelled or left Pair me up.
+  """
+  LEFT
+
+  """
+  One of them asked for a new partner.
+  """
+  SKIPPED
+}
+
+"""
+Autogenerated input type of PairUpJoin
+"""
+input PairUpJoinInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  How your partner can spot you once you both accept, up to 60 characters ("red
+  jacket by the bar"). Left out keeps the last one.
+  """
+  lookFor: String
+
+  """
+  The venue you're at.
+  """
+  venueId: ID!
+}
+
+"""
+Autogenerated return type of PairUpJoin.
+"""
+type PairUpJoinPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The viewer's Pair me up at the venue as it now stands.
+  """
+  pairUp: PairUpState
+}
+
+"""
+Autogenerated input type of PairUpLeave
+"""
+input PairUpLeaveInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The venue.
+  """
+  venueId: ID!
+}
+
+"""
+Autogenerated return type of PairUpLeave.
+"""
+type PairUpLeavePayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The viewer's Pair me up at the venue as it now stands.
+  """
+  pairUp: PairUpState
+}
+
+"""
+A Pair me up pairing as one of its two people sees it.
+"""
+type PairUpMatch {
+  """
+  Whether the viewer accepted the topic.
+  """
+  accepted: Boolean!
+
+  """
+  A fresh topic from scanning someone else's code: already accepted, no code needed.
+  """
+  bonus: Boolean!
+
+  """
+  Why it ended; null while it lasts.
+  """
+  endReason: PairUpEndReason
+
+  """
+  When it ended.
+  """
+  endedAt: ISO8601DateTime
+
+  """
+  When it expires with the night (or the venue's chat window).
+  """
+  expiresAt: ISO8601DateTime!
+
+  """
+  Its ID.
+  """
+  id: ID!
+
+  """
+  When one scanned the other's code.
+  """
+  metAt: ISO8601DateTime
+
+  """
+  Who to look for, once both accepted and while it lasts. Null before, and as soon as either cancels.
+  """
+  partner: PairUpPartner
+
+  """
+  Whether their partner accepted the topic.
+  """
+  partnerAccepted: Boolean!
+
+  """
+  What to talk about.
+  """
+  topic: PairUpTopic!
+}
+
+"""
+Just enough to find a Pair me up partner in the room, shown once both accept. Never where they are.
+"""
+type PairUpPartner {
+  """
+  Their picture, tiny (96 pixels square), and only while the pairing lasts. Null when they have none.
+  """
+  avatarUrl: PhotoURL
+
+  """
+  Their user id, to block or report them (blockUser).
+  """
+  id: ID!
+
+  """
+  The hint they wrote, e.g. "red jacket by the bar".
+  """
+  lookFor: String
+
+  """
+  Their name: in full for friends, first name and last initial for anyone else.
+  """
+  name: String!
+}
+
+"""
+What scanning a Pair me up code did. Only MET and DIFFERENT change anything;
+none is the scanner's fault, so the apps word them gently.
+"""
+enum PairUpScanOutcome {
+  """
+  Someone else's code. The two of them get a fresh topic instead: `match` (already accepted, no code needed).
+  """
+  DIFFERENT
+
+  """
+  The pairing that code was for is over.
+  """
+  ENDED
+
+  """
+  Their partner's code: they met. `match` is the met pairing.
+  """
+  MET
+
+  """
+  Their own code.
+  """
+  OWN
+
+  """
+  Not a Pair me up code this account can use.
+  """
+  UNREADABLE
+
+  """
+  Their partner's code, but not the newest one: scan it again.
+  """
+  USED
+}
+
+"""
+What skipPairUp skips.
+"""
+enum PairUpSkip {
+  """
+  A new partner for both; they aren't paired together again tonight.
+  """
+  PARTNER
+
+  """
+  A new topic for the same two people; both accept again.
+  """
+  TOPIC
+}
+
+"""
+Autogenerated input type of PairUpSkip
+"""
+input PairUpSkipInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The pairing.
+  """
+  matchId: ID!
+
+  """
+  The topic or the partner.
+  """
+  what: PairUpSkip!
+}
+
+"""
+Autogenerated return type of PairUpSkip.
+"""
+type PairUpSkipPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The viewer's Pair me up at the venue as it now stands.
+  """
+  pairUp: PairUpState
+}
+
+"""
+The viewer's Pair me up at a venue tonight.
+"""
+type PairUpState {
+  """
+  A fresh topic shared with someone whose code they scanned (or who scanned theirs) by mistake, while it lasts.
+  """
+  bonus: PairUpMatch
+
+  """
+  When their opt-in expires.
+  """
+  expiresAt: ISO8601DateTime!
+
+  """
+  The hint they wrote for their partner.
+  """
+  lookFor: String
+
+  """
+  Their pairing: the current one, or while SEARCHING the last one when it ended. Null before the first.
+  """
+  match: PairUpMatch
+
+  """
+  How many people they met tonight: the night's badge.
+  """
+  metCount: Int!
+
+  """
+  Where they are.
+  """
+  status: PairUpStatus!
+}
+
+"""
+Where someone is in Pair me up at a venue tonight, as they see it.
+"""
+enum PairUpStatus {
+  """
+  They left Pair me up for tonight.
+  """
+  LEFT
+
+  """
+  One scanned the other's code: they met.
+  """
+  MET
+
+  """
+  Paired: they see the topic and haven't accepted it yet.
+  """
+  PROPOSED
+
+  """
+  Both accepted: they see who to look for and can show or scan a code.
+  """
+  REVEALED
+
+  """
+  Opted in and waiting to be paired. `match` is the last pairing when one ended.
+  """
+  SEARCHING
+
+  """
+  They accepted the topic; their partner has not yet.
+  """
+  WAITING
+}
+
+"""
+Something for a pair to talk about, from the hand-written list (config/pair_up_topics.yml).
+"""
+type PairUpTopic {
+  """
+  Its stable key.
+  """
+  key: String!
+
+  """
+  The topic, as both of them see it.
+  """
+  text: String!
+}
+
+"""
 A venue's Stripe or Square account, which takes its cover charges.
 """
 type PaymentAccount implements Node {
@@ -9684,9 +12064,49 @@ enum PaymentProvider {
 }
 
 """
+A group of people: playing the locale this week (people.playingThisWeek), based
+there (people.basedHere), or everyone (people.everyone).
+"""
+type PeopleCard implements ICard {
+  """
+  Stable for this card in this place, e.g. now.chat:<venue id>.
+  """
+  id: ID!
+
+  """
+  What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
+  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
+  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
+  pings, web or promo.slot. New kinds are added; a kind the app did not list in
+  cardKinds is never sent.
+  """
+  kind: String!
+
+  """
+  The locale, for the local groups.
+  """
+  locale: Locale
+
+  """
+  The people, in the order to show them.
+  """
+  people: [Person!]!
+
+  """
+  Its place on the screen, from 1 at the top.
+  """
+  rank: Int!
+
+  """
+  A heading the app may use; null to use its own.
+  """
+  title: String
+}
+
+"""
 A performer, host or group featured in an audience.
 """
-type Person implements HasBanner & HasTags & IPersonWithChat & IPersonWithEvents & IPersonWithMusic & IPersonWithProfile & IPersonWithTipping & IPersonWithVenues & Node {
+type Person implements HasBanner & HasTags & IPersonWithChat & IPersonWithEvents & IPersonWithMusic & IPersonWithPosts & IPersonWithProfile & IPersonWithTipping & IPersonWithVenues & Node {
   """
   The audience this record belongs to.
   """
@@ -9765,6 +12185,11 @@ type Person implements HasBanner & HasTags & IPersonWithChat & IPersonWithEvents
   order: Int!
 
   """
+  The instance's IPosts mixin. Left out of the schema where its module isn't installed.
+  """
+  posts: IPosts!
+
+  """
   The instance's IListingProfile mixin. Left out of the schema where its module isn't installed.
   """
   profile: IListingProfile!
@@ -9783,6 +12208,26 @@ type Person implements HasBanner & HasTags & IPersonWithChat & IPersonWithEvents
   The instance's IPersonVenues mixin. Left out of the schema where its module isn't installed.
   """
   venues: IPersonVenues!
+
+  """
+  Whether you may make them Public: only the performer themselves, from the account linked to their listing.
+  """
+  viewerCanMakePublic: Boolean!
+
+  """
+  Who sees them wherever an event doesn't say otherwise: Community (signed in) unless they opted in to Public.
+  """
+  visibility: PersonVisibility!
+
+  """
+  Who sees them on one of their events: their override for it, else their own visibility.
+  """
+  visibilityOn(
+    """
+    The event.
+    """
+    eventId: ID!
+  ): PersonVisibility!
 }
 
 """
@@ -10021,6 +12466,21 @@ type PersonVenuesView implements IPersonVenues {
   The venue they are based at, if any.
   """
   home: Venue
+}
+
+"""
+Who sees a performer (PerformerVisibility). Places are public; people are Community unless they opt in.
+"""
+enum PersonVisibility {
+  """
+  Anyone signed in to the app (free). The default.
+  """
+  COMMUNITY
+
+  """
+  The whole internet: share cards, App Clips and the web included.
+  """
+  PUBLIC
 }
 
 """
@@ -10538,9 +12998,15 @@ type PlacesProfile implements IPlacesProfile {
 }
 
 """
-A venue's post on itself, one of its events or one of its series, shown as the venue.
+A post made as a venue or as a person (a talent listing): on the venue, one of
+its events or series, or the person's own page. Shown as its poster.
 """
 type Post implements Node {
+  """
+  On a troupe's post, the member who wrote it for the troupe ("Kiki Riot for House of Lux").
+  """
+  actingPersonName: String
+
   """
   What it says.
   """
@@ -10577,9 +13043,19 @@ type Post implements Node {
   ): PostCommentConnection!
 
   """
+  Whether people can comment on it.
+  """
+  commentsOpen: Boolean!
+
+  """
   When it was posted.
   """
   createdAt: ISO8601DateTime!
+
+  """
+  Whether its text changed after it was posted.
+  """
+  edited: Boolean!
 
   """
   The event it's on, if it's on one.
@@ -10592,14 +13068,29 @@ type Post implements Node {
   eventSeries: EventSeries
 
   """
+  Whether the event's venue hid this talent post from the event. It still shows on the person's page.
+  """
+  hiddenFromEvent: Boolean!
+
+  """
   Its UUID.
   """
   id: ID!
 
   """
-  Its photo.
+  The talent listing posting it, when a person posted.
+  """
+  person: Person
+
+  """
+  Its first photo.
   """
   photoUrl: PhotoURL
+
+  """
+  Its photos, in order: at most four.
+  """
+  photos: [PostPhoto!]!
 
   """
   Whether it is pinned above the others.
@@ -10607,29 +13098,95 @@ type Post implements Node {
   pinned: Boolean!
 
   """
+  Its poster's picture.
+  """
+  posterAvatarUrl: PhotoURL
+
+  """
+  Who it shows as: the venue or the person, in full.
+  """
+  posterName: String!
+
+  """
+  The tag under the poster's name: "Venue" for a venue; for talent on an event,
+  their part ("MC", "DJ", "Act", "Duet", "Troupe", "Host"); else null.
+  """
+  roleLabel: String
+
+  """
   When it last changed.
   """
   updatedAt: ISO8601DateTime!
 
   """
-  The venue posting it.
+  The venue posting it; on a talent post, its event's venue. Null on a talent post on their own page.
   """
-  venue: Venue!
+  venue: Venue
 
   """
-  Whether the signed-in user may change it: the venue's managers and admins.
+  Whether the signed-in user may hide this talent post from its event: the event venue's managers and admins.
+  """
+  viewerCanHideFromEvent: Boolean!
+
+  """
+  Whether the signed-in user may change it: whoever manages its poster (the venue, or the talent listing) and admins.
   """
   viewerCanManage: Boolean!
 }
 
 """
-Someone's comment on a venue's post.
+Autogenerated input type of PostAuthorMute
+"""
+input PostAuthorMuteInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  Hide them (default) or show them.
+  """
+  muted: Boolean = true
+
+  """
+  A talent listing.
+  """
+  personId: ID
+
+  """
+  A venue.
+  """
+  venueId: ID
+}
+
+"""
+Autogenerated return type of PostAuthorMute.
+"""
+type PostAuthorMutePayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  Whether their posts are now hidden.
+  """
+  muted: Boolean!
+}
+
+"""
+Someone's comment on a venue's or a person's post.
 """
 type PostComment implements Node {
   """
   The author's profile picture.
   """
   authorAvatarUrl: PhotoURL
+
+  """
+  The author's user id, so apps can show friends by their full name, as in chat.
+  """
+  authorId: ID!
 
   """
   Who wrote it, as rooms show names ("Aurora B.").
@@ -10652,7 +13209,7 @@ type PostComment implements Node {
   id: ID!
 
   """
-  Whether the signed-in user may remove it: its author, the venue's managers and admins.
+  Whether the signed-in user may remove it: its author, whoever manages its post's poster, and admins.
   """
   viewerCanRemove: Boolean!
 }
@@ -10793,11 +13350,98 @@ type PostEdge {
 }
 
 """
-The local Posts implementation of a venue, event or series's posts.
+One of a post's photos.
+"""
+type PostPhoto {
+  """
+  What it shows, for screen readers.
+  """
+  altText: String
+
+  """
+  The photo.
+  """
+  url: PhotoURL
+}
+
+"""
+Posts: the venue's and event's tonight (posts.tonight), or the locale's (posts.locale).
+"""
+type PostsCard implements ICard {
+  """
+  The event, for tonight's posts.
+  """
+  event: Event
+
+  """
+  Stable for this card in this place, e.g. now.chat:<venue id>.
+  """
+  id: ID!
+
+  """
+  What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
+  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
+  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
+  pings, web or promo.slot. New kinds are added; a kind the app did not list in
+  cardKinds is never sent.
+  """
+  kind: String!
+
+  """
+  The locale, for its posts.
+  """
+  locale: Locale
+
+  """
+  Its place on the screen, from 1 at the top.
+  """
+  rank: Int!
+
+  """
+  A heading the app may use; null to use its own.
+  """
+  title: String
+
+  """
+  The venue, for tonight's posts.
+  """
+  venue: Venue
+}
+
+"""
+Whose posts a posts list shows (IPosts.list).
+"""
+enum PostsFrom {
+  """
+  Everyone.
+  """
+  ALL
+
+  """
+  Posts on events the signed-in viewer is going to; none when they're signed out.
+  """
+  GOING
+
+  """
+  Posts made as people (talent listings).
+  """
+  TALENT
+
+  """
+  Posts made as venues.
+  """
+  VENUES
+}
+
+"""
+The local Posts implementation of a venue, event, series, person or locale's posts.
 """
 type PostsView implements IPosts {
   """
-  The venue's posts on it, pinned first, then newest.
+  A venue's own posts (as the venue, on it, its events and series); an event's
+  by its venue and the people on it; a series'; a person's own; a locale's
+  updates from the last 14 days. Pinned first, then newest; a locale's newest
+  first. Posts from venues and people the viewer hid are left out.
   """
   list(
     """
@@ -10814,6 +13458,11 @@ type PostsView implements IPosts {
     Returns the first _n_ elements from the list.
     """
     first: Int
+
+    """
+    Whose posts: everyone, venues, talent, or (signed in) posts on events the viewer is going to.
+    """
+    from: PostsFrom = ALL
 
     """
     Returns the last _n_ elements from the list.
@@ -10864,6 +13513,110 @@ type Profile {
   staff; first name and last initial ("Aurora B.") for anyone else.
   """
   name: String!
+}
+
+"""
+A promoted or charity card in a promo slot (a PromoPlacement): a venue, an
+event, or a sponsor's picture, words and link. The app hides it when the viewer
+turned its category off, and says it showed it with recordCardViews.
+"""
+type PromoCard {
+  """
+  A line or two under the headline.
+  """
+  body: String
+
+  """
+  Its category, one of cardCategories (venue, event, health, employment,
+  small_business, charity). The app filters on it; the server never learns what was hidden.
+  """
+  category: String!
+
+  """
+  The event it promotes, for an event card.
+  """
+  event: Event
+
+  """
+  What it says.
+  """
+  headline: String!
+
+  """
+  The placement, as recordCardViews takes it.
+  """
+  id: ID!
+
+  """
+  What the picture shows, for screen readers.
+  """
+  imageAlt: String
+
+  """
+  Its picture.
+  """
+  imageUrl: String
+
+  """
+  Its badge, in the audience's words: Promoted, or Charity for a free charity
+  placement. Show it as sent; it can change without an app release.
+  """
+  label: String!
+
+  """
+  The link's button text.
+  """
+  linkLabel: String
+
+  """
+  Where it goes, opened in the browser. A plain link: nothing about the viewer is added to it.
+  """
+  linkUrl: String
+
+  """
+  Who placed it.
+  """
+  sponsorName: String!
+
+  """
+  The venue it promotes, for a venue card.
+  """
+  venue: Venue
+}
+
+"""
+A place for one promoted card (promo.slot). The app draws the first candidate
+whose category the viewer has not turned off, and nothing when they have turned them all off.
+"""
+type PromoSlotCard implements ICard {
+  """
+  Promoted cards, in the order to try them. No card is in two slots of one layout.
+  """
+  candidates: [PromoCard!]!
+
+  """
+  Stable for this card in this place, e.g. now.chat:<venue id>.
+  """
+  id: ID!
+
+  """
+  What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
+  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
+  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
+  pings, web or promo.slot. New kinds are added; a kind the app did not list in
+  cardKinds is never sent.
+  """
+  kind: String!
+
+  """
+  Its place on the screen, from 1 at the top.
+  """
+  rank: Int!
+
+  """
+  A heading the app may use; null to use its own.
+  """
+  title: String
 }
 
 """
@@ -11101,6 +13854,167 @@ enum RSVPState {
 }
 
 """
+Who a go/no-go answer is about.
+"""
+enum ReadinessArea {
+  """
+  Someone on the support staff.
+  """
+  STAFF
+
+  """
+  A person on the acts the curtain rises on.
+  """
+  TALENT
+
+  """
+  The venue.
+  """
+  VENUE
+}
+
+"""
+How many of one area are ready for a curtain call. No names.
+"""
+type ReadinessCount {
+  """
+  Which area.
+  """
+  area: ReadinessArea!
+
+  """
+  How many are ready (or overridden).
+  """
+  ready: Int!
+
+  """
+  How many it waits on.
+  """
+  total: Int!
+}
+
+"""
+One answer a curtain call's go/no-go waits on: the venue, a performer or someone on the support staff.
+"""
+type ReadinessItem {
+  """
+  Who it is about.
+  """
+  area: ReadinessArea!
+
+  """
+  Stable within the curtain call: area, then who.
+  """
+  id: ID!
+
+  """
+  Why not, or anything to know.
+  """
+  note: String
+
+  """
+  Talent: who.
+  """
+  person: Person
+
+  """
+  When it was last answered.
+  """
+  setAt: ISO8601DateTime
+
+  """
+  Support staff: who.
+  """
+  staffAssignment: StaffAssignment
+
+  """
+  Ready, not ready or not answered yet.
+  """
+  state: ReadinessState!
+}
+
+"""
+Autogenerated input type of ReadinessSet
+"""
+input ReadinessSetInput {
+  """
+  Who it is about.
+  """
+  area: ReadinessArea!
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The act with the curtain call.
+  """
+  curtainCallId: ID!
+
+  """
+  Why not, or anything to know.
+  """
+  note: String
+
+  """
+  TALENT: who.
+  """
+  personId: ID
+
+  """
+  STAFF: who.
+  """
+  staffAssignmentId: ID
+
+  """
+  READY, NOT_READY, or OVERRIDDEN (the venue or hosts only).
+  """
+  state: ReadinessState!
+}
+
+"""
+Autogenerated return type of ReadinessSet.
+"""
+type ReadinessSetPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The go/no-go, after the answer.
+  """
+  goNoGo: GoNoGo!
+}
+
+"""
+Whether someone is ready for the curtain.
+"""
+enum ReadinessState {
+  """
+  Not ready: the show waits.
+  """
+  NOT_READY
+
+  """
+  The venue said go for them (Velvet "Override: go"): counts as ready, but is
+  not their own answer. Only the venue or the hosts set it.
+  """
+  OVERRIDDEN
+
+  """
+  Not answered yet. Read only.
+  """
+  PENDING
+
+  """
+  Ready.
+  """
+  READY
+}
+
+"""
 Autogenerated input type of RecentChatPushSet
 """
 input RecentChatPushSetInput {
@@ -11155,9 +14069,200 @@ enum ReportTarget {
   PING
 
   """
+  A venue's or a person's post, by its id.
+  """
+  POST
+
+  """
+  A comment on a post, by its id.
+  """
+  POST_COMMENT
+
+  """
   A venue, by its id.
   """
   VENUE
+}
+
+"""
+What researching a suggestion found: by the researcher, or the venue answering.
+"""
+type ResearchResult {
+  """
+  How sure the researcher is, 0 to 1.
+  """
+  confidence: Float
+
+  """
+  When it was found.
+  """
+  createdAt: ISO8601DateTime!
+
+  """
+  What it read: [{url, title, excerpt}].
+  """
+  evidence: JSON!
+
+  """
+  Its ID.
+  """
+  id: ID!
+
+  """
+  The researcher's model, or venue when the venue answered.
+  """
+  model: String
+
+  """
+  The changes it proposes: {field: {from, to}}.
+  """
+  proposedDiff: JSON!
+
+  """
+  approve, reject, needs_venue or unsure.
+  """
+  recommendation: String
+
+  """
+  What it found, in words.
+  """
+  summary: String
+}
+
+"""
+A file shared in a room. Only its members can download it, through a link that works for an hour.
+"""
+type RoomFile {
+  """
+  The lineup slot it's for, if any.
+  """
+  appearance: Appearance
+
+  """
+  Its size in bytes.
+  """
+  byteSize: BigInt!
+
+  """
+  Its MIME type.
+  """
+  contentType: String!
+
+  """
+  When it was uploaded.
+  """
+  createdAt: ISO8601DateTime!
+
+  """
+  A sound file's length, if its uploader said.
+  """
+  durationSeconds: Int
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  What kind of file it is.
+  """
+  kind: RoomFileKind!
+
+  """
+  What a document is, if its uploader said.
+  """
+  label: RoomFileLabel
+
+  """
+  The message it was shared with; null until it's shared.
+  """
+  messageId: ID
+
+  """
+  Its file name, as uploaded.
+  """
+  name: String!
+
+  """
+  When a picture was posted to the public chat (promoteRoomFile); null if it never was.
+  """
+  promotedAt: ISO8601DateTime
+
+  """
+  Whether the upload was confirmed (finishRoomUpload).
+  """
+  uploaded: Boolean!
+
+  """
+  Who uploaded it: their full name.
+  """
+  uploaderName: String
+
+  """
+  A link that downloads it, working for an hour; null until it is uploaded.
+  """
+  url: String
+
+  """
+  Whether the signed-in user may post it to the public chat: a picture not
+  posted yet, by the venue and admins, or by the talent who shared it.
+  """
+  viewerCanPromote: Boolean!
+
+  """
+  Whether the signed-in user may delete it (removeRoomFile): its uploader, the venue's managers and admins.
+  """
+  viewerCanRemove: Boolean!
+}
+
+"""
+What kind of file was shared in a room, by its content type.
+"""
+enum RoomFileKind {
+  """
+  Music or sound.
+  """
+  AUDIO
+
+  """
+  A PDF, text, spreadsheet or other document.
+  """
+  DOCUMENT
+
+  """
+  A picture, such as a poster.
+  """
+  IMAGE
+
+  """
+  A video.
+  """
+  VIDEO
+}
+
+"""
+What a document shared in a room is, for the files shelf.
+"""
+enum RoomFileLabel {
+  """
+  Load-in and arrival notes.
+  """
+  LOAD_IN
+
+  """
+  Anything else.
+  """
+  OTHER
+
+  """
+  The running order and cues.
+  """
+  RUN_OF_SHOW
+
+  """
+  What the act needs: sound, lights, stage.
+  """
+  TECH_RIDER
 }
 
 """
@@ -11208,6 +14313,452 @@ type RulesModerationProvider implements IModerationProvider & IProvider {
   Whether it runs on its own server and dials in for the event feed.
   """
   remote: Boolean!
+}
+
+"""
+An "I feel unsafe" alert a guest sent to the staff on shift at a venue.
+"""
+type SafetyAlert {
+  """
+  When someone on shift said they are on it.
+  """
+  acknowledgedAt: ISO8601DateTime
+
+  """
+  The first name of whoever is on it, as the guest is told.
+  """
+  acknowledgedByName: String
+
+  """
+  When it was closed or cancelled.
+  """
+  closedAt: ISO8601DateTime
+
+  """
+  What's going on, as they picked it.
+  """
+  concerns: [SafetyAlertConcern!]!
+
+  """
+  When it was sent.
+  """
+  createdAt: ISO8601DateTime!
+
+  """
+  What they wrote, if anything.
+  """
+  description: String
+
+  """
+  When it went to the venue's managers too: nobody picked it up in time, or the guest sent it again.
+  """
+  escalatedAt: ISO8601DateTime
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  Its private thread, oldest first.
+  """
+  messages: [SafetyAlertMessage!]!
+
+  """
+  Where in the venue they are.
+  """
+  place: SafetyAlertPlace
+
+  """
+  When the guest last sent it again.
+  """
+  remindedAt: ISO8601DateTime
+
+  """
+  Whether anyone on shift has opened it.
+  """
+  seen: Boolean!
+
+  """
+  Where it stands.
+  """
+  state: SafetyAlertState!
+
+  """
+  One line: where, then what ("Dance floor · Someone's bothering them").
+  """
+  summary: String!
+
+  """
+  What staff wrote when they shared support.
+  """
+  supportNote: String
+
+  """
+  When staff shared "Need support?" with the guest.
+  """
+  supportSharedAt: ISO8601DateTime
+
+  """
+  Where it was sent.
+  """
+  venue: Venue!
+}
+
+"""
+Autogenerated input type of SafetyAlertCancel
+"""
+input SafetyAlertCancelInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The alert.
+  """
+  id: ID!
+}
+
+"""
+Autogenerated return type of SafetyAlertCancel.
+"""
+type SafetyAlertCancelPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The alert as it now stands.
+  """
+  safetyAlert: SafetyAlert
+}
+
+"""
+What's going on, as the guest who sent a safety alert picked it (SafetyAlert::CONCERNS).
+"""
+enum SafetyAlertConcern {
+  """
+  Someone's bothering them.
+  """
+  BOTHERING
+
+  """
+  Someone's following them.
+  """
+  FOLLOWING
+
+  """
+  Someone's had too much.
+  """
+  INTOXICATED
+
+  """
+  Something else.
+  """
+  OTHER
+
+  """
+  They don't feel well.
+  """
+  UNWELL
+}
+
+"""
+A message in a safety alert's private thread, between the guest and the staff on shift.
+"""
+type SafetyAlertMessage {
+  """
+  What it says.
+  """
+  body: String!
+
+  """
+  When it was sent.
+  """
+  createdAt: ISO8601DateTime!
+
+  """
+  Whether staff sent it; otherwise the guest did.
+  """
+  fromStaff: Boolean!
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  Who sent it: the guest's name, or the staff member's first name.
+  """
+  senderName: String!
+}
+
+"""
+Autogenerated input type of SafetyAlertMessageSend
+"""
+input SafetyAlertMessageSendInput {
+  """
+  What it says, up to 1000 characters.
+  """
+  body: String!
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The alert.
+  """
+  id: ID!
+}
+
+"""
+Autogenerated return type of SafetyAlertMessageSend.
+"""
+type SafetyAlertMessageSendPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The alert as it now stands.
+  """
+  safetyAlert: SafetyAlert
+}
+
+"""
+Where in the venue the guest who sent a safety alert is (SafetyAlert::PLACES).
+"""
+enum SafetyAlertPlace {
+  """
+  At the bar.
+  """
+  BAR
+
+  """
+  On the dance floor.
+  """
+  DANCE_FLOOR
+
+  """
+  At the entrance.
+  """
+  ENTRANCE
+
+  """
+  On the patio.
+  """
+  PATIO
+
+  """
+  At the restrooms.
+  """
+  RESTROOMS
+
+  """
+  Near the stage.
+  """
+  STAGE
+
+  """
+  They're not sure where.
+  """
+  UNSURE
+}
+
+"""
+Autogenerated input type of SafetyAlertRemind
+"""
+input SafetyAlertRemindInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The alert.
+  """
+  id: ID!
+}
+
+"""
+Autogenerated return type of SafetyAlertRemind.
+"""
+type SafetyAlertRemindPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The alert as it now stands.
+  """
+  safetyAlert: SafetyAlert
+}
+
+"""
+Autogenerated input type of SafetyAlertSend
+"""
+input SafetyAlertSendInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  What's going on, any of them.
+  """
+  concerns: [SafetyAlertConcern!] = []
+
+  """
+  Anything else staff should know, up to 500 characters.
+  """
+  description: String
+
+  """
+  Where in the venue you are.
+  """
+  place: SafetyAlertPlace
+
+  """
+  The venue you're at.
+  """
+  venueId: ID!
+}
+
+"""
+Autogenerated return type of SafetyAlertSend.
+"""
+type SafetyAlertSendPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The alert as it now stands.
+  """
+  safetyAlert: SafetyAlert
+}
+
+"""
+Where a safety alert stands.
+"""
+enum SafetyAlertState {
+  """
+  Someone on shift said they are on it.
+  """
+  ACKNOWLEDGED
+
+  """
+  The guest said they're OK now.
+  """
+  CANCELLED
+
+  """
+  Staff closed it.
+  """
+  CLOSED
+
+  """
+  Sent, and nobody on shift has picked it up yet.
+  """
+  OPEN
+}
+
+"""
+Autogenerated input type of SafetyAlertUpdate
+"""
+input SafetyAlertUpdateInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  What's going on, any of them.
+  """
+  concerns: [SafetyAlertConcern!] = []
+
+  """
+  Anything else staff should know.
+  """
+  description: String
+
+  """
+  The alert.
+  """
+  id: ID!
+
+  """
+  Where in the venue you are.
+  """
+  place: SafetyAlertPlace
+}
+
+"""
+Autogenerated return type of SafetyAlertUpdate.
+"""
+type SafetyAlertUpdatePayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The alert as it now stands.
+  """
+  safetyAlert: SafetyAlert
+}
+
+"""
+One number in an act: drag sets are an act of N performances, each maybe by one
+of its performers and on a track from the back-of-house room.
+"""
+type Scene {
+  """
+  Time after it before the next, e.g. a costume change; null for the default (2 minutes).
+  """
+  gapSeconds: Int
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  How long it runs: as set, else its track's length; null when neither is known (the estimate counts 4 minutes).
+  """
+  lengthSeconds: Int
+
+  """
+  Who performs it, if one of the set.
+  """
+  performer: Person
+
+  """
+  Its place in the act, from 0.
+  """
+  position: Int!
+
+  """
+  How long it runs, when set rather than read from its track.
+  """
+  seconds: Int
+
+  """
+  The number, e.g. a song name.
+  """
+  title: String
+
+  """
+  Its track, for the back-of-house room's members; null for everyone else, or without one.
+  """
+  track: RoomFile
 }
 
 """
@@ -11277,7 +14828,9 @@ type SelfUser implements HasTribes & IUser {
   name: String
 
   """
-  The user profile photo.
+  The user profile photo: full size for the user themself, their friends and the
+  audience's staff; the tiny copy chat rooms show (48 pixels square, or none for
+  initials) for anyone else.
   """
   photo: Photo
 
@@ -11317,6 +14870,57 @@ type SelfUser implements HasTribes & IUser {
   When the user was last located at their venue.
   """
   venueLastAt: ISO8601DateTime
+}
+
+"""
+A link to one of the audience's venues, events or people that its apps open when
+installed and its web app shows otherwise, until it expires.
+"""
+type ShareLink {
+  """
+  When it stops opening the page and says it has expired.
+  """
+  expiresAt: ISO8601DateTime!
+
+  """
+  https://<web domain>/venues/<id>?e=<signed expiry>.
+  """
+  url: String!
+}
+
+"""
+How long a share link opens its page before it says it has expired.
+"""
+enum ShareLinkLifetime {
+  """
+  One day.
+  """
+  DAY
+
+  """
+  30 days: what the apps share.
+  """
+  MONTH
+
+  """
+  About six months.
+  """
+  SIX_MONTHS
+
+  """
+  Two years.
+  """
+  TWO_YEARS
+
+  """
+  One week.
+  """
+  WEEK
+
+  """
+  One year: a printed poster.
+  """
+  YEAR
 }
 
 """
@@ -11673,6 +15277,31 @@ type SongRequestWindow {
   closedReason: String
 
   """
+  Tonight's requests of this kind that were played or sung, or skipped, the latest first.
+  """
+  finished(
+    """
+    Returns the elements in the list that come after the specified cursor.
+    """
+    after: String
+
+    """
+    Returns the elements in the list that come before the specified cursor.
+    """
+    before: String
+
+    """
+    Returns the first _n_ elements from the list.
+    """
+    first: Int
+
+    """
+    Returns the last _n_ elements from the list.
+    """
+    last: Int
+  ): SongRequestConnection!
+
+  """
   Who takes them now: the lineup entry on with a role that does. Null when nobody is.
   """
   host: Appearance
@@ -11713,8 +15342,9 @@ type SongRequestWindow {
   open: Boolean!
 
   """
-  Whether the venue paused karaoke signups for tonight: the singers already on
-  the lineup still sing, nobody new signs up. Always false for songs.
+  Whether the venue paused this kind for tonight (updateVenue songRequestsPaused
+  or karaokePaused): what is in the queue stays (the singers on the lineup still
+  sing), nobody new asks.
   """
   paused: Boolean!
 
@@ -11800,6 +15430,449 @@ type SquareLocation {
 }
 
 """
+Someone working a show who isn't on the lineup: person X in role Y, e.g. Rick
+Mark on photography. Shown only to the venue, the hosts, the talent and the
+support staff themselves.
+"""
+type StaffAssignment {
+  """
+  When they are called for.
+  """
+  callAt: ISO8601DateTime
+
+  """
+  The event whose show they work; null for the venue night's own.
+  """
+  event: Event
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  Their role to show: title, else the role.
+  """
+  label: String!
+
+  """
+  Whether it is the signed-in user.
+  """
+  mine: Boolean!
+
+  """
+  Who: their listing, their name on the app, or the name given.
+  """
+  name: String
+
+  """
+  The venue night they work.
+  """
+  night: ISO8601Date!
+
+  """
+  Their listing, if they have one.
+  """
+  person: Person
+
+  """
+  Whether a curtain call waits for them to be ready.
+  """
+  required: Boolean!
+
+  """
+  What they do.
+  """
+  role: StaffRole!
+
+  """
+  Their role in their own words, e.g. Second shooter.
+  """
+  title: String
+}
+
+"""
+What someone on the support staff does at a show.
+"""
+enum StaffRole {
+  """
+  Behind the bar.
+  """
+  BAR
+
+  """
+  Working the door.
+  """
+  DOOR
+
+  """
+  Running lights.
+  """
+  LIGHTING
+
+  """
+  Anything else; say what as title.
+  """
+  OTHER
+
+  """
+  Taking photos.
+  """
+  PHOTOGRAPHY
+
+  """
+  Running for the talent: tips, props, water.
+  """
+  RUNNER
+
+  """
+  Security.
+  """
+  SECURITY
+
+  """
+  Running sound.
+  """
+  SOUND
+
+  """
+  Stage managing.
+  """
+  STAGE_MANAGER
+
+  """
+  Filming.
+  """
+  VIDEO
+}
+
+"""
+What's on stage at the event the viewer is at: its lineup, who's on now and karaoke (now.stage).
+"""
+type StageCard implements ICard {
+  """
+  The event.
+  """
+  event: Event!
+
+  """
+  Stable for this card in this place, e.g. now.chat:<venue id>.
+  """
+  id: ID!
+
+  """
+  What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
+  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
+  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
+  pings, web or promo.slot. New kinds are added; a kind the app did not list in
+  cardKinds is never sent.
+  """
+  kind: String!
+
+  """
+  Its place on the screen, from 1 at the top.
+  """
+  rank: Int!
+
+  """
+  A heading the app may use; null to use its own.
+  """
+  title: String
+
+  """
+  Where it is.
+  """
+  venue: Venue
+}
+
+"""
+A suggestion about the audience's listings: a missing venue or event, a
+correction, a closure, a tag, local rules or a performer. Nothing it proposes is
+live until a reviewer approves it.
+"""
+type Submission {
+  """
+  What the submitter wrote. Admins only, since it may say who they are.
+  """
+  body: String @requires(permissions: ["audience:moderate:*"])
+
+  """
+  When it was filed.
+  """
+  createdAt: ISO8601DateTime!
+
+  """
+  The listing as it is now, for the fields it proposes.
+  """
+  current: JSON!
+
+  """
+  When it was decided.
+  """
+  decidedAt: ISO8601DateTime
+
+  """
+  Its decisions, oldest first.
+  """
+  decisions: [SubmissionDecision!]!
+
+  """
+  How many people say it is wrong, e.g. that a venue is still open.
+  """
+  disputeCount: Int! @requires(permissions: ["audience:moderate:*"])
+
+  """
+  The event it is about, or that approving it added.
+  """
+  event: Event
+
+  """
+  Links and photos: [{kind, url, photoId, photoUrl}]. Admins only, since they may show who filed it.
+  """
+  evidence: JSON! @requires(permissions: ["audience:moderate:*"])
+
+  """
+  Its ID.
+  """
+  id: ID!
+
+  """
+  What it proposes.
+  """
+  kind: SubmissionKind!
+
+  """
+  The city it was filed in.
+  """
+  locale: Locale
+
+  """
+  Its place in the queue: higher first. Admins only.
+  """
+  priority: Float! @requires(permissions: ["audience:moderate:*"])
+
+  """
+  The fields it proposes.
+  """
+  proposed: JSON!
+
+  """
+  How many people filed it.
+  """
+  reporterCount: Int!
+
+  """
+  What researching it found, oldest first. Admins only.
+  """
+  research: [ResearchResult!]! @requires(permissions: ["audience:moderate:*"])
+
+  """
+  low, normal or high.
+  """
+  risk: String!
+
+  """
+  The recurring night it is about.
+  """
+  series: EventSeries
+
+  """
+  Where it is in review.
+  """
+  status: SubmissionStatus!
+
+  """
+  Who filed it. Admins only.
+  """
+  submitter: Profile @requires(permissions: ["audience:moderate:*"])
+
+  """
+  attendee, talent, venue_staff, admin or system, when filed. Admins only.
+  """
+  submitterRole: String! @requires(permissions: ["audience:moderate:*"])
+
+  """
+  The submitter's trust when filed, 0 to 1. Admins only.
+  """
+  submitterTrust: Float @requires(permissions: ["audience:moderate:*"])
+
+  """
+  The venue it is about (or its event is at), or that approving it added.
+  """
+  venue: Venue
+}
+
+"""
+A decision on a suggestion.
+"""
+type SubmissionDecision {
+  """
+  What was decided.
+  """
+  action: SubmissionDecisionAction!
+
+  """
+  Whether it was rejected as bad faith.
+  """
+  badFaith: Boolean!
+
+  """
+  When.
+  """
+  createdAt: ISO8601DateTime!
+
+  """
+  What was applied.
+  """
+  finalDiff: JSON!
+
+  """
+  Its ID.
+  """
+  id: ID!
+
+  """
+  The reviewer's reason.
+  """
+  reason: String
+
+  """
+  Who decided. Admins only.
+  """
+  reviewer: Profile @requires(permissions: ["audience:moderate:*"])
+}
+
+"""
+What a reviewer decides about a suggestion (Mutation.decideSubmission).
+"""
+enum SubmissionDecisionAction {
+  """
+  Apply it as proposed.
+  """
+  APPROVE
+
+  """
+  Applied without a person (off; never sent by clients).
+  """
+  AUTO_APPLY
+
+  """
+  Apply the reviewer’s edited version (proposed).
+  """
+  EDIT_APPROVE
+
+  """
+  Ask the venue's staff to confirm it first.
+  """
+  NEEDS_VENUE
+
+  """
+  Don’t apply it; a reason is required.
+  """
+  REJECT
+}
+
+"""
+A link or photo that shows a suggestion is right.
+"""
+input SubmissionEvidenceInput {
+  """
+  link or photo.
+  """
+  kind: String!
+
+  """
+  An uploaded photo, for a photo.
+  """
+  photoId: ID
+
+  """
+  A web address, for a link.
+  """
+  url: String
+}
+
+"""
+What a suggestion proposes (Mutation.submitContribution).
+"""
+enum SubmissionKind {
+  """
+  A venue that has closed for good.
+  """
+  CLOSED
+
+  """
+  A fix to a venue's or event's details.
+  """
+  CORRECTION
+
+  """
+  A fix to a venue's local rules, by its verified staff only (Mutation.submitLocalRulesCorrection).
+  """
+  LOCAL_RULES_CORRECTION
+
+  """
+  An event that is not listed yet.
+  """
+  MISSING_EVENT
+
+  """
+  A venue that is not listed yet.
+  """
+  MISSING_VENUE
+
+  """
+  A tag for an event or a recurring night; never for a venue.
+  """
+  TAG_SUGGESTION
+
+  """
+  A performer who is on at an event.
+  """
+  TALENT_LINK
+}
+
+"""
+Where a suggestion is in review.
+"""
+enum SubmissionStatus {
+  """
+  Approved and applied.
+  """
+  APPROVED
+
+  """
+  Waiting for a person to decide.
+  """
+  IN_REVIEW
+
+  """
+  The same as another suggestion, decided with it.
+  """
+  MERGED
+
+  """
+  Waiting for the venue's staff to confirm it.
+  """
+  NEEDS_VENUE
+
+  """
+  Not applied.
+  """
+  REJECTED
+
+  """
+  Being checked by the researcher.
+  """
+  RESEARCHING
+
+  """
+  Filed, not yet queued.
+  """
+  SUBMITTED
+}
+
+"""
 The subscription root of this schema
 """
 type Subscription {
@@ -11875,6 +15948,76 @@ type Subscription {
     """
     watch: Boolean = false
   ): ChatRoomEvent! @requires(permissions: ["chat:read:self", "chat:read:venue"])
+}
+
+"""
+A crisis or support line the guest can call, text or open.
+"""
+type SupportLine {
+  """
+  One line on who it is for.
+  """
+  description: String
+
+  """
+  A stable key for the line.
+  """
+  id: ID!
+
+  """
+  Its name.
+  """
+  name: String!
+
+  """
+  The number to call, digits only.
+  """
+  phone: String
+
+  """
+  What to text it to start, when it asks for something.
+  """
+  textBody: String
+
+  """
+  The number to text, digits only.
+  """
+  textNumber: String
+
+  """
+  Its website.
+  """
+  url: String
+}
+
+"""
+"Need support?": the emergency number and the crisis and support lines for a region.
+"""
+type SupportResources {
+  """
+  When someone last checked every line shown; null until they have, and the apps show no date.
+  """
+  checkedAt: ISO8601Date
+
+  """
+  The emergency number, such as 911.
+  """
+  emergency: String!
+
+  """
+  The country's lines, then the region's own.
+  """
+  lines: [SupportLine!]!
+
+  """
+  The region it is for, named.
+  """
+  name: String!
+
+  """
+  The region these are for: the one asked for, its country, or the default.
+  """
+  region: String!
 }
 
 """
@@ -12771,6 +16914,215 @@ type TribeLeavePayload {
 }
 
 """
+One of a trivia round's choices, with how many in the room picked it (never who).
+"""
+type TriviaChoice {
+  """
+  How many picked it.
+  """
+  count: Int!
+
+  """
+  The choice, e.g. Myth or Legend.
+  """
+  label: String!
+}
+
+"""
+Who moves a trivia segment along.
+"""
+enum TriviaDriver {
+  """
+  Someone on the segment (or the venue) opens and reveals each round.
+  """
+  HOST
+
+  """
+  Rounds run themselves in the venue chat, anonymously.
+  """
+  ROOM
+}
+
+"""
+When trivia answers show.
+"""
+enum TriviaReveal {
+  """
+  After each round, once its voting closes.
+  """
+  EACH
+
+  """
+  All at the end of the segment: each round's answer waits until it ends.
+  """
+  END
+}
+
+"""
+One item of group trivia put to a venue's room, posted as a card in its chat:
+the room talks it over and votes together (voteTrivia, changeable while open),
+the room's call is taken when voting closes, and the answer is posted. Counts
+only: nobody is named, scored or picked.
+"""
+type TriviaRound {
+  """
+  The right choice, once revealed.
+  """
+  answer: String
+
+  """
+  The choices, with their counts.
+  """
+  choices: [TriviaChoice!]!
+
+  """
+  When voting closes.
+  """
+  closesAt: ISO8601DateTime!
+
+  """
+  Who moves it along.
+  """
+  driver: TriviaDriver!
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  Its card in the venue's chat, where the room talks it over: the votes belong under it.
+  """
+  message: VenueMessage
+
+  """
+  The signed-in user's vote, if any.
+  """
+  myChoice: String
+
+  """
+  When it went up.
+  """
+  openedAt: ISO8601DateTime!
+
+  """
+  The story behind the answer, once revealed.
+  """
+  reveal: String
+
+  """
+  When the answer showed.
+  """
+  revealedAt: ISO8601DateTime
+
+  """
+  Whether its answer waits for the end of the segment.
+  """
+  revealsAtEnd: Boolean!
+
+  """
+  The room's call: the choice most picked, once revealed; null on a tie or with no votes.
+  """
+  roomCall: String
+
+  """
+  Its set.
+  """
+  set: TriviaSet!
+
+  """
+  What the room decides on.
+  """
+  statement: String!
+
+  """
+  Whether votes are taken now.
+  """
+  voting: Boolean!
+}
+
+"""
+A set of group trivia (config/trivia_sets): content-agnostic, so drag and sports
+sets are the same shape. Its topics meet an event's or venue's tag names.
+"""
+type TriviaSet {
+  """
+  Who keeps it.
+  """
+  curator: String
+
+  """
+  How many items it has.
+  """
+  itemCount: Int!
+
+  """
+  Its key, as Appearance.triviaSet takes it.
+  """
+  key: String!
+
+  """
+  Its content rating, e.g. general.
+  """
+  rating: String!
+
+  """
+  Its name.
+  """
+  title: String!
+
+  """
+  The tag names it suits, lower case.
+  """
+  topics: [String!]!
+
+  """
+  Whether a person has checked every item against its source.
+  """
+  verified: Boolean!
+
+  """
+  Bumped when its items change.
+  """
+  version: Int!
+}
+
+"""
+Autogenerated input type of TriviaVoteCast
+"""
+input TriviaVoteCastInput {
+  """
+  One of the round's choices, e.g. Legend.
+  """
+  choice: String!
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The round.
+  """
+  roundId: ID!
+}
+
+"""
+Autogenerated return type of TriviaVoteCast.
+"""
+type TriviaVoteCastPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The round, with its counts.
+  """
+  round: TriviaRound!
+}
+
+"""
 A user: their public profile, the same record whoever asks.
 """
 type User implements HasTribes & IUser & IUserWithPing & Node {
@@ -12796,7 +17148,9 @@ type User implements HasTribes & IUser & IUserWithPing & Node {
   name: String
 
   """
-  The user profile photo.
+  The user profile photo: full size for the user themself, their friends and the
+  audience's staff; the tiny copy chat rooms show (48 pixels square, or none for
+  initials) for anyone else.
   """
   photo: Photo
 
@@ -12845,6 +17199,16 @@ type UserState implements IUserStateWithCover & IUserStateWithPing {
   canPretendLocation: Boolean! @endpoint(in: [AUDIENCE, STAFF])
 
   """
+  Whether chat rooms show their initials instead of their photo (setChatInitials).
+  """
+  chatInitials: Boolean!
+
+  """
+  Friend matching from contacts: their number, who it found and requests waiting on them.
+  """
+  contactMatching: ContactMatching!
+
+  """
   The instance's IUserStateCover mixin. Left out of the schema where its module isn't installed.
   """
   cover: IUserStateCover! @endpoint(in: [AUDIENCE, STAFF])
@@ -12866,9 +17230,34 @@ type UserState implements IUserStateWithCover & IUserStateWithPing {
   recentChatPush: Boolean!
 
   """
+  One of the safety alerts they sent here, by ID.
+  """
+  safetyAlert(
+    """
+    Its UUID.
+    """
+    id: ID!
+  ): SafetyAlert
+
+  """
+  Safety alerts they sent here, newest first: any still open, and the ones closed in the last day.
+  """
+  safetyAlerts: [SafetyAlert!]!
+
+  """
   Their own profile, with what only they see.
   """
   self: SelfUser!
+
+  """
+  Suggestions they filed here (or were merged into someone else's), newest first, with where each is.
+  """
+  submissions(
+    """
+    At most this many (up to 100).
+    """
+    limit: Int = 50
+  ): [Submission!]!
 
   """
   When they agreed to the terms of use; the apps ask before anyone chats.
@@ -12949,11 +17338,16 @@ type UserStatePingView implements IUserStatePing {
 """
 A venue in the audience.
 """
-type Venue implements HasBanner & HasPhoto & HasTags & HasTimestamps & IVenueWithChat & IVenueWithEvents & IVenueWithFriends & IVenueWithKaraoke & IVenueWithMusic & IVenueWithPeople & IVenueWithPhotography & IVenueWithPing & IVenueWithPosts & IVenueWithProfile & IVenueWithRequests & IVenueWithTickets & Node {
+type Venue implements HasBanner & HasPhoto & HasTags & HasTimestamps & IVenueWithChat & IVenueWithEvents & IVenueWithFriends & IVenueWithKaraoke & IVenueWithMusic & IVenueWithPairUp & IVenueWithPeople & IVenueWithPhotography & IVenueWithPing & IVenueWithPosts & IVenueWithProfile & IVenueWithRequests & IVenueWithTickets & IVenueWithTrivia & Node {
   """
   How busy it is right now, approximately. Admins and its managers only.
   """
   activity: VenueActivity @requires(permissions: ["venues:read:mine", "venues:read:venue"])
+
+  """
+  Whether it closed for good: kept for its history, listed nowhere.
+  """
+  archived: Boolean!
 
   """
   Its banner images, in the order the apps rotate through.
@@ -13033,6 +17427,11 @@ type Venue implements HasBanner & HasPhoto & HasTags & HasTimestamps & IVenueWit
   karaoke: IVenueKaraoke
 
   """
+  Its own rules (age policy, licence, last call), as approved; null when none were.
+  """
+  localRules: VenueLocalRules
+
+  """
   The city or area containing this venue.
   """
   locale: Locale!
@@ -13056,6 +17455,16 @@ type Venue implements HasBanner & HasPhoto & HasTags & HasTimestamps & IVenueWit
   Its display order.
   """
   order: Int!
+
+  """
+  The instance's IVenuePairUp mixin, when available. Null unless it has the pair_up facet (its facets).
+  """
+  pairUp: IVenuePairUp
+
+  """
+  Whether Pair me up is on there (Venue.pairUp): on unless the venue opted out.
+  """
+  pairUpEnabled: Boolean!
 
   """
   The instance's IVenuePeople mixin. Left out of the schema where its module isn't installed.
@@ -13093,9 +17502,19 @@ type Venue implements HasBanner & HasPhoto & HasTags & HasTimestamps & IVenueWit
   profile: IListingProfile!
 
   """
+  Whether it was reported closed and that isn't decided yet: left out of tonight's views, its page kept.
+  """
+  reportedClosed: Boolean!
+
+  """
   The instance's IVenueRequests mixin. Left out of the schema where its module isn't installed.
   """
   requests: IVenueRequests!
+
+  """
+  Whether anyone on shift here hears safety alerts right now; the app offers other ways to get help when not.
+  """
+  safetyStaffOnShift: Boolean!
 
   """
   Its audience tags, including tags connected to module facets, by name.
@@ -13106,6 +17525,11 @@ type Venue implements HasBanner & HasPhoto & HasTags & HasTimestamps & IVenueWit
   The instance's IVenueTickets mixin. Left out of the schema where its module isn't installed.
   """
   tickets: IVenueTickets!
+
+  """
+  The instance's IVenueTrivia mixin. Left out of the schema where its module isn't installed.
+  """
+  trivia: IVenueTrivia!
 
   """
   When the record was last updated.
@@ -13271,7 +17695,7 @@ type VenueCoverView implements IVenueCover {
   ): PaymentAccount @requires(permissions: ["payments:read:mine"])
 
   """
-  The time zone its nights are counted in.
+  The IANA time zone its nights are counted in: its cover zone, else its locale's.
   """
   timeZone: String
 
@@ -13415,6 +17839,47 @@ type VenueKaraokeView implements IVenueKaraoke {
 }
 
 """
+A venue's own rules, as its staff corrected them and a reviewer approved. The
+jurisdiction's public rules (Locale.liquor) outrank them where they disagree.
+"""
+type VenueLocalRules {
+  """
+  all_ages, 18_plus, 21_plus or mixed.
+  """
+  agePolicy: String
+
+  """
+  When it closes, HH:MM local time.
+  """
+  closingTime: String
+
+  """
+  Its last call, HH:MM local time.
+  """
+  lastCall: String
+
+  """
+  Its liquor licence class.
+  """
+  licenseClass: String
+
+  """
+  Anything else about its rules.
+  """
+  notes: String
+
+  """
+  allowed, not_allowed or fee.
+  """
+  reentry: String
+
+  """
+  When it was last approved.
+  """
+  verifiedAt: ISO8601DateTime
+}
+
+"""
 A message someone sent in a venue's chat room.
 """
 type VenueMessage implements ChatMessage & HasTribes & Node {
@@ -13476,6 +17941,11 @@ type VenueMessage implements ChatMessage & HasTribes & Node {
   person: Person
 
   """
+  What's in a photo message's picture, for screen readers, when its poster said.
+  """
+  photoAlt: String
+
+  """
   The photo of a photo message or an announcement.
   """
   photoUrl: PhotoURL
@@ -13484,6 +17954,11 @@ type VenueMessage implements ChatMessage & HasTribes & Node {
   Whether it's the announcement pinned under the room's title.
   """
   pinned: Boolean!
+
+  """
+  Whether it was posted as the room's audience, like a prompt: shown with its name and mark, not a person.
+  """
+  postedAsAudience: Boolean!
 
   """
   Whether talent posted it as their listing (role HOST): `person` is who.
@@ -13500,6 +17975,16 @@ type VenueMessage implements ChatMessage & HasTribes & Node {
   the viewer is them, a friend of theirs, or an admin.
   """
   presence: Presence!
+
+  """
+  The prompt a PROMPT message puts to the room.
+  """
+  prompt: ChatPromptFrame
+
+  """
+  The prompt a TEXT message answers, if it does.
+  """
+  promptId: ID
 
   """
   Who removed it and why, for a removed message in a transcript asked with includeRemoved; null while it shows.
@@ -13584,9 +18069,70 @@ type VenueMusicView implements IVenueMusic {
 }
 
 """
+Autogenerated input type of VenueOpenReport
+"""
+input VenueOpenReportInput {
+  """
+  Anything the reviewer should know, e.g. "I was there".
+  """
+  body: String
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The venue.
+  """
+  venueId: ID!
+}
+
+"""
+Autogenerated return type of VenueOpenReport.
+"""
+type VenueOpenReportPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The venue, with reportedClosed as it is now.
+  """
+  venue: Venue!
+}
+
+"""
+The local Pair me up implementation of a venue's pairing.
+"""
+type VenuePairUpView implements IVenuePairUp {
+  """
+  Whether the viewer can opt in now: the app places them at the venue.
+  """
+  here: Boolean!
+
+  """
+  The viewer's Pair me up here tonight; null until they opt in (joinPairUp), and once it expires.
+  """
+  mine: PairUpState
+}
+
+"""
 The local People implementation of who is on at a venue.
 """
 type VenuePeopleView implements IVenuePeople {
+  """
+  The next curtain call's readiness as counts, for anyone (guests too). Null unless the act up next has a curtain call.
+  """
+  curtainReadiness: CurtainReadiness
+
+  """
+  The go/no-go of the act up next in tonight's running order, when it has a
+  curtain call. Null otherwise, and for anyone not working the show.
+  """
+  goNoGo: GoNoGo
+
   """
   The acts on a night that have a time (or have gone on), in running order.
   """
@@ -13681,6 +18227,16 @@ type VenuePeopleView implements IVenuePeople {
   ): AppearanceConnection!
 
   """
+  A night's support staff on the venue's own show, then its events'. Empty for anyone not working the show.
+  """
+  supportStaff(
+    """
+    Another night than tonight.
+    """
+    night: ISO8601Date
+  ): [StaffAssignment!]!
+
+  """
   What advancing tonight's running order puts on next.
   """
   upNext: Appearance
@@ -13748,6 +18304,67 @@ type VenueTickets implements IVenueTickets & IVenueTicketsWithCover {
 }
 
 """
+The local Trivia implementation of a venue's group trivia.
+"""
+type VenueTriviaView implements IVenueTrivia {
+  """
+  Tonight's latest round: open, or the last revealed. Null before the first.
+  """
+  current: TriviaRound
+
+  """
+  The lineup entry running trivia now; null while none is.
+  """
+  segment: Appearance
+
+  """
+  The trivia sets, those whose topics meet the venue's tags first.
+  """
+  sets: [TriviaSet!]!
+}
+
+"""
+A group of venues: nearby (venues.nearby), where friends are (venues.friends),
+on tonight (venues.tonight), all of them (venues.all), or the "help fill your
+city" card (venues.thinCity, no venues).
+"""
+type VenuesCard implements ICard {
+  """
+  Stable for this card in this place, e.g. now.chat:<venue id>.
+  """
+  id: ID!
+
+  """
+  What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
+  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
+  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
+  pings, web or promo.slot. New kinds are added; a kind the app did not list in
+  cardKinds is never sent.
+  """
+  kind: String!
+
+  """
+  The locale they are in.
+  """
+  locale: Locale
+
+  """
+  Its place on the screen, from 1 at the top.
+  """
+  rank: Int!
+
+  """
+  A heading the app may use; null to use its own.
+  """
+  title: String
+
+  """
+  The venues, in the order to show them.
+  """
+  venues: [Venue!]!
+}
+
+"""
 The venues and talent the viewer manages here after accepting an invite. Empty for admins and everyone else.
 """
 type ViewerListings {
@@ -13770,4 +18387,63 @@ type ViewerListings {
   The venues they manage.
   """
   venues: [Venue!]!
+}
+
+"""
+The audience's own notice: a picture, words and a link (web). Not promoted, and not hidden by the viewer's card settings.
+"""
+type WebCard implements ICard {
+  """
+  A line or two under the headline.
+  """
+  body: String
+
+  """
+  What it says.
+  """
+  headline: String!
+
+  """
+  Stable for this card in this place, e.g. now.chat:<venue id>.
+  """
+  id: ID!
+
+  """
+  What the picture shows, for screen readers.
+  """
+  imageAlt: String
+
+  """
+  Its picture.
+  """
+  imageUrl: String
+
+  """
+  What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
+  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
+  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
+  pings, web or promo.slot. New kinds are added; a kind the app did not list in
+  cardKinds is never sent.
+  """
+  kind: String!
+
+  """
+  The link's button text.
+  """
+  linkLabel: String
+
+  """
+  Where it goes, opened in the browser.
+  """
+  linkUrl: String
+
+  """
+  Its place on the screen, from 1 at the top.
+  """
+  rank: Int!
+
+  """
+  A heading the app may use; null to use its own.
+  """
+  title: String
 }

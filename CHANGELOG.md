@@ -3,6 +3,16 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.28.0 (2026-10-22)
+
+Karaoke only on karaoke nights, for the API's `Venue.karaoke.tonight` (audience_kit_api). Deploy that API first: the
+lineup query asks for it.
+
+- `VenueKaraoke.tonight` says whether tonight is one of the venue's karaoke nights (nil from an API that doesn't say),
+  and `isPartnerSessionTonight` whether a partner's session (KaraFun) is the one to show tonight.
+- AudienceKitUI's `KaraokeQueue` shows a partner's Join link and QR code only on karaoke nights. AudienceKit's own
+  signups already follow `KaraokeWindow.permitted`, which the API now turns off on the venue's other nights.
+
 ## 0.27.0 (2026-10-22)
 
 Show control, for the API's 2026-10-22 release (segments, scenes, curtain calls and group trivia). It's a separate

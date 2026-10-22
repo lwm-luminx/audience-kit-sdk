@@ -2319,6 +2319,13 @@ A chat room's first event, on joining it: who is there, its recent history and i
 """
 type ChatJoined {
   """
+  When the room stops showing messages: those sent before it have expired (its
+  chat retention) for everyone but its admins, whose history goes back further.
+  The apps put a divider there between what has cleared and what is current.
+  """
+  expiresBefore: ISO8601DateTime!
+
+  """
   The room's last 100 messages, oldest first: the last 24 hours of it, or all of
   it for its admins. Removed messages and people you blocked are left out.
   """
@@ -3067,13 +3074,19 @@ type ChatRoom implements Node {
 }
 
 """
-An admin cleared the room: every message sent up to then is gone.
+An admin cleared the room, or its oldest messages expired (its chat retention): every message sent up to then is gone.
 """
 type ChatRoomCleared {
   """
   Messages sent at or before this are removed.
   """
   clearedAt: ISO8601DateTime!
+
+  """
+  Whether they expired rather than an admin clearing them. Apps keep what was
+  sent after clearedAt, and mark an admin clearing in the room.
+  """
+  expired: Boolean!
 }
 
 """
@@ -9105,6 +9118,12 @@ interface IVenueKaraoke @facet(tag: "karaoke") @mixin(extensionKey: "karaoke", f
   Its standing session on the partner, e.g. a KaraFun remote code. Null when it has none, or the partner has no sessions.
   """
   sessionCode: String
+
+  """
+  Whether tonight is one of its karaoke nights: one of tonight's events there is
+  one (Event.karaoke). The apps show its karaoke only then.
+  """
+  tonight: Boolean!
 }
 
 """
@@ -17836,6 +17855,12 @@ type VenueKaraokeView implements IVenueKaraoke {
   Its standing session on the partner, e.g. a KaraFun remote code. Null when it has none, or the partner has no sessions.
   """
   sessionCode: String
+
+  """
+  Whether tonight is one of its karaoke nights: one of tonight's events there is
+  one (Event.karaoke). The apps show its karaoke only then.
+  """
+  tonight: Boolean!
 }
 
 """

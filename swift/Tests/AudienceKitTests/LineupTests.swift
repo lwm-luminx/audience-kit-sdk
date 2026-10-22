@@ -159,6 +159,19 @@ private func song(_ id: String, _ title: String, state: String = "QUEUED", mine:
         #expect(try #require(stub.requests.last).jsonBody()["variables"] as? [String: String] == ["id": "q-1"])
     }
 
+    @Test func showsAPartnerSessionOnlyOnKaraokeNights() throws {
+        func session(_ tonight: String) throws -> VenueKaraoke {
+            let json = #"{"provider":"karafun","providerName":"KaraFun","joinUrl":"https://www.karafun.com/123456/","# +
+                #""sessionCode":"123456"\#(tonight)}"#
+            return try JSONDecoder.audienceKit.decode(VenueKaraoke.self, from: Data(json.utf8))
+        }
+        #expect(try session(#","tonight":true"#).isPartnerSessionTonight)
+        #expect(try !session(#","tonight":false"#).isPartnerSessionTonight)
+        // An API that doesn't say yet keeps showing it.
+        #expect(try session("").isPartnerSessionTonight)
+        #expect(!VenueKaraoke(provider: "audiencekit", tonight: true).isPartnerSessionTonight)
+    }
+
     @Test func roundTripsALineupEntry() throws {
         let entry = LineupEntry(id: "s1", role: .singer, title: "Ada", people: [.init(id: "p1", name: "Ada")],
                                 songRequest: SongRequest(id: "r1", title: "Waterloo", mine: true))

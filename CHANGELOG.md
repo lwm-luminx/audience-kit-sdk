@@ -3,6 +3,27 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.29.0 (2026-10-23)
+
+Server-driven cards, for the API's `layout` query (audience_kit_api #45, #53, #62; on production since 2026-10-22). The
+server ranks the cards of Now, Venues and People; the app draws them in that order and falls back to its own order when
+the layout can't be had.
+
+- `LayoutClient` fetches a screen's `Layout` with a 2 second timeout and returns the app's built-in order
+  (`Layout.fallback`) offline, on an error or past the timeout. Kinds the app didn't list are left out.
+- `CardRegistry` maps each card kind the app draws to what it renders; its `kinds` go to the server as `cardKinds`, and
+  it skips any kind it doesn't know.
+- `LayoutCard` carries the ids of the records it's about (venue, event, locale, venues, events, people), a web card's
+  `CardContent`, or a promo slot's `PromoCard` candidates. A card or candidate that doesn't decode is dropped, not the
+  layout.
+- `CardFilter` picks a promo slot's first candidate whose category the viewer hasn't turned off; categories the
+  audience publishes as not hideable (venues, events, announcements) are always shown.
+- `CardPreferences` keeps the hidden categories on the device: iCloud key-value store with a `UserDefaults` fallback on
+  Apple platforms, private shared preferences on Android (`audiencekit-android`, include it in Auto Backup). Never sent
+  to the server.
+- `cardCategories()` reads the published categories in the audience's words; `recordCardViews(promoIds, layoutId)`
+  and `PromoViewRecorder` report promo cards on screen for a second or more, once per layout, signed in only.
+
 ## 0.28.0 (2026-10-22)
 
 Karaoke only on karaoke nights, for the API's `Venue.karaoke.tonight` (audience_kit_api). Deploy that API first: the

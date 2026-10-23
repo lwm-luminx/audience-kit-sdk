@@ -155,6 +155,17 @@ class SignInTest {
     }
 
     @Test
+    fun aRefusedGoogleSignInCarriesTheApiReason() = runTest {
+        val stub = StubTransport {
+            StubTransport.json(401, """{"error":"UNAUTHENTICATED","message":"Sign in with Google is not configured"}""")
+        }
+        val (client, _) = makeClient(stub, token = null)
+
+        val error = assertFailsWith<AudienceKitException.SignInRejected> { client.signInWithGoogle("google-id-token", device) }
+        assertEquals("Sign in with Google is not configured", error.message)
+    }
+
+    @Test
     fun exchangesTheGoogleIdTokenAndStoresTheSession() = runTest {
         val stub = StubTransport {
             StubTransport.json(

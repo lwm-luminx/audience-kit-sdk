@@ -21,10 +21,11 @@ public sealed class AudienceKitException(message: String, cause: Throwable? = nu
 
     /**
      * `POST /v1/token` refused the Facebook token (HTTP 401): it's invalid, or it belongs to a Facebook
-     * app the audience doesn't use.
+     * app the audience doesn't use. For Google (`POST /v1/token/google`) it carries the API's reason, such as an
+     * API without the app's Google client ID.
      */
-    public class SignInRejected :
-        AudienceKitException("Sign-in was refused. The Facebook login isn't valid for this app.")
+    public class SignInRejected(message: String = "Sign-in was refused. The Facebook login isn't valid for this app.") :
+        AudienceKitException(message)
 
     /** `POST /v1/token` failed (HTTP 400). Carries the API's `message` when it sent one. */
     public data class SignInFailed(val faultMessage: String?) : AudienceKitException(faultMessage ?: "Sign-in failed.")

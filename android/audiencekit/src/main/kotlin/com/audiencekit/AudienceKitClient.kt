@@ -260,7 +260,10 @@ public class AudienceKitClient(
         val response = perform(request, token)
         when (response.status) {
             in 200..299 -> Unit
-            401 -> throw AudienceKitException.SignInRejected()
+            401 -> {
+                val error = runCatching { decodeJson.decodeFromString(ErrorEnvelope.serializer(), response.text) }
+                throw AudienceKitException.SignInRejected(error.getOrNull()?.message ?: "Sign-in was refused. Google didn't vouch for that account.")
+            }
             400 -> {
                 val error = runCatching { decodeJson.decodeFromString(ErrorEnvelope.serializer(), response.text) }
                 throw AudienceKitException.SignInFailed(error.getOrNull()?.message)

@@ -88,7 +88,7 @@ private let layoutJSON = """
 
         #expect(layout.isFallback && layout.id == nil)
         #expect(layout.cards.map(\.kind) == ["venues.all", "venues.thinCity"])
-        #expect(layout.cards.allSatisfy(\.isFallback))
+        #expect(layout.cards.allSatisfy { $0.isFallback })
     }
 
     @Test func registryDrawsKnownKindsOnly() {

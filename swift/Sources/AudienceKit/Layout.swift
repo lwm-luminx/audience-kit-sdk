@@ -191,7 +191,7 @@ public struct LayoutCard: Decodable, Sendable, Hashable, Identifiable {
 }
 
 /// A screen's cards, top first.
-public struct Layout: Sendable, Hashable {
+public struct CardLayout: Sendable, Hashable {
     /// This ranking, for ``AudienceSession/recordCardViews(promoIDs:layoutID:)``. Nil for the built-in order.
     public let id: String?
     public let cards: [LayoutCard]
@@ -205,8 +205,8 @@ public struct Layout: Sendable, Hashable {
     }
 
     /// The app's built-in order, used when the server's can't be had.
-    public static func fallback(_ kinds: [String], refreshAfter: Int = 60) -> Layout {
-        Layout(id: nil, cards: kinds.enumerated().map { LayoutCard.fallback($1, rank: $0 + 1) },
+    public static func fallback(_ kinds: [String], refreshAfter: Int = 60) -> CardLayout {
+        CardLayout(id: nil, cards: kinds.enumerated().map { LayoutCard.fallback($1, rank: $0 + 1) },
                refreshAfter: refreshAfter)
     }
 
@@ -289,7 +289,7 @@ public struct CardRegistry<Rendered> {
     }
 
     /// The layout's cards drawn in order, leaving out unknown kinds.
-    public func render(_ layout: Layout) -> [(card: LayoutCard, rendered: Rendered)] {
+    public func render(_ layout: CardLayout) -> [(card: LayoutCard, rendered: Rendered)] {
         layout.cards.compactMap { card in render(card).map { (card, $0) } }
     }
 }
@@ -317,9 +317,9 @@ public struct LayoutClient: Sendable {
 
     /// The server's layout for where the device is (or the app's locale when there's no position), with any kind the
     /// app didn't list left out; the built-in order when that fails. Never throws: the screen fills either way.
-    public func load(position: Coordinate? = nil, beaconMajor: Int? = nil, localeID: String? = nil) async -> Layout {
+    public func load(position: Coordinate? = nil, beaconMajor: Int? = nil, localeID: String? = nil) async -> CardLayout {
         let session = session, screen = screen, kinds = cardKinds, version = appVersion
-        let fetched: Layout? = await withTaskGroup(of: Layout?.self) { group in
+        let fetched: CardLayout? = await withTaskGroup(of: CardLayout?.self) { group in
             group.addTask {
                 try? await session.layout(screen: screen, cardKinds: kinds, position: position,
                                           beaconMajor: beaconMajor, localeID: localeID, appVersion: version)
@@ -334,7 +334,7 @@ public struct LayoutClient: Sendable {
         }
         guard let fetched else { return .fallback(fallback) }
         let known = Set(kinds)
-        return Layout(id: fetched.id, cards: fetched.cards.filter { known.contains($0.kind) },
+        return CardLayout(id: fetched.id, cards: fetched.cards.filter { known.contains($0.kind) },
                       refreshAfter: fetched.refreshAfter)
     }
 }
@@ -464,7 +464,7 @@ extension AudienceSession {
     /// kinds in `cardKinds` come back. ``LayoutClient`` adds the timeout and the fallback order.
     public func layout(screen: LayoutScreen, cardKinds: [String], position: Coordinate? = nil,
                        beaconMajor: Int? = nil, localeID: String? = nil, appVersion: String? = nil)
-        async throws -> Layout {
+        async throws -> CardLayout {
         var client: [String: GraphQLValue] = ["cardKinds": .array(cardKinds.map(GraphQLValue.string))]
         if let appVersion { client["appVersion"] = .string(appVersion) }
         var variables: [String: GraphQLValue] = ["screen": .string(screen.rawValue), "client": .object(client)]
@@ -473,7 +473,7 @@ extension AudienceSession {
 
         let payload = try await graphQL(Queries.layout, variables: variables, operationName: "Layout",
                                         as: LayoutResponse.self).layout
-        return Layout(id: payload.id, cards: payload.cards.compactMap(\.value).sorted { $0.rank < $1.rank },
+        return CardLayout(id: payload.id, cards: payload.cards.compactMap(\.value).sorted { $0.rank < $1.rank },
                       refreshAfter: payload.refreshAfter)
     }
 

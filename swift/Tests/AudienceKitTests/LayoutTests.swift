@@ -96,7 +96,7 @@ private let layoutJSON = """
         registry.register("now.stage") { _ in "stage" }
         registry.register("promo.slot") { $0.promo(.none).map(\.content.headline) }
 
-        let layout = Layout(id: "l", cards: [
+        let layout = CardLayout(id: "l", cards: [
             LayoutCard(id: "a", kind: "now.stage", rank: 1),
             LayoutCard(id: "b", kind: "mystery", rank: 2),
             LayoutCard(id: "c", kind: "promo.slot", rank: 3),

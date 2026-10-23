@@ -9,8 +9,8 @@ Server-driven cards, for the API's `layout` query (audience_kit_api #45, #53, #6
 server ranks the cards of Now, Venues and People; the app draws them in that order and falls back to its own order when
 the layout can't be had.
 
-- `LayoutClient` fetches a screen's `Layout` with a 2 second timeout and returns the app's built-in order
-  (`Layout.fallback`) offline, on an error or past the timeout. Kinds the app didn't list are left out.
+- `LayoutClient` fetches a screen's `CardLayout` with a 2 second timeout and returns the app's built-in order
+  (`CardLayout.fallback`) offline, on an error or past the timeout. Kinds the app didn't list are left out.
 - `CardRegistry` maps each card kind the app draws to what it renders; its `kinds` go to the server as `cardKinds`, and
   it skips any kind it doesn't know.
 - `LayoutCard` carries the ids of the records it's about (venue, event, locale, venues, events, people), a web card's

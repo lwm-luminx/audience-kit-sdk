@@ -114,7 +114,7 @@ class LayoutTest {
         val registry = CardRegistry<String>()
             .register("now.stage") { "stage" }
             .register("promo.slot") { card -> card.promo(CardFilter.NONE)?.content?.headline }
-        val layout = Layout(
+        val layout = CardLayout(
             "l",
             listOf(
                 LayoutCard("a", "now.stage", 1),

@@ -128,7 +128,7 @@ public data class LayoutCard(
 }
 
 /** A screen's cards, top first. */
-public data class Layout(
+public data class CardLayout(
     /** This ranking, for [recordCardViews]. Null for the built-in order. */
     val id: String?,
     val cards: List<LayoutCard>,
@@ -143,8 +143,8 @@ public data class Layout(
 
     public companion object {
         /** The app's built-in order, used when the server's can't be had. */
-        public fun fallback(kinds: List<String>, refreshAfter: Int = 60): Layout =
-            Layout(null, kinds.mapIndexed { index, kind -> LayoutCard.fallback(kind, index + 1) }, refreshAfter)
+        public fun fallback(kinds: List<String>, refreshAfter: Int = 60): CardLayout =
+            CardLayout(null, kinds.mapIndexed { index, kind -> LayoutCard.fallback(kind, index + 1) }, refreshAfter)
     }
 }
 
@@ -207,7 +207,7 @@ public class CardRegistry<R : Any> {
     public fun render(card: LayoutCard): R? = renderers[card.kind]?.invoke(card)
 
     /** The layout's cards drawn in order, leaving out unknown kinds. */
-    public fun render(layout: Layout): List<Pair<LayoutCard, R>> =
+    public fun render(layout: CardLayout): List<Pair<LayoutCard, R>> =
         layout.cards.mapNotNull { card -> render(card)?.let { card to it } }
 }
 
@@ -228,7 +228,7 @@ public class LayoutClient(
      * app didn't list left out; the built-in order when that fails. Never throws but on cancellation: the screen fills
      * either way.
      */
-    public suspend fun load(position: Coordinates? = null, localeId: String? = null): Layout {
+    public suspend fun load(position: Coordinates? = null, localeId: String? = null): CardLayout {
         val fetched = (
             try {
                 withTimeoutOrNull(timeoutMillis) { client.layout(screen, cardKinds, position, localeId, appVersion) }
@@ -237,7 +237,7 @@ public class LayoutClient(
             } catch (e: Exception) {
                 null
             }
-            ) ?: return Layout.fallback(fallback)
+            ) ?: return CardLayout.fallback(fallback)
         val known = cardKinds.toSet()
         return fetched.copy(cards = fetched.cards.filter { it.kind in known })
     }
@@ -441,7 +441,7 @@ public suspend fun AudienceKitClient.layout(
     position: Coordinates? = null,
     localeId: String? = null,
     appVersion: String? = null,
-): Layout {
+): CardLayout {
     val variables = buildMap<String, JsonElement> {
         put("screen", JsonPrimitive(screen.name))
         put(
@@ -461,7 +461,7 @@ public suspend fun AudienceKitClient.layout(
         runCatching { AudienceKitClient.json.decodeFromJsonElement(LayoutCardWire.serializer(), element) }
             .getOrNull()?.toCard()
     }
-    return Layout(wire.id, cards.sortedBy { it.rank }, wire.refreshAfter)
+    return CardLayout(wire.id, cards.sortedBy { it.rank }, wire.refreshAfter)
 }
 
 /** The published categories of promoted cards, in the audience's words, for "Cards you see". */

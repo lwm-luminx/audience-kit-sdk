@@ -3,6 +3,12 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.29.1 (2026-10-24)
+
+- Android: `AudienceKitClient.graphQL` checks `errors` before it decodes `data`. A refused mutation comes back as
+  `{"errors":[…],"data":{"field":null}}`, and decoding that `data` into a non-null type used to throw
+  `AudienceKitException.Decoding` and hide the refusal (Hot Mess Android Quickie, terms not yet agreed).
+
 ## 0.29.0 (2026-10-23)
 
 Server-driven cards, for the API's `layout` query (audience_kit_api #45, #53, #62; on production since 2026-10-22). The

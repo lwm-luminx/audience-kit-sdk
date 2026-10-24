@@ -291,8 +291,8 @@ public actor AudienceSession {
     /// Runs a GraphQL operation against the audience's endpoint and decodes its `data`.
     ///
     /// The request goes to the API instance the stored credential's `endpoint` names (the configured base URL
-    /// before sign-in), at the audience's `graphql` or `staffql` path: `endpoint` is the consumer view the apps use
-    /// unless staff tools ask for ``GraphQLEndpoint/staff``. Throws ``AudienceKitError/graphQL(_:)`` when the
+    /// before sign-in), at the audience's endpoint path: `endpoint` is the consumer view the apps use
+    /// (packages for other views, such as StaffKit, pass their own). Throws ``AudienceKitError/graphQL(_:)`` when the
     /// response carries errors, even alongside data. Pass a `decoder` to decode into the app's own models with its
     /// own strategies; the default, ``Foundation/JSONDecoder/audienceKit``, reads ISO 8601 dates.
     public func graphQL<Response: Decodable & Sendable>(

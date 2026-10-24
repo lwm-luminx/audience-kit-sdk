@@ -47,7 +47,7 @@ public data class SignInResult(
     val audienceId: String? = null,
     /** The person's role at [audienceId]: `member`, `listing`, `admin` or `venue_device`. */
     val role: String,
-    /** The absolute URL of the GraphQL endpoint the token is for (the audience's graphql or staffql). */
+    /** The absolute URL of the GraphQL endpoint the token is for (the audience's graphql, or another endpoint for a package built on the SDK). */
     val endpoint: String,
     /** The venue device grant a device session was redeemed from; null for a person's session. */
     val venueDeviceId: String? = null,
@@ -356,8 +356,8 @@ public class AudienceKitClient(
      * Runs a GraphQL operation against the audience's endpoint and decodes its `data` with [deserializer].
      *
      * Throws [AudienceKitException.GraphQL] when the response carries errors, even alongside data.
-     * Pass a [json] to decode into the app's own models with its own settings. [endpoint] is the consumer view
-     * the apps use unless staff work asks for [GraphQLEndpoint.STAFF].
+     * Pass a [json] to decode into the app's own models with its own settings. [endpoint] is the consumer view;
+     * a package built on the SDK passes its own.
      */
     public suspend fun <T> graphQL(
         query: String,

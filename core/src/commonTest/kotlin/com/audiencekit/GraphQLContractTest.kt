@@ -76,8 +76,9 @@ class GraphQLContractTest {
     }
 
     @Test
-    fun routesConsumerAndStaffRequestsSeparately() {
+    fun routesEachEndpointBySegment() {
         assertEquals("/v1/audience/a-1/graphql", GraphQLEndpoint.CONSUMER.path("a-1"))
-        assertEquals("/v1/audience/a-1/staffql", GraphQLEndpoint.STAFF.path("a-1"))
+        assertEquals("/v1/audience/a-1/otherql", GraphQLEndpoint("otherql").path("a-1"))
+        assertEquals(GraphQLEndpoint.CONSUMER, GraphQLEndpoint("graphql"))
     }
 }

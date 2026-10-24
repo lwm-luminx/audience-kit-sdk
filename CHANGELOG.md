@@ -3,6 +3,20 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.30.0 (2026-10-24)
+
+The SDK speaks only to an audience's consumer endpoint (`/graphql`) and knows nothing of staffql. Staff work lives in
+StaffKit, which is built on the SDK and adds its staff endpoint itself. Breaking for staff tools that used the SDK's
+staff calls directly; Hot Mess never should (a member's token at staffql signed new accounts out in Hot Mess 2.3).
+
+- Swift: `GraphQLEndpoint` is a struct with only `.consumer`; a package adds others as
+  `extension GraphQLEndpoint { static let staff = GraphQLEndpoint(rawValue: "staffql") }`. `allCases` is gone.
+- Kotlin: `GraphQLEndpoint` is a data class with only `GraphQLEndpoint.CONSUMER`; a package adds others as extensions
+  on `GraphQLEndpoint.Companion`. `entries` is gone.
+- Swift: removed `doorVenues()`, `door(venueID:night:)`, `scanAdmission(venueID:code:)` and `Credential.isStaff`.
+  StaffKit has its own door calls. The `DoorVenue`, `DoorNight` and `ScanResult` models stay.
+- Both cables still name any endpoint but the consumer one in the subscription identifier.
+
 ## 0.29.1 (2026-10-24)
 
 - Android: `AudienceKitClient.graphQL` checks `errors` before it decodes `data`. A refused mutation comes back as

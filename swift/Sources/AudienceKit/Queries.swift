@@ -117,7 +117,6 @@ enum Queries {
     id status night amount { \(moneyFields) } total { \(moneyFields) } isRefundable passSecret scanCount checkedInAt \
     profile { id name avatarUrl } venue { id name photoUrl } event { id name }
     """
-    static let doorNightFields = "night paidCount checkedInCount gross { \(moneyFields) }"
 
     static let venueCover = """
     query VenueCover($id: ID!) {
@@ -138,22 +137,6 @@ enum Queries {
     static let admissions = """
     query Admissions {
       me { cover { admissions { nodes { \(admissionFields) } } } }
-    }
-    """
-
-    /// Staff work: sent to ``GraphQLEndpoint/staff``.
-    static let doorVenues = """
-    # endpoint: staff
-    query DoorVenues {
-      me { cover { doorVenues { nodes { id name photoUrl tickets { cover { door { \(doorNightFields) } } } } } } }
-    }
-    """
-
-    /// Staff work: sent to ``GraphQLEndpoint/staff``.
-    static let venueDoor = """
-    # endpoint: staff
-    query VenueDoor($id: ID!, $night: ISO8601Date) {
-      venues { venue(id: $id) { id name photoUrl tickets { cover { door(night: $night) { \(doorNightFields) } } } } }
     }
     """
 
@@ -183,16 +166,6 @@ enum Queries {
     static let refundAdmission = """
     mutation RefundAdmission($admissionId: ID!) {
       refundAdmission(input: { admissionId: $admissionId }) { admission { \(admissionFields) } }
-    }
-    """
-
-    /// Staff work: sent to ``GraphQLEndpoint/staff``.
-    static let scanAdmission = """
-    # endpoint: staff
-    mutation ScanAdmission($venueId: ID!, $code: String!) {
-      scanAdmission(input: { venueId: $venueId, code: $code }) {
-        result { outcome message admission { \(admissionFields) } }
-      }
     }
     """
 
@@ -277,28 +250,8 @@ struct AdmissionsResponse: Decodable, Sendable {
     var admissions: [Admission] { me?.cover.admissions.nodes ?? [] }
 }
 
-/// `me { cover { doorVenues { nodes } } }`.
-struct DoorVenuesResponse: Decodable, Sendable {
-    struct Cover: Decodable, Sendable { var doorVenues: Nodes<DoorVenue> }
-    struct Me: Decodable, Sendable { var cover: Cover }
-
-    var me: Me?
-    var doorVenues: [DoorVenue] { me?.cover.doorVenues.nodes ?? [] }
-}
-
-/// `venues { venue(id:) }`.
-struct VenueDoorResponse: Decodable, Sendable {
-    struct Venues: Decodable, Sendable { var venue: DoorVenue? }
-
-    var venues: Venues
-    var venue: DoorVenue? { venues.venue }
-}
 struct BuyCoverResponse: Decodable, Sendable { var buyCover: CoverPurchase }
 struct AdmissionPayload: Decodable, Sendable { var admission: Admission }
 struct ConfirmCoverResponse: Decodable, Sendable { var confirmCover: AdmissionPayload }
 struct PayCoverResponse: Decodable, Sendable { var payCover: AdmissionPayload }
 struct RefundAdmissionResponse: Decodable, Sendable { var refundAdmission: AdmissionPayload }
-struct ScanAdmissionResponse: Decodable, Sendable {
-    struct Payload: Decodable, Sendable { var result: ScanResult }
-    var scanAdmission: Payload
-}

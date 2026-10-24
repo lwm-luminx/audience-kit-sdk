@@ -123,8 +123,8 @@ public class CableConnection(
     public val isActive: Boolean get() = synchronized(lock) { socket != null || reconnect != null }
 
     /**
-     * Runs [query] with [variables] in [audienceId], in the [endpoint]'s view (the staff tools' `staffql` or the
-     * apps' `graphql`), while collected. Events end with the operation (`more: false`), a rejection, or the
+     * Runs [query] with [variables] in [audienceId], in the [endpoint]'s view (the apps' `graphql` unless a
+     * package built on the SDK passes its own), while collected. Events end with the operation (`more: false`), a rejection, or the
      * connection refused; cancelling the collector unsubscribes.
      */
     public fun subscribe(

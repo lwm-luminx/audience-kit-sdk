@@ -286,7 +286,7 @@ private func makeClient(
         let (client, store) = makeClient(stub, token: nil)
         var events = client.sessionEvents.makeAsyncIterator()
         let credential = makeCredential(baseURL: other.baseURL, token: "device-token", audienceId: "a-2",
-                                        endpoint: .staff, role: "venue_device")
+                                        endpoint: .other, role: "venue_device")
 
         try await client.adopt(credential: credential)
         _ = try await client.venues()
@@ -383,16 +383,16 @@ private func makeClient(
         #expect(pageless.tags?.first?.color == "#222222")
     }
 
-    @Test func staffToolsUseTheStaffEndpoint() async throws {
+    @Test func anotherEndpointIsAddressedByItsSegment() async throws {
         struct Me: Decodable, Sendable { let me: State? ; struct State: Decodable, Sendable { let termsAcceptedAt: String? } }
         let stub = Stub { _ in .json(status: 200, body: #"{"data":{"me":{"termsAcceptedAt":null}}}"#) }
         let (client, _) = makeClient(stub)
 
-        _ = try await client.graphQL("{ me { termsAcceptedAt } }", endpoint: .staff, as: Me.self)
+        _ = try await client.graphQL("{ me { termsAcceptedAt } }", endpoint: .other, as: Me.self)
         _ = try await client.graphQL("{ me { termsAcceptedAt } }", as: Me.self)
 
-        #expect(stub.requests.map(\.path) == ["/v1/audience/\(audienceID)/staffql", "/v1/audience/\(audienceID)/graphql"])
-        #expect(GraphQLEndpoint.allCases.map { $0.path(audienceID: "a") } == ["/v1/audience/a/graphql", "/v1/audience/a/staffql"])
+        #expect(stub.requests.map(\.path) == ["/v1/audience/\(audienceID)/otherql", "/v1/audience/\(audienceID)/graphql"])
+        #expect(GraphQLEndpoint.consumer.path(audienceID: "a") == "/v1/audience/a/graphql")
     }
 
     @Test func labelsEachOperationAndTellsTheMonitor() async throws {
@@ -995,37 +995,6 @@ private func makeClient(
             == ["admissionId": "7d9f2c1e-3b4a-4e5f-8a6b-1c2d3e4f5a6b", "sourceId": "cnon:ok"])
     }
 
-    @Test func decodesScansAndDoors() async throws {
-        let stub = Stub { request in
-            let operation = (try? request.jsonBody()["operationName"] as? String) ?? ""
-            if operation == "DoorVenues" {
-                return .json(status: 200, body: #"""
-                {"data":{"me":{"cover":{"doorVenues":{"nodes":[{"id":"v-1","name":"The Stud","photoUrl":null,
-                  "tickets":{"cover":{"door":{"night":"2026-10-09","paidCount":12,"checkedInCount":8,
-                  "gross":{"cents":12000,"currency":"usd"}}}}}]}}}}}
-                """#)
-            }
-            return .json(status: 200, body: #"""
-            {"data":{"scanAdmission":{"result":{"outcome":"RE_ENTRY","message":"Re-entry · Rick, in at 9:41pm",
-              "admission":null}}}}
-            """#)
-        }
-        let (client, _) = makeClient(stub)
-
-        let venues = try await client.doorVenues()
-        #expect(venues.first?.door?.paidCount == 12)
-        #expect(venues.first?.door?.checkedInCount == 8)
-        #expect(venues.first?.door?.gross == Money(cents: 12000, currency: "usd"))
-
-        let result = try await client.scanAdmission(venueID: "v-1", code: "HMC1.a.1.b")
-        #expect(result.outcome == .reEntry)
-        #expect(result.message.hasPrefix("Re-entry"))
-        #expect(try #require(stub.requests.last).jsonBody()["variables"] as? [String: String]
-            == ["venueId": "v-1", "code": "HMC1.a.1.b"])
-        // Working the door is staff work: both go to the audience's staff endpoint.
-        #expect(stub.requests.map(\.path) == ["/v1/audience/\(audienceID)/staffql", "/v1/audience/\(audienceID)/staffql"])
-    }
-
     @Test func decodesAVenuesCoverMixin() async throws {
         let stub = Stub { request in
             let id = (try? request.jsonBody()["variables"] as? [String: String])?["id"]
@@ -1210,7 +1179,7 @@ private func makeClient(
     @Test func decodesTheTokenJSON() throws {
         let json = #"""
         {"token":"jwt","userId":"u-1","audienceId":"a-1","role":"venue_device",
-         "endpoint":"https://api.audiencekit.com/v1/audience/a-1/staffql","venueDeviceId":"vd-1",
+         "endpoint":"https://api.audiencekit.com/v1/audience/a-1/graphql","venueDeviceId":"vd-1",
          "expiresAt":"2026-10-12T03:00:00.250Z"}
         """#
         let credential = try JSONDecoder().decode(Credential.self, from: Data(json.utf8))
@@ -1220,7 +1189,6 @@ private func makeClient(
         #expect(credential.audienceId == "a-1")
         #expect(credential.role == "venue_device")
         #expect(credential.venueDeviceId == "vd-1")
-        #expect(credential.isStaff)
         #expect(credential.origin == URL(string: "https://api.audiencekit.com"))
         #expect(credential.expiresAt == Date(timeIntervalSince1970: 1_791_774_000.25))
         #expect(credential.isExpired(at: Date(timeIntervalSince1970: 1_791_774_001)))
@@ -1238,7 +1206,6 @@ private func makeClient(
         #expect(credential.audienceId == nil)
         #expect(credential.expiresAt == nil)
         #expect(!credential.isExpired())
-        #expect(!credential.isStaff)
         #expect(credential.origin == URL(string: "http://localhost:3000"))
     }
 

@@ -85,7 +85,7 @@ public actor AudienceCable {
     /// `credential` is read whenever the socket (re)opens, so a renewed session is picked up without a new cable:
     /// the socket opens at ``url(for:)`` of the credential's ``Credential/origin`` (the configuration's `baseURL`
     /// when there is no credential), signed with its token, unless `url` names another address. `endpoint` is the
-    /// view the operations run in (the staff tools' `staffql`, or the consumer apps' `graphql`); the HTTP client
+    /// view the operations run in (the consumer apps' `graphql`, or one another package names); the HTTP client
     /// picks its endpoint the same way. `unauthorized` gets the token the server refused when it closes the
     /// connection as `unauthorized` (an ended session), so the owner can sign out.
     public init(configuration: AudienceKitConfiguration, endpoint: GraphQLEndpoint = .consumer, url: URL? = nil,
@@ -134,11 +134,11 @@ public actor AudienceCable {
     }
 
     /// One operation's `GraphQLChannel` identifier: the audience it runs in, the id that keeps it apart, and, for the
-    /// staff view, `"endpoint": "staffql"` (the consumer view is the server's default, so it isn't named).
+    /// other view, `"endpoint": "<its segment>"` (the consumer view is the server's default, so it isn't named).
     public static func graphQLIdentifier(audienceID: String, channelID: String,
                                          endpoint: GraphQLEndpoint = .consumer) -> String {
         var params = ["audience_id": audienceID, "channelId": channelID]
-        if endpoint == .staff { params["endpoint"] = endpoint.rawValue }
+        if endpoint != .consumer { params["endpoint"] = endpoint.rawValue }
         return identifier(channel: channel, params: params)
     }
 

@@ -433,6 +433,27 @@ class GraphQLTest {
         assertEquals(JsonPrimitive("undefinedField"), first.extensions?.get("code"))
     }
 
+    @Serializable
+    private data class Joined(val joinPairUp: Payload) {
+        @Serializable data class Payload(val status: String)
+    }
+
+    @Test
+    fun throwsGraphQLErrorsEvenWhenTheirDataCantBeDecoded() = runTest {
+        // graphql-ruby nulls a refused mutation's field, which a non-null response type can't hold.
+        val stub = StubTransport {
+            StubTransport.json(
+                200,
+                """{"errors":[{"message":"Agree to the community terms before you post.",
+                  "extensions":{"code":"FORBIDDEN","reason":"terms_not_accepted"}}],"data":{"joinPairUp":null}}""",
+            )
+        }
+        val (client, _) = makeClient(stub)
+
+        val error = assertFailsWith<AudienceKitException.GraphQL> { client.graphQL<Joined>("mutation JoinPairUp { x }") }
+        assertEquals(JsonPrimitive("FORBIDDEN"), error.errors.first().extensions?.get("code"))
+    }
+
     @Test
     fun aRejectedSessionEndsIt() = runTest {
         val stub = StubTransport { StubTransport.json(401, "{}") }

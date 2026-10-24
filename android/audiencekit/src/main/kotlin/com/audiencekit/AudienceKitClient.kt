@@ -9,6 +9,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.serializer
 import java.io.IOException
 import java.net.URI
@@ -385,10 +386,14 @@ public class AudienceKitClient(
         val started = TimeSource.Monotonic.markNow()
         val result = runCatching {
             val text = data(request).toString(Charsets.UTF_8)
-            val envelope = decode(GraphQLResponse.serializer(deserializer), text, json)
+            // Errors first: a refused mutation comes back as `{"errors":[…],"data":{"field":null}}`, which the
+            // caller's types usually can't hold, so decoding `data` first would hide the refusal.
+            val envelope = decode(GraphQLResponse.serializer(JsonElement.serializer()), text, json)
 
             if (!envelope.errors.isNullOrEmpty()) throw AudienceKitException.GraphQL(envelope.errors)
-            envelope.data ?: throw AudienceKitException.Decoding("The response had no data.")
+            val data = envelope.data?.takeUnless { it is JsonNull }
+                ?: throw AudienceKitException.Decoding("The response had no data.")
+            decode(deserializer, data, json)
         }
         monitor?.record(
             GraphQLOperationEvent(
@@ -680,6 +685,14 @@ public class AudienceKitClient(
 
         private fun <T> decode(deserializer: KSerializer<T>, text: String, json: Json): T = try {
             json.decodeFromString(deserializer, text)
+        } catch (e: SerializationException) {
+            throw AudienceKitException.Decoding(e.message ?: e.toString())
+        } catch (e: IllegalArgumentException) {
+            throw AudienceKitException.Decoding(e.message ?: e.toString())
+        }
+
+        private fun <T> decode(deserializer: KSerializer<T>, element: JsonElement, json: Json): T = try {
+            json.decodeFromJsonElement(deserializer, element)
         } catch (e: SerializationException) {
             throw AudienceKitException.Decoding(e.message ?: e.toString())
         } catch (e: IllegalArgumentException) {

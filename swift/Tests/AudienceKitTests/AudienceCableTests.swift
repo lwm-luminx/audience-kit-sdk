@@ -74,10 +74,10 @@ private func json(_ object: [String: Any]) -> String {
 
 private let configuration = AudienceKitConfiguration(baseURL: URL(string: "https://api.test")!)
 
-/// A session on `https://api.test`, for the audience's consumer endpoint, or its staff one on `https://staff.test`.
-private func credential(_ token: String, staff: Bool = false) -> Credential {
-    let endpoint = staff ? "https://staff.test/v1/audience/aud/staffql" : "https://api.test/v1/audience/aud/graphql"
-    return Credential(token: token, userId: "u-1", audienceId: "aud", role: staff ? "admin" : "member",
+/// A session on `https://api.test`, for the audience's consumer endpoint, or another one on `https://other.test`.
+private func credential(_ token: String, other: Bool = false) -> Credential {
+    let endpoint = other ? "https://other.test/v1/audience/aud/otherql" : "https://api.test/v1/audience/aud/graphql"
+    return Credential(token: token, userId: "u-1", audienceId: "aud", role: other ? "admin" : "member",
                       endpoint: URL(string: endpoint)!)
 }
 
@@ -90,8 +90,8 @@ private func credential(_ token: String, staff: Bool = false) -> Credential {
         // Sorted keys, so the string Action Cable matches commands by never changes between sends.
         #expect(AudienceCable.graphQLIdentifier(audienceID: "aud", channelID: "c1")
             == #"{"audience_id":"aud","channel":"GraphQLChannel","channelId":"c1"}"#)
-        #expect(AudienceCable.graphQLIdentifier(audienceID: "aud", channelID: "c1", endpoint: .staff)
-            == #"{"audience_id":"aud","channel":"GraphQLChannel","channelId":"c1","endpoint":"staffql"}"#)
+        #expect(AudienceCable.graphQLIdentifier(audienceID: "aud", channelID: "c1", endpoint: .other)
+            == #"{"audience_id":"aud","channel":"GraphQLChannel","channelId":"c1","endpoint":"otherql"}"#)
         #expect((0 ..< 20).allSatisfy { _ in
             AudienceCable.graphQLIdentifier(audienceID: "aud", channelID: "c1")
                 == #"{"audience_id":"aud","channel":"GraphQLChannel","channelId":"c1"}"#
@@ -130,18 +130,17 @@ private func credential(_ token: String, staff: Bool = false) -> Credential {
 
     @Test func runsAnOperationAndRunsItAgainAfterReconnecting() async throws {
         let sockets = Sockets()
-        let cable = AudienceCable(configuration: configuration, endpoint: .staff,
-                                  credential: { credential("session-jwt", staff: true) },
+        let cable = AudienceCable(configuration: configuration, endpoint: .other,
+                                  credential: { credential("session-jwt", other: true) },
                                   openSocket: { sockets.open($0) })
         let door = """
-        # endpoint: staff
         subscription StaffDoor($id: ID!) { door(venueId: $id) { __typename } }
         """
         var events = await cable.subscribe(query: door, variables: ["id": .string("v1")], operationName: "StaffDoor",
                                            audienceID: "aud").makeAsyncIterator()
         let first = try #require(sockets.all.first)
         // The socket opens on the API the credential names, dressed like every other call.
-        #expect(first.request.url?.absoluteString == "wss://staff.test/connection")
+        #expect(first.request.url?.absoluteString == "wss://other.test/connection")
         #expect(first.request.value(forHTTPHeaderField: "Authorization") == "Bearer session-jwt")
         #expect(first.request.value(forHTTPHeaderField: AudienceKitSDK.apiVersionHeaderName) == AudienceKitSDK.apiVersion)
         #expect(first.request.value(forHTTPHeaderField: "X-AudienceKit-Client") == "AudienceKit-Swift/\(AudienceKitSDK.version)")
@@ -154,7 +153,7 @@ private func credential(_ token: String, staff: Bool = false) -> Credential {
         let identifier = try #require(first.sent[0]["identifier"] as? String)
         let params = try #require(JSONSerialization.jsonObject(with: Data(identifier.utf8)) as? [String: String])
         #expect(params["channel"] == "GraphQLChannel" && params["audience_id"] == "aud"
-            && params["channelId"]?.isEmpty == false && params["endpoint"] == "staffql")
+            && params["channelId"]?.isEmpty == false && params["endpoint"] == "otherql")
 
         // Executes once confirmed, and says so.
         first.push(json(["type": "confirm_subscription", "identifier": identifier]))
@@ -398,4 +397,9 @@ private final class Recorder: GraphQLMonitor, @unchecked Sendable {
         #expect(recorder.operations[2].error == "Gone")
         #expect(recorder.sockets.first?.kind == .connected)
     }
+}
+
+extension GraphQLEndpoint {
+    /// An endpoint the SDK doesn't know, as a package built on it (StaffKit's staff endpoint) would add.
+    static let other = GraphQLEndpoint(rawValue: "otherql")
 }

@@ -20,7 +20,7 @@ extension GraphQLMonitor {
 /// Something that happened to one GraphQL operation.
 public struct GraphQLOperationEvent: Sendable, Hashable {
     public enum Transport: String, Sendable, Hashable {
-        /// A request to the audience's `graphql` or `staffql` endpoint.
+        /// A request to one of the audience's GraphQL endpoints.
         case http
         /// An operation on the cable (``AudienceCable``), one of many sharing its socket.
         case cable

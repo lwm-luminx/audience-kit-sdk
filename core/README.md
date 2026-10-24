@@ -5,7 +5,7 @@ This module extracts existing SDK code into Kotlin Multiplatform `commonMain`:
 - `graphQLValueOf` and `graphQLVariables`: recursive GraphQL variable conversion.
 - `Coordinate`: WKT parsing and JSON serialization.
 - `Coordinates`: GraphQL input construction, including beacon omission rules.
-- `GraphQLEndpoint`: member and staff endpoint routing.
+- `GraphQLEndpoint`: endpoint routing (consumer only; StaffKit adds its staff endpoint).
 
 The JVM `audiencekit` module exposes this module as an `api` dependency. Existing
 Kotlin imports and class names stay the same; StaffKit consumes it transitively

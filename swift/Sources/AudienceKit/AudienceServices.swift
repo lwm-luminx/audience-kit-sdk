@@ -94,23 +94,6 @@ extension AudienceSession {
         try await graphQL(Queries.admissions, operationName: "Admissions", as: AdmissionsResponse.self).admissions
     }
 
-    /// The venues whose door the signed-in user can work, with tonight's counts. Empty for most people. Working a
-    /// door is staff work, so this and ``door(venueID:night:)`` and ``scanAdmission(venueID:code:)`` go to the
-    /// audience's staff endpoint (``GraphQLEndpoint/staff``), which turns away anyone who isn't staff.
-    public func doorVenues() async throws -> [DoorVenue] {
-        try await graphQL(Queries.doorVenues, operationName: "DoorVenues", endpoint: .staff,
-                          as: DoorVenuesResponse.self).doorVenues
-    }
-
-    /// A venue's door for a night (`yyyy-MM-dd`, tonight by default). `door` is `nil` unless the signed-in user
-    /// can work it.
-    public func door(venueID: String, night: String? = nil) async throws -> DoorVenue? {
-        var variables: [String: GraphQLValue] = ["id": .string(venueID)]
-        if let night { variables["night"] = .string(night) }
-        return try await graphQL(Queries.venueDoor, variables: variables, operationName: "VenueDoor",
-                                 endpoint: .staff, as: VenueDoorResponse.self).venue
-    }
-
     /// Starts paying tonight's cover at a venue. For a Stripe venue, present Stripe's payment sheet with the
     /// result's client secret, publishable key and connected account (`STPAPIClient.shared.stripeAccount`), then
     /// call ``confirmCover(admissionID:)``. For a Square venue (``CoverPurchase/isSquare``), make a payment token
@@ -142,14 +125,6 @@ extension AudienceSession {
     public func refundAdmission(admissionID: String) async throws -> Admission {
         try await graphQL(Queries.refundAdmission, variables: ["admissionId": .string(admissionID)],
                           operationName: "RefundAdmission", as: RefundAdmissionResponse.self).refundAdmission.admission
-    }
-
-    /// Checks a pass's QR code at a venue's door. The first scan of a paid pass checks them in; later ones that
-    /// night are re-entry.
-    public func scanAdmission(venueID: String, code: String) async throws -> ScanResult {
-        try await graphQL(Queries.scanAdmission, variables: ["venueId": .string(venueID), "code": .string(code)],
-                          operationName: "ScanAdmission", endpoint: .staff,
-                          as: ScanAdmissionResponse.self).scanAdmission.result
     }
 
 }

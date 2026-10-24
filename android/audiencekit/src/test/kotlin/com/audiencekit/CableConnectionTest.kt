@@ -147,13 +147,13 @@ class CableConnectionTest {
     }
 
     @Test
-    fun namesTheStaffViewAndDressesTheHandshakeLikeAnAPIRequest() = runTest {
+    fun namesAnotherEndpointAndDressesTheHandshakeLikeAnAPIRequest() = runTest {
         val factory = FakeFactory()
         val cable = CableConnection(
             "wss://example.test/connection", { token }, factory,
             headers = mapOf(AudienceKitEnvironment.HEADER to "staging"), scope = backgroundScope,
         )
-        collect(cable.subscribe("AUDIENCE", "subscription R { room(id: \"r1\") { change } }", endpoint = GraphQLEndpoint.STAFF))
+        collect(cable.subscribe("AUDIENCE", "subscription R { room(id: \"r1\") { change } }", endpoint = GraphQLEndpoint("otherql")))
         runCurrent()
 
         val socket = factory.sockets.single()
@@ -164,7 +164,7 @@ class CableConnectionTest {
         socket.welcome()
         val identifier = socket.commands("subscribe").single().first
         assertTrue(
-            Regex("""\{"audience_id":"audience","channel":"GraphQLChannel","channelId":"[0-9a-f]{12}","endpoint":"staffql"\}""")
+            Regex("""\{"audience_id":"audience","channel":"GraphQLChannel","channelId":"[0-9a-f]{12}","endpoint":"otherql"\}""")
                 .matches(identifier),
             identifier,
         )

@@ -26,8 +26,8 @@ public object GraphQLCable {
 
     /**
      * Action Cable names a subscription by a JSON *string*, not an object: the GraphQL channel, the
-     * audience, and [channelId], which keeps one operation's identifier apart from another's, and for the staff
-     * view `"endpoint": "staffql"` (the consumer view is the server's default, so it isn't named). Built once
+     * audience, and [channelId], which keeps one operation's identifier apart from another's, and for any endpoint
+     * but the consumer view its segment as `"endpoint"` (the consumer view is the server's default, so it isn't named). Built once
      * per subscription, keys sorted, and sent byte for byte the same on every frame, since Action Cable
      * matches identifiers as strings.
      */
@@ -40,7 +40,7 @@ public object GraphQLCable {
             "audience_id" to JsonPrimitive(audienceId.lowercase()),
             "channel" to JsonPrimitive("GraphQLChannel"),
             "channelId" to JsonPrimitive(channelId),
-        ).apply { if (endpoint == GraphQLEndpoint.STAFF) put("endpoint", JsonPrimitive(endpoint.segment)) },
+        ).apply { if (endpoint != GraphQLEndpoint.CONSUMER) put("endpoint", JsonPrimitive(endpoint.segment)) },
     ).toString()
 
     /** A fresh id for [identifier]. */

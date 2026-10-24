@@ -137,8 +137,9 @@ the API instance the stored credential names (`wss://<origin>/connection`;
 the configured base URL before sign-in), its handshake carries
 `Authorization: Bearer <token>` and the same `X-AudienceKit-*` headers as every
 call, and a connection the server closes as `unauthorized` ends the session
-like an HTTP 401. Pass `endpoint: .staff` for a staff tool's subscriptions,
-and `url:` to point a development build at a local cable.
+like an HTTP 401. The SDK speaks only to the audience's consumer endpoint;
+StaffKit adds its staff endpoint as a `GraphQLEndpoint` of its own. Pass `url:`
+to point a development build at a local cable.
 
 ```swift
 let cable = client.makeCable()
@@ -293,9 +294,7 @@ let code = client.coverPassCode(for: pass)
 // or CoverPass.code(admissionID: pass.id, secret: secret, prefix: "HMC1")
 ```
 
-Door staff see venues in `doorVenues()` and check codes with
-`scanAdmission(venueID:code:)`, which returns an `outcome` (`.admit`,
-`.reEntry`, `.expired`, ...) and a `message` for the door.
+Working the door (door venues, scanning passes) is staff work, in StaffKit.
 
 ## Lineup and karaoke
 

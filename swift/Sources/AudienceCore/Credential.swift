@@ -6,7 +6,7 @@ import Foundation
 ///       "endpoint": "https://api.audiencekit.com/v1/audience/<id>/graphql", "venueDeviceId": null, "expiresAt": null }
 ///
 /// The credential says everything the client needs about the session, so nothing decodes the JWT: which audience it
-/// is for, which GraphQL endpoint it was issued for (its `aud`: the consumer `graphql` or the staff `staffql`; a
+/// is for, which GraphQL endpoint it was issued for (its `aud`, e.g. the consumer `graphql`; a
 /// token issued for a wider endpoint reaches the narrower ones), and when it expires, if ever. Treat the token like
 /// a password: keep it in a ``CredentialStore`` backed by the keychain and never log it.
 public struct Credential: Codable, Sendable, Hashable {
@@ -65,8 +65,6 @@ public struct Credential: Codable, Sendable, Hashable {
         return components.url
     }
 
-    /// Whether ``endpoint`` is an audience's staff endpoint (`staffql`).
-    public var isStaff: Bool { endpoint.lastPathComponent == "staffql" }
 
     // MARK: Codable
 

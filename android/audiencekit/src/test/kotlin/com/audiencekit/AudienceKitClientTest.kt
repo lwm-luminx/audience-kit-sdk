@@ -245,6 +245,36 @@ class SignInTest {
     }
 
     @Test
+    fun signsInWithAnAppReviewCode() = runTest {
+        val stub = StubTransport {
+            StubTransport.json(200, """{"token":"jwt-review","userId":"u-review","audienceId":"$AUDIENCE_ID","role":"member","endpoint":"https://api.audiencekit.test/graphql"}""")
+        }
+        val (client, store) = makeClient(stub, token = null)
+
+        val result = client.signInWithReviewCode("  ABCD-EFGH \n", device)
+
+        assertEquals("jwt-review", result.token)
+        assertEquals("jwt-review", store.loadToken())
+        val request = stub.requests.single()
+        assertEquals("/v1/token/review", request.path)
+        assertNull(request.header("Authorization"))
+        val body = request.jsonBody()
+        assertEquals("ABCD-EFGH", body.string("code"))
+        assertEquals("hotmess.admin.audiencekit.com", body.string("host"))
+    }
+
+    @Test
+    fun aWrongAppReviewCodeIsRefused() = runTest {
+        val stub = StubTransport { StubTransport.json(401, """{"error":"UNAUTHENTICATED","message":"Code is invalid or expired"}""") }
+        val (client, store) = makeClient(stub, token = null)
+
+        val error = assertFailsWith<AudienceKitException.SignInRejected> { client.signInWithReviewCode("nope", device) }
+
+        assertEquals("Code is invalid or expired", error.message)
+        assertNull(store.loadToken())
+    }
+
+    @Test
     fun connectsGoogleToTheSignedInAccount() = runTest {
         val stub = StubTransport {
             StubTransport.json(200, """{"token":"jwt-connected","userId":"u-1","audienceId":"$AUDIENCE_ID","role":"member","endpoint":"https://api.audiencekit.test/graphql"}""")

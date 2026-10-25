@@ -244,6 +244,21 @@ public class AudienceKitClient(
         ),
     )
 
+    /**
+     * Signs in with an App Review code (`POST /v1/token/review`) and stores the session: the code from a store's review
+     * notes signs in the reviewer account. It works only while the audience is in App Review (`GET /v1/token/review`,
+     * or `review_code` in the audience's sign-in methods); a wrong or expired code throws
+     * [AudienceKitException.SignInRejected] with the API's reason.
+     */
+    public suspend fun signInWithReviewCode(code: String, device: DeviceDescription): SignInResult =
+        exchange(
+            "/v1/token/review",
+            encodeJson.encodeToString(
+                ReviewSignInRequest.serializer(),
+                ReviewSignInRequest(code = code.trim(), host = configuration.host, device = device),
+            ).toByteArray(),
+        )
+
     private suspend fun signInWithApple(body: AppleSignInRequest): SignInResult =
         exchange("/v1/token/apple", encodeJson.encodeToString(AppleSignInRequest.serializer(), body).toByteArray())
 
@@ -723,6 +738,13 @@ internal data class AppleSignInRequest(
     val nonce: String? = null,
     @SerialName("first_name") val firstName: String? = null,
     @SerialName("last_name") val lastName: String? = null,
+    val host: String? = null,
+    val device: DeviceDescription,
+)
+
+@Serializable
+internal data class ReviewSignInRequest(
+    val code: String,
     val host: String? = null,
     val device: DeviceDescription,
 )

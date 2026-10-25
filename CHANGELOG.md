@@ -3,6 +3,12 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.31.0 (2026-10-25)
+
+- Kotlin: `AudienceKitClient.signInWithReviewCode(code, device)` signs in with an App Review code (`POST
+  /v1/token/review`), as Hot Mess for iOS does, and stores the session. A wrong or expired code throws
+  `SignInRejected` with the API's reason.
+
 ## 0.30.0 (2026-10-24)
 
 The SDK speaks only to an audience's consumer endpoint (`/graphql`) and knows nothing of staffql. Staff work lives in

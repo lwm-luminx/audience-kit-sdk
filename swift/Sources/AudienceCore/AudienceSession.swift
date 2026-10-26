@@ -333,9 +333,11 @@ public actor AudienceSession {
                                  headers: headers)
 
         let data = try await data(for: request, baseURL: credential?.origin ?? configuration.baseURL)
+        // Errors first: a refused mutation comes back as `{"errors":[…],"data":{"field":null}}`, which the caller's
+        // types usually can't hold, so decoding `data` first would hide the refusal.
+        let errors = try Self.decode(GraphQLErrors.self, from: data, decoder: decoder).errors
+        if let errors, !errors.isEmpty { throw AudienceKitError.graphQL(errors) }
         let envelope = try Self.decode(GraphQLResponse<Response>.self, from: data, decoder: decoder)
-
-        if let errors = envelope.errors, !errors.isEmpty { throw AudienceKitError.graphQL(errors) }
         guard let result = envelope.data else { throw AudienceKitError.decoding("The response had no data.") }
         return result
     }
@@ -652,6 +654,11 @@ struct GraphQLRequest: Encodable {
 
 struct GraphQLResponse<Payload: Decodable>: Decodable {
     var data: Payload?
+    var errors: [GraphQLError]?
+}
+
+/// A GraphQL response's `errors` alone, read before its `data`.
+struct GraphQLErrors: Decodable {
     var errors: [GraphQLError]?
 }
 

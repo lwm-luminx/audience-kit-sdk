@@ -603,6 +603,28 @@ private func makeClient(
         }
     }
 
+    @Test func throwsARefusalWhoseDataTheTypeCantHold() async throws {
+        let stub = Stub { _ in
+            .json(status: 200, body: #"""
+            {"data":{"joinPairUp":null},"errors":[{"message":"Agree to the community terms before you post.",
+              "path":["joinPairUp"],"extensions":{"code":"FORBIDDEN","reason":"terms_not_accepted"}}]}
+            """#)
+        }
+        let (client, _) = makeClient(stub)
+        struct Payload: Decodable, Sendable { let pairUp: [String: String] }
+
+        do {
+            _ = try await client.graphQL("mutation { joinPairUp(input: {}) { pairUp { status } } }",
+                                         as: [String: Payload].self)
+            Issue.record("expected an error")
+        } catch let error as AudienceKitError {
+            // The API's refusal, not a decoding failure on the null payload.
+            #expect(error.code == AudienceKitError.Code.forbidden)
+            #expect(error.message == "Agree to the community terms before you post.")
+            #expect(error.errors.first?.extensions?["reason"] == .string("terms_not_accepted"))
+        }
+    }
+
     @Test func carriesTheAPIsErrorCodeAndFields() async throws {
         let stub = Stub { _ in
             .json(status: 200, body: #"""

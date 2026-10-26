@@ -16,6 +16,7 @@ public struct KaraokeQueue: View {
     private let onSignUp: @MainActor (KaraokeSignup) async throws -> Void
     private let onRemove: @MainActor (SongRequest) async throws -> Void
     private let onSignInNeeded: (() -> Void)?
+    private let showsSignUp: Bool
 
     @State private var signingUp = false
     @State private var historyShown = false
@@ -31,8 +32,9 @@ public struct KaraokeQueue: View {
     ///   - onSignUp: signs up (``AudienceSession/signUpToSing(venueID:_:)``); a thrown error shows in the sheet.
     ///   - onRemove: takes a signup back (``AudienceSession/withdrawSongRequest(id:)``).
     ///   - onSignInNeeded: called instead of opening the sheet while signed out, when set.
+    ///   - showsSignUp: false when the lineup's "+" (``LineupAddition/karaoke(_:action:)``) signs up instead.
     public init(lineup: VenueLineup, viewerName: String?, title: String? = String(localized: "Karaoke"),
-                previewLimit: Int? = 3, onSeeAll: (() -> Void)? = nil,
+                previewLimit: Int? = 3, onSeeAll: (() -> Void)? = nil, showsSignUp: Bool = true,
                 onSignUp: @escaping @MainActor (KaraokeSignup) async throws -> Void,
                 onRemove: @escaping @MainActor (SongRequest) async throws -> Void,
                 onSignInNeeded: (() -> Void)? = nil) {
@@ -44,6 +46,7 @@ public struct KaraokeQueue: View {
         self.onSignUp = onSignUp
         self.onRemove = onRemove
         self.onSignInNeeded = onSignInNeeded
+        self.showsSignUp = showsSignUp
     }
 
     private var colors: DesignTokens.Colors { preset.colors(scheme) }
@@ -57,7 +60,7 @@ public struct KaraokeQueue: View {
             VStack(alignment: .leading, spacing: DesignTokens.Spacing.s3) {
                 heading
                 if let request = featured { card(for: request) }
-                if window.permitted && !hasOpenSignup {
+                if window.permitted && !hasOpenSignup && showsSignUp {
                     KaraokeSignupButton(window: window, label: hasSung ? String(localized: "Sing another")
                                                                          : String(localized: "Sign up to sing")) {
                         if viewerName == nil, let onSignInNeeded { onSignInNeeded() } else { signingUp = true }
@@ -409,8 +412,9 @@ public struct KaraokeSignupButton: View {
     }
 
     private var reason: String {
+        if window.closed { return String(localized: "Signups closed") }
         if let reason = window.closedReason, !reason.isEmpty { return reason }
-        return window.paused ? String(localized: "Signups are paused") : String(localized: "Signups open when a host is on.")
+        return String(localized: "Signups open when a host is on.")
     }
 
     public var body: some View {
@@ -427,8 +431,8 @@ public struct KaraokeSignupButton: View {
                 .buttonStyle(.plain).disabled(!window.open)
                 .accessibilityValue(window.open ? "" : reason)
                 if !window.open {
-                    Label(window.paused ? reason + " " + String(localized: "The singers already on the list still sing.") : reason,
-                          systemImage: window.paused ? "pause" : "clock")
+                    Label(window.closed ? reason + " · " + String(localized: "The singers already on the list still sing.") : reason,
+                          systemImage: window.closed ? "lock.fill" : "clock")
                         .font(TokenFont.bodySm).foregroundStyle(Color(colors.inkMuted))
                         .accessibilityHidden(true)
                 }

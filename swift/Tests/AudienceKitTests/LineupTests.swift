@@ -80,6 +80,27 @@ private func song(_ id: String, _ title: String, state: String = "QUEUED", mine:
         #expect(window.host?.displayName == "Trixie")
     }
 
+    @Test func readsTheCutoffAndAsksAnOlderAPIWithoutIt() async throws {
+        let cutOff = lineupJSON.replacingOccurrences(
+            of: #""paused":true,"closedReason":"Signups are paused""#,
+            with: #""paused":false,"closedReason":"Signups are closed for tonight","cutOff":true,"reopened":false,"closesAt":"2026-10-26T08:30:00Z""#)
+        let stub = Stub { _ in .json(status: 200, body: cutOff) }
+        let window = try #require(try await lineupClient(stub).lineup(venueID: "v-1")?.karaoke)
+        #expect(window.cutOff && window.closed && !window.paused && !window.reopened && window.closesAt != nil)
+        #expect((try #require(stub.requests.first).jsonBody()["query"] as? String)?.contains("cutOff") == true)
+
+        let older = Stub { request in
+            let query = (try? request.jsonBody()["query"] as? String) ?? ""
+            if query.contains("cutOff") {
+                return .json(status: 200, body: #"{"errors":[{"message":"Field 'cutOff' doesn't exist on type 'SongRequestWindow'"}]}"#)
+            }
+            return .json(status: 200, body: lineupJSON)
+        }
+        let window2 = try #require(try await lineupClient(older).lineup(venueID: "v-1")?.karaoke)
+        #expect(older.requests.count == 2)
+        #expect(window2.paused && window2.closed && !window2.cutOff && window2.closesAt == nil)
+    }
+
     @Test func numbersSingersAndCountsWhoIsBeforeYou() async throws {
         let stub = Stub { _ in .json(status: 200, body: lineupJSON) }
         let lineup = try #require(try await lineupClient(stub).lineup(venueID: "v-1"))

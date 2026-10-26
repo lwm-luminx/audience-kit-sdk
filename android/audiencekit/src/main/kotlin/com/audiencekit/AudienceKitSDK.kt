@@ -8,7 +8,7 @@ package com.audiencekit
  */
 public object AudienceKitSDK {
     /** The SDK's semantic version. */
-    public const val VERSION: String = "0.31.1"
+    public const val VERSION: String = "0.32.0"
 
     /**
      * The API contract this SDK speaks, the date it was last broken, sent on every call as

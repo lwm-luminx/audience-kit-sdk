@@ -15291,9 +15291,26 @@ it is on the lineup (a host or DJ for song requests, a host for karaoke signups)
 """
 type SongRequestWindow {
   """
+  Whether they are closed for the night: closed early (paused) or past the
+  cutoff (cutOff). The apps show "Signups closed" in place of the "+".
+  """
+  closed: Boolean!
+
+  """
   Why requests are closed, fit to show in the room ("Karaoke signups open when a host is on"). Null while open.
   """
   closedReason: String
+
+  """
+  When they close by themselves tonight: Venue.requestsCutoffMinutes before the
+  event on (or the night) ends. Null without a cutoff.
+  """
+  closesAt: ISO8601DateTime
+
+  """
+  Whether the cutoff closed them (closesAt has passed and the venue has not reopened them for tonight).
+  """
+  cutOff: Boolean!
 
   """
   Tonight's requests of this kind that were played or sung, or skipped, the latest first.
@@ -15396,6 +15413,11 @@ type SongRequestWindow {
     """
     last: Int
   ): SongRequestConnection!
+
+  """
+  Whether the venue reopened them for tonight past the cutoff (updateVenue karaokeReopened or songRequestsReopened).
+  """
+  reopened: Boolean!
 }
 
 """
@@ -18271,6 +18293,12 @@ type VenuePeopleView implements IVenuePeople {
 The local Requests implementation of a venue's song requests and karaoke signups.
 """
 type VenueRequestsView implements IVenueRequests {
+  """
+  Minutes before the event on (or the night) ends that both kinds close by
+  themselves (updateVenue requestsCutoffMinutes); null for no cutoff.
+  """
+  cutoffMinutes: Int
+
   """
   Karaoke signups: open while the venue runs karaoke with AudienceKit and a host is on.
   """

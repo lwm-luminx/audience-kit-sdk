@@ -234,6 +234,13 @@ public struct SongRequestWindow: Codable, Sendable, Hashable {
     public let paused: Bool
     /// Why it doesn't, worded for the room ("Karaoke signups open when a host is on"); nil while open.
     public let closedReason: String?
+    /// Whether tonight's cutoff closed them: near the end of the event or the night, unless the venue reopened them.
+    /// False from an API before cutoffs.
+    public let cutOff: Bool
+    /// Whether the venue reopened them for tonight past the cutoff.
+    public let reopened: Bool
+    /// When they close by themselves tonight; nil without a cutoff (or from an older API).
+    public let closesAt: Date?
     /// The lineup entry taking them: the host (or DJ) on now.
     public let host: LineupEntry?
     /// The signed-in user's requests of this kind tonight, oldest first.
@@ -243,15 +250,23 @@ public struct SongRequestWindow: Codable, Sendable, Hashable {
     public let queue: [SongRequest]
 
     public init(permitted: Bool, open: Bool, paused: Bool = false, closedReason: String? = nil,
-                host: LineupEntry? = nil, mine: [SongRequest] = [], queue: [SongRequest] = []) {
+                host: LineupEntry? = nil, mine: [SongRequest] = [], queue: [SongRequest] = [], cutOff: Bool = false,
+                reopened: Bool = false, closesAt: Date? = nil) {
         self.permitted = permitted
         self.open = open
         self.paused = paused
         self.closedReason = closedReason
+        self.cutOff = cutOff
+        self.reopened = reopened
+        self.closesAt = closesAt
         self.host = host
         self.mine = mine
         self.queue = queue
     }
+
+    /// Whether they're closed for the night: closed early by the venue (``paused``) or past the cutoff (``cutOff``).
+    /// The apps show "Signups closed" in place of the lineup's "+" then, rather than a greyed "+".
+    public var closed: Bool { paused || cutOff }
 
     /// What's playing now: the request the host called up, if any.
     public var playing: SongRequest? { queue.first { $0.state == .up } }
@@ -263,7 +278,9 @@ public struct SongRequestWindow: Codable, Sendable, Hashable {
         return index
     }
 
-    private enum CodingKeys: String, CodingKey { case permitted, open, paused, closedReason, host, mine, queue }
+    private enum CodingKeys: String, CodingKey {
+        case permitted, open, paused, closedReason, host, mine, queue, cutOff, reopened, closesAt
+    }
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -274,6 +291,9 @@ public struct SongRequestWindow: Codable, Sendable, Hashable {
         host = try container.decodeIfPresent(LineupEntry.self, forKey: .host)
         mine = try container.decodeIfPresent(Connection<SongRequest>.self, forKey: .mine)?.nodes ?? []
         queue = try container.decodeIfPresent(Connection<SongRequest>.self, forKey: .queue)?.nodes ?? []
+        cutOff = try container.decodeIfPresent(Bool.self, forKey: .cutOff) ?? false
+        reopened = try container.decodeIfPresent(Bool.self, forKey: .reopened) ?? false
+        closesAt = try container.decodeIfPresent(Date.self, forKey: .closesAt)
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -285,6 +305,9 @@ public struct SongRequestWindow: Codable, Sendable, Hashable {
         try container.encodeIfPresent(host, forKey: .host)
         try container.encode(Connection(nodes: mine), forKey: .mine)
         try container.encode(Connection(nodes: queue), forKey: .queue)
+        try container.encode(cutOff, forKey: .cutOff)
+        try container.encode(reopened, forKey: .reopened)
+        try container.encodeIfPresent(closesAt, forKey: .closesAt)
     }
 }
 
@@ -445,6 +468,10 @@ extension Queries {
     songRequest { \(songRequestFields) }
     """
 
+    static let requestWindowFields = "permitted open paused closedReason"
+    /// The signup cutoff (an API from 2026-10-26 on).
+    static let requestCutoffFields = "cutOff reopened closesAt"
+
     static let venueLineup = """
     query VenueLineup($id: ID!) {
       venues {
@@ -458,12 +485,42 @@ extension Queries {
           karaoke { provider providerName joinUrl sessionCode tonight }
           requests {
             karaoke {
-              permitted open paused closedReason
+              \(requestWindowFields) \(requestCutoffFields)
               host { \(lineupEntryFields) }
               mine { nodes { \(songRequestFields) } }
             }
             song {
-              permitted open paused closedReason
+              \(requestWindowFields) \(requestCutoffFields)
+              host { \(lineupEntryFields) }
+              mine { nodes { \(songRequestFields) } }
+              queue { nodes { \(songRequestFields) } }
+            }
+          }
+        }
+      }
+    }
+    """
+
+    /// ``venueLineup`` for an API before the cutoff.
+    static let venueLineupWithoutCutoff = """
+    query VenueLineup($id: ID!) {
+      venues {
+        venue(id: $id) {
+          id name
+          people {
+            runningOrder { nodes { \(lineupEntryFields) } }
+            onStage { id }
+            upNext { id }
+          }
+          karaoke { provider providerName joinUrl sessionCode tonight }
+          requests {
+            karaoke {
+              \(requestWindowFields)
+              host { \(lineupEntryFields) }
+              mine { nodes { \(songRequestFields) } }
+            }
+            song {
+              \(requestWindowFields)
               host { \(lineupEntryFields) }
               mine { nodes { \(songRequestFields) } }
               queue { nodes { \(songRequestFields) } }
@@ -530,8 +587,15 @@ extension AudienceSession {
     /// A venue's lineup tonight with its karaoke singers and signups and its song requests, or `nil` when the venue
     /// doesn't exist.
     public func lineup(venueID: String) async throws -> VenueLineup? {
-        try await graphQL(Queries.venueLineup, variables: ["id": .string(venueID)], operationName: "VenueLineup",
-                          as: VenueLineupResponse.self).lineup
+        do {
+            return try await graphQL(Queries.venueLineup, variables: ["id": .string(venueID)],
+                                     operationName: "VenueLineup", as: VenueLineupResponse.self).lineup
+        } catch let error as AudienceKitError
+                    where error.code == "undefinedField" || error.code == AudienceKitError.Code.graphQL {
+            // An API before signup cutoffs (production until next is promoted) refuses their fields as invalid.
+            return try await graphQL(Queries.venueLineupWithoutCutoff, variables: ["id": .string(venueID)],
+                                     operationName: "VenueLineup", as: VenueLineupResponse.self).lineup
+        }
     }
 
     /// Signs the signed-in user up to sing at a venue: they go last on its lineup as a singer, and the room sees the

@@ -3,6 +3,22 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.32.0 (2026-10-26)
+
+The lineup's "+" and host-only lineups (Rick, 2026-10-26). Additive; the signup cutoff needs audience_kit_api #191,
+and an API without it is asked again without those fields.
+
+- Swift `SongRequestWindow`: `cutOff`, `reopened` and `closesAt` (signups and requests close by themselves near the
+  end of the event or night, unless the venue reopens them), and `closed` (closed early or past the cutoff).
+- AudienceKitUI `VenueLineupStrip(additions:)`: a "+" at the end of the lineup, on an empty lineup too, mirroring the
+  lineup editor. `LineupAddition.karaoke(_:action:)` opens the signup and `.songRequests(_:action:)` a song request.
+  It is greyed with the reason while nobody's on to take them, and becomes a "Signups closed" / "Requests closed"
+  marker once they're closed for the night.
+- A lineup of only hosts drops the running-order cards: "Hosted by A and B", side by side in billing order, avatars
+  tapping through (`onSelectPerson`).
+- `KaraokeQueue(showsSignUp:)` and `SongRequestsSection(showsRequestButton:)` leave their buttons out when the "+"
+  takes over. Their closed lines say "Signups closed" / "Requests closed".
+
 ## 0.31.1 (2026-10-26)
 
 - Swift: `AudienceSession.graphQL` checks `errors` before it decodes `data`, as Android has since 0.29.1. A refused

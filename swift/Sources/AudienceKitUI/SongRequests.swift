@@ -13,6 +13,7 @@ public struct SongRequestsSection: View {
     private let onRequest: @MainActor (SongRequestDraft) async throws -> Void
     private let onWithdraw: @MainActor (SongRequest) async throws -> Void
     private let onSignInNeeded: (() -> Void)?
+    private let showsRequestButton: Bool
 
     @State private var requesting = false
     @Environment(\.audiencePreset) private var preset
@@ -24,10 +25,13 @@ public struct SongRequestsSection: View {
     ///   - onRequest: asks for a song (``AudienceSession/requestSong(venueID:title:artist:note:)``); a thrown error
     ///     shows in the sheet.
     ///   - onWithdraw: takes a request back (``AudienceSession/withdrawSongRequest(id:)``).
+    ///   - showsRequestButton: false when the lineup's "+" (``LineupAddition/songRequests(_:action:)``) asks instead.
     public init(lineup: VenueLineup, signedIn: Bool = true, title: String? = String(localized: "Song requests"),
+                showsRequestButton: Bool = true,
                 onRequest: @escaping @MainActor (SongRequestDraft) async throws -> Void,
                 onWithdraw: @escaping @MainActor (SongRequest) async throws -> Void,
                 onSignInNeeded: (() -> Void)? = nil) {
+        self.showsRequestButton = showsRequestButton
         self.lineup = lineup
         self.signedIn = signedIn
         self.title = title
@@ -45,7 +49,7 @@ public struct SongRequestsSection: View {
             VStack(alignment: .leading, spacing: DesignTokens.Spacing.s3) {
                 heading(window)
                 if let playing = window.playing { NowPlayingRow(request: playing) }
-                if window.permitted {
+                if window.permitted && showsRequestButton {
                     SongRequestButton(window: window, label: mine.isEmpty ? String(localized: "Request a song")
                                                                           : String(localized: "Request another")) {
                         if !signedIn, let onSignInNeeded { onSignInNeeded() } else { requesting = true }
@@ -238,8 +242,9 @@ public struct SongRequestButton: View {
     }
 
     private var reason: String {
+        if window.closed { return String(localized: "Requests closed") }
         if let reason = window.closedReason, !reason.isEmpty { return reason }
-        return window.paused ? String(localized: "Requests are paused") : String(localized: "Requests open when a host or DJ is on.")
+        return String(localized: "Requests open when a host or DJ is on.")
     }
 
     public var body: some View {
@@ -256,8 +261,8 @@ public struct SongRequestButton: View {
                 .buttonStyle(.plain).disabled(!window.open)
                 .accessibilityValue(window.open ? "" : reason)
                 if !window.open {
-                    Label(window.paused ? reason + " " + String(localized: "The songs already asked for still play.") : reason,
-                          systemImage: window.paused ? "pause" : "clock")
+                    Label(window.closed ? reason + " · " + String(localized: "The songs already asked for still play.") : reason,
+                          systemImage: window.closed ? "lock.fill" : "clock")
                         .font(TokenFont.bodySm).foregroundStyle(Color(colors.inkMuted))
                         .accessibilityHidden(true)
                 }

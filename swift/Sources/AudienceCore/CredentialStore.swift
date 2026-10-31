@@ -67,11 +67,17 @@ public struct KeychainCredentialStore: CredentialStore {
     public let account: String
     /// Share the item between apps in this keychain access group, or `nil` for the app's default.
     public let accessGroup: String?
+    /// On the Mac, keep the item in the data protection keychain, which goes by the app's team and bundle ID, rather
+    /// than the file keychain, whose items only open for the exact signature that saved them, so every rebuild of a
+    /// locally signed app loses its sign-in. The app must be signed with a provisioning profile. iOS always uses it.
+    public let dataProtection: Bool
 
-    public init(service: String, account: String = "session-credential", accessGroup: String? = nil) {
+    public init(service: String, account: String = "session-credential", accessGroup: String? = nil,
+                dataProtection: Bool = false) {
         self.service = service
         self.account = account
         self.accessGroup = accessGroup
+        self.dataProtection = dataProtection
     }
 
     public func load() throws -> Credential? {
@@ -119,6 +125,7 @@ public struct KeychainCredentialStore: CredentialStore {
             kSecAttrAccount as String: account,
         ]
         if let accessGroup { query[kSecAttrAccessGroup as String] = accessGroup }
+        if dataProtection { query[kSecUseDataProtectionKeychain as String] = true }
         return query
     }
 }

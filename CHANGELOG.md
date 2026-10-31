@@ -10,6 +10,7 @@ The lineup strip snaps to who's on (Rick, 2026-10-31).
 - `VenueLineupStrip` snaps card by card (iOS 17 and macOS 14 on) and rests on the act on now, with a hint of the one
   done before it at the leading edge (`VenueLineupStrip.peek`, 64 points), following as the venue advances. Earlier
   systems keep scrolling freely to the act on now.
+- Blank space after the last card lets the act on now reach that spot even when little or nothing follows it.
 
 ## 0.34.0 (2026-10-31)
 

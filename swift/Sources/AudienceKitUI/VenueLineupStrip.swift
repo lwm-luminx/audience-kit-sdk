@@ -66,6 +66,10 @@ public struct VenueLineupStrip: View {
 
     /// How much of the card before the one it rests on shows at the leading edge.
     static let peek: Double = 64
+    /// The narrowest card, so even the last one can come to rest at the leading edge.
+    static let narrowest: Double = 88
+    /// How wide the strip is, for the blank space after the last card.
+    @State private var stripWidth: Double = 0
 
     /// - Parameters:
     ///   - entries: the whole running order; singers are left out here.
@@ -170,17 +174,23 @@ public struct VenueLineupStrip: View {
         }
     }
 
-    /// Snaps to each card and rests on the act on now, the one before it peeking in at the leading edge.
+    /// Snaps to each card and rests on the act on now, the one before it peeking in at the leading edge. Blank space
+    /// after the last card lets the act on now get there even when little or nothing follows it.
     @available(iOS 17, macOS 14, *)
     private var snappingStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             stripContent.scrollTargetLayout()
         }
         .contentMargins(.leading, Self.peek, for: .scrollContent)
-        .contentMargins(.trailing, DesignTokens.Spacing.s8, for: .scrollContent)
+        .contentMargins(.trailing, max(DesignTokens.Spacing.s8, stripWidth - Self.peek - Self.narrowest), for: .scrollContent)
         .scrollTargetBehavior(.viewAligned)
         .scrollPosition(id: $position, anchor: .leading)
         .mask(EdgeFade())
+        .background(GeometryReader { geometry in
+            Color.clear
+                .onAppear { stripWidth = geometry.size.width }
+                .onChange(of: geometry.size.width) { _, width in stripWidth = width }
+        })
         .onAppear { position = anchorID }
         .onChange(of: anchorID) { _, id in
             guard let id else { return }

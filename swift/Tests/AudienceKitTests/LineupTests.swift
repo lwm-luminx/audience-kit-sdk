@@ -199,4 +199,23 @@ private func song(_ id: String, _ title: String, state: String = "QUEUED", mine:
         let data = try JSONEncoder().encode(entry)
         #expect(try JSONDecoder.audienceKit.decode(LineupEntry.self, from: data) == entry)
     }
+    @Test func listsAnActsScenesInTurnWithTheBreaksAfterThem() throws {
+        let kiki = LineupEntry.Person(id: "p1", name: "Kiki"), aurora = LineupEntry.Person(id: "p2", name: "Aurora")
+        let act = LineupEntry(id: "act", role: .performer, title: "First Set", people: [kiki, aurora], state: .on,
+                              scenes: [.init(id: "sc1", performers: [kiki], wentOnAt: .now, cameOffAt: .now),
+                                       .init(id: "sc2", performers: [aurora], wentOnAt: .now), .init(id: "sc3")])
+        let pause = LineupEntry(id: "break", kind: .intermission, title: "Bar break", afterSceneID: "sc1")
+        let host = LineupEntry(id: "host", role: .host, people: [kiki])
+        let order = [host, act, pause]
+
+        let turns = LineupEntry.inTurn(order)
+        #expect(turns.map(\.id) == ["host", "sc1", "break", "sc2", "sc3"])
+        #expect(turns.map(\.displayName) == ["Kiki", "Kiki", "Bar break", "Aurora", "Kiki & Aurora"])
+        #expect(turns.map(\.state) == [.upcoming, .done, .upcoming, .on, .upcoming])
+        #expect(LineupEntry.turnID(of: "act", in: order, state: .on) == "sc2")
+        #expect(LineupEntry.turnID(of: "host", in: order, state: .on) == "host")
+
+        let data = try JSONEncoder().encode(act)
+        #expect(try JSONDecoder.audienceKit.decode(LineupEntry.self, from: data).scenes.map(\.id) == ["sc1", "sc2", "sc3"])
+    }
 }

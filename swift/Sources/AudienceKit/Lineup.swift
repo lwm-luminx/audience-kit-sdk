@@ -83,10 +83,32 @@ public struct LineupEntry: Codable, Sendable, Hashable, Identifiable {
     public let endsAt: Date?
     /// A singer's karaoke signup: the song, artist and who's singing it; nil for everything else.
     public let songRequest: SongRequest?
+    /// An act's scenes (its numbers, each with who's on) in order; empty for anything else, or from an API before
+    /// scenes. ``VenueLineup`` lists them in turn (``inTurn(_:)``).
+    public let scenes: [Scene]
+    /// A break inside an act: the ID of the scene it follows; nil for anything else.
+    public let afterSceneID: String?
+
+    /// One number in an act: who's on it, and when advancing put it on and took it off.
+    public struct Scene: Codable, Sendable, Hashable, Identifiable {
+        public let id: String
+        /// Who performs it, in billing order.
+        public let performers: [Person]
+        public let wentOnAt: Date?
+        public let cameOffAt: Date?
+
+        public init(id: String, performers: [Person] = [], wentOnAt: Date? = nil, cameOffAt: Date? = nil) {
+            self.id = id
+            self.performers = performers
+            self.wentOnAt = wentOnAt
+            self.cameOffAt = cameOffAt
+        }
+    }
 
     public init(id: String, kind: Kind = .act, role: Role? = nil, title: String? = nil, people: [Person] = [],
                 state: State = .upcoming, startTiming: StartTiming = .none, endTiming: EndTiming = .advance,
-                startsAt: Date? = nil, endsAt: Date? = nil, songRequest: SongRequest? = nil) {
+                startsAt: Date? = nil, endsAt: Date? = nil, songRequest: SongRequest? = nil, scenes: [Scene] = [],
+                afterSceneID: String? = nil) {
         self.id = id
         self.kind = kind
         self.role = role
@@ -98,6 +120,8 @@ public struct LineupEntry: Codable, Sendable, Hashable, Identifiable {
         self.startsAt = startsAt
         self.endsAt = endsAt
         self.songRequest = songRequest
+        self.scenes = scenes
+        self.afterSceneID = afterSceneID
     }
 
     /// Whether it's a karaoke singer.
@@ -114,8 +138,11 @@ public struct LineupEntry: Codable, Sendable, Hashable, Identifiable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, kind, role, title, people, state, startTiming, endTiming, startsAt, endsAt, songRequest
+        case id, kind, role, title, people, state, startTiming, endTiming, startsAt, endsAt, songRequest, scenes
+        case afterScene
     }
+
+    private struct Ref: Codable, Hashable { var id: String }
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -130,6 +157,8 @@ public struct LineupEntry: Codable, Sendable, Hashable, Identifiable {
         startsAt = try container.decodeIfPresent(Date.self, forKey: .startsAt)
         endsAt = try container.decodeIfPresent(Date.self, forKey: .endsAt)
         songRequest = try container.decodeIfPresent(SongRequest.self, forKey: .songRequest)
+        scenes = (try? container.decodeIfPresent([Scene].self, forKey: .scenes)) ?? []
+        afterSceneID = (try? container.decodeIfPresent(Ref.self, forKey: .afterScene))?.id
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -145,6 +174,59 @@ public struct LineupEntry: Codable, Sendable, Hashable, Identifiable {
         try container.encodeIfPresent(startsAt, forKey: .startsAt)
         try container.encodeIfPresent(endsAt, forKey: .endsAt)
         try container.encodeIfPresent(songRequest, forKey: .songRequest)
+        try container.encode(scenes, forKey: .scenes)
+        try container.encodeIfPresent(afterSceneID.map(Ref.init), forKey: .afterScene)
+    }
+}
+
+extension LineupEntry.Scene {
+    private enum CodingKeys: String, CodingKey { case id, performers, wentOnAt, cameOffAt }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        performers = (try? container.decodeIfPresent([LineupEntry.Person].self, forKey: .performers)) ?? []
+        wentOnAt = try? container.decodeIfPresent(Date.self, forKey: .wentOnAt)
+        cameOffAt = try? container.decodeIfPresent(Date.self, forKey: .cameOffAt)
+    }
+}
+
+extension LineupEntry {
+    /// A running order as it runs: an act with scenes is each of its scenes in turn (who's on, not the act's billing
+    /// like "First Set"), each followed by the breaks after it. Each scene's entry has the scene's ID, its performers
+    /// (else the act's people), no title, and its own state.
+    public static func inTurn(_ entries: [LineupEntry]) -> [LineupEntry] {
+        let sceneIDs = Set(entries.filter { $0.kind == .act }.flatMap { $0.scenes.map(\.id) })
+        let after = Dictionary(grouping: entries.filter { $0.afterSceneID.map(sceneIDs.contains) ?? false },
+                               by: { $0.afterSceneID ?? "" })
+        return entries.filter { !($0.afterSceneID.map(sceneIDs.contains) ?? false) }.flatMap { entry in
+            guard entry.kind == .act, !entry.scenes.isEmpty else { return [entry] }
+            return entry.scenes.enumerated().flatMap { index, scene in
+                [entry.turn(scene, at: index)] + (after[scene.id] ?? [])
+            }
+        }
+    }
+
+    /// The entry ``inTurn(_:)`` lists for `id` (an act's, as `onStage` and `upNext` give it): the act's scene in that
+    /// `state`, else its first; `id` itself for anything without scenes.
+    public static func turnID(of id: String?, in entries: [LineupEntry], state: State) -> String? {
+        guard let act = entries.first(where: { $0.id == id }), act.kind == .act, !act.scenes.isEmpty else { return id }
+        let turns = act.scenes.indices.map { act.turn(act.scenes[$0], at: $0) }
+        return (turns.first { $0.state == state } ?? turns.first)?.id
+    }
+
+    /// One of its scenes as an entry of its own. Its state is the act's, and in an act on now, as advancing marked
+    /// it; in an act on now with no scene put on yet (run as one act), its first scene is on.
+    private func turn(_ scene: Scene, at index: Int) -> LineupEntry {
+        let sceneState: State
+        if state != .on { sceneState = state }
+        else if scene.cameOffAt != nil { sceneState = .done }
+        else if scene.wentOnAt != nil { sceneState = .on }
+        else { sceneState = scenes.allSatisfy({ $0.wentOnAt == nil }) && index == 0 ? .on : .upcoming }
+        return LineupEntry(id: scene.id, kind: .act, role: role, title: nil,
+                           people: scene.performers.isEmpty ? people : scene.performers, state: sceneState,
+                           startTiming: index == 0 ? startTiming : .none, endTiming: .advance,
+                           startsAt: index == 0 ? startsAt : nil)
     }
 }
 
@@ -466,6 +548,7 @@ extension Queries {
     id kind role title state startTiming endTiming startsAt endsAt
     people { nodes { \(personSummaryFields) } }
     songRequest { \(songRequestFields) }
+    scenes { id performers { \(personSummaryFields) } wentOnAt cameOffAt } afterScene { id }
     """
 
     static let requestWindowFields = "permitted open paused closedReason"
@@ -571,10 +654,12 @@ struct VenueLineupResponse: Decodable, Sendable {
 
     var lineup: VenueLineup? {
         venues.venue.map { venue in
-            VenueLineup(venueID: venue.id, venueName: venue.name ?? "", entries: venue.people.runningOrder.nodes,
-                        onStageID: venue.people.onStage?.id, upNextID: venue.people.upNext?.id,
-                        karaoke: venue.requests?.karaoke, karaokeSession: venue.karaoke,
-                        songRequests: venue.requests?.song)
+            let order = venue.people.runningOrder.nodes
+            return VenueLineup(venueID: venue.id, venueName: venue.name ?? "", entries: LineupEntry.inTurn(order),
+                               onStageID: LineupEntry.turnID(of: venue.people.onStage?.id, in: order, state: .on),
+                               upNextID: LineupEntry.turnID(of: venue.people.upNext?.id, in: order, state: .upcoming),
+                               karaoke: venue.requests?.karaoke, karaokeSession: venue.karaoke,
+                               songRequests: venue.requests?.song)
         }
     }
 }

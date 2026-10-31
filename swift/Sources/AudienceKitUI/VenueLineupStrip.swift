@@ -43,8 +43,9 @@ public struct LineupAddition: Identifiable {
 }
 
 /// Tonight's lineup of everyone who isn't a karaoke singer, as a horizontal strip in running order: hosts, DJs,
-/// performers, MCs and intermissions, then the "+" (``LineupAddition``). The act on now is scrolled into view (the
-/// one before it mostly off the leading edge), both edges fade, and it follows as the venue advances. A lineup of only
+/// performers, MCs and intermissions, then the "+" (``LineupAddition``). It snaps card by card and rests on the act on
+/// now, with a hint of the one done before it at the leading edge (Rick, 2026-10-31); both edges fade, and it follows
+/// as the venue advances. Before iOS 17 it scrolls freely and puts the act on now at the leading edge. A lineup of only
 /// hosts isn't a running order: it shows "Hosted by A and B", side by side in billing order, all on together. At
 /// accessibility text sizes it becomes a list. The karaoke singers are ``KaraokeQueue``'s.
 public struct VenueLineupStrip: View {
@@ -60,6 +61,11 @@ public struct VenueLineupStrip: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The card the strip rests on, iOS 17 on.
+    @State private var position: String?
+
+    /// How much of the card before the one it rests on shows at the leading edge.
+    static let peek: Double = 64
 
     /// - Parameters:
     ///   - entries: the whole running order; singers are left out here.
@@ -139,25 +145,54 @@ public struct VenueLineupStrip: View {
     }
 
     private var strip: some View {
+        Group {
+            if #available(iOS 17, macOS 14, *) { snappingStrip } else { scrolledStrip }
+        }
+    }
+
+    /// The cards in running order, then the "+".
+    private var stripContent: some View {
+        HStack(alignment: .top, spacing: DesignTokens.Spacing.s2) {
+            if hostsOnly != nil {
+                ForEach(Array(hostPeople.enumerated()), id: \.offset) { _, host in
+                    HostChip(entry: host.entry, person: host.person, onSelect: select(host.entry, host.person))
+                }
+            } else {
+                ForEach(acts) { entry in
+                    Group {
+                        if entry.kind == .intermission { IntermissionChip(entry: entry, isUpNext: entry.id == upNextID) }
+                        else { card(entry) }
+                    }
+                    .id(entry.id)
+                }
+            }
+            ForEach(additions) { AdditionTile(addition: $0) }
+        }
+    }
+
+    /// Snaps to each card and rests on the act on now, the one before it peeking in at the leading edge.
+    @available(iOS 17, macOS 14, *)
+    private var snappingStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            stripContent.scrollTargetLayout()
+        }
+        .contentMargins(.leading, Self.peek, for: .scrollContent)
+        .contentMargins(.trailing, DesignTokens.Spacing.s8, for: .scrollContent)
+        .scrollTargetBehavior(.viewAligned)
+        .scrollPosition(id: $position, anchor: .leading)
+        .mask(EdgeFade())
+        .onAppear { position = anchorID }
+        .onChange(of: anchorID) { _, id in
+            guard let id else { return }
+            if reduceMotion { position = id } else { withAnimation(.easeInOut) { position = id } }
+        }
+    }
+
+    /// Before iOS 17: scrolls freely, with the act on now scrolled to the leading edge.
+    private var scrolledStrip: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: DesignTokens.Spacing.s2) {
-                    if hostsOnly != nil {
-                        ForEach(Array(hostPeople.enumerated()), id: \.offset) { _, host in
-                            HostChip(entry: host.entry, person: host.person, onSelect: select(host.entry, host.person))
-                        }
-                    } else {
-                        ForEach(acts) { entry in
-                            Group {
-                                if entry.kind == .intermission { IntermissionChip(entry: entry, isUpNext: entry.id == upNextID) }
-                                else { card(entry) }
-                            }
-                            .id(entry.id)
-                        }
-                    }
-                    ForEach(additions) { AdditionTile(addition: $0) }
-                }
-                .padding(.horizontal, DesignTokens.Spacing.s8)
+                stripContent.padding(.horizontal, DesignTokens.Spacing.s8)
             }
             .mask(EdgeFade())
             .onAppear { if let anchorID { proxy.scrollTo(anchorID, anchor: .leading) } }

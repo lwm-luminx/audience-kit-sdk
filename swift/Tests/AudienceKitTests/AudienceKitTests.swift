@@ -299,6 +299,23 @@ private func makeClient(
         #expect(request.header("Authorization") == "Bearer device-token")
     }
 
+    @Test func sendsATrustedInstancesCredentialToTheConfiguredAPI() async throws {
+        let stub = Stub { _ in .json(status: 200, body: #"{"data":{"venues":{"list":{"nodes":[]}}}}"#) }
+        // Production issued the credential; the app is on Next, which takes production's sign-ins.
+        let production = Stub { _ in .json(status: 200, body: #"{"data":{"venues":{"list":{"nodes":[]}}}}"#) }
+        let store = InMemoryCredentialStore(credential: makeCredential(baseURL: production.baseURL))
+        let configuration = AudienceKitConfiguration(baseURL: stub.baseURL, audienceID: audienceID,
+                                                     trustedCredentialOrigins: [production.baseURL])
+        let client = AudienceKitClient(configuration: configuration, credentialStore: store, session: stub.session)
+
+        _ = try await client.venues()
+
+        #expect(production.requests.isEmpty)
+        let request = try #require(stub.requests.first)
+        #expect(request.path == "/v1/audience/\(audienceID)/graphql")
+        #expect(request.header("Authorization") == "Bearer session-token")
+    }
+
     @Test func switchesAudiences() async throws {
         let stub = Stub { request in
             if request.path == "/v1/admin/choices" {

@@ -76,6 +76,12 @@ public struct AudienceKitConfiguration: Sendable, Hashable {
     /// e.g. "Hot Mess fee".
     public var feeLabel: String
 
+    /// Other API instances whose sign-ins ``baseURL`` also takes (its `TRUSTED_API_ORIGIN`): the next preview takes
+    /// production's. A credential one of them issued is sent to ``baseURL``, not to its own instance, so an app
+    /// switched to Next keeps the person's production sign-in. Empty by default: a credential talks to the instance
+    /// that issued it.
+    public var trustedCredentialOrigins: [URL]
+
     public init(
         baseURL: URL = AudienceKitSDK.productionBaseURL,
         host: String? = nil,
@@ -83,7 +89,8 @@ public struct AudienceKitConfiguration: Sendable, Hashable {
         facebookAppID: String? = nil,
         environment: AudienceKitEnvironment = .production,
         coverPassPrefix: String = "HMC1",
-        feeLabel: String = "Service fee"
+        feeLabel: String = "Service fee",
+        trustedCredentialOrigins: [URL] = []
     ) {
         self.baseURL = baseURL
         self.host = host
@@ -92,6 +99,19 @@ public struct AudienceKitConfiguration: Sendable, Hashable {
         self.environment = environment
         self.coverPassPrefix = coverPassPrefix
         self.feeLabel = feeLabel
+        self.trustedCredentialOrigins = trustedCredentialOrigins
+    }
+
+    /// The API instance to send `credential` to: the one that issued it (its endpoint's origin), unless ``baseURL``
+    /// takes that instance's sign-ins (``trustedCredentialOrigins``); ``baseURL`` with no credential.
+    public func apiBase(for credential: Credential?) -> URL {
+        guard let origin = credential?.origin else { return baseURL }
+        return trustedCredentialOrigins.contains { Self.sameOrigin($0, origin) } ? baseURL : origin
+    }
+
+    static func sameOrigin(_ lhs: URL, _ rhs: URL) -> Bool {
+        lhs.scheme?.lowercased() == rhs.scheme?.lowercased() && lhs.host?.lowercased() == rhs.host?.lowercased()
+            && (lhs.port ?? 443) == (rhs.port ?? 443)
     }
 }
 

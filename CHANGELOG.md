@@ -3,6 +3,15 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.33.0 (2026-10-31)
+
+Keeping a production sign-in on Next (Rick, 2026-10-31). Additive; needs audience_kit_api #253 with
+`TRUSTED_API_ORIGIN` set on the next API.
+
+- Swift `AudienceKitConfiguration.trustedCredentialOrigins`: the API instances whose sign-ins `baseURL` takes. A
+  credential one of them issued is sent to `baseURL` (GraphQL and `AudienceCable`) instead of its own instance;
+  `apiBase(for:)` says where a credential goes. Empty by default, which keeps today's behaviour.
+
 ## 0.32.0 (2026-10-26)
 
 The lineup's "+" and host-only lineups (Rick, 2026-10-26). Additive; the signup cutoff needs audience_kit_api #191,

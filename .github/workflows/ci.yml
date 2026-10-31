@@ -39,11 +39,11 @@ jobs:
         with:
           node-version: 22
       - name: GraphQL documents match the API schema
+        # scripts/graphql/check.mjs is a copy of developer.audiencekit.com's graphql/check.mjs (bundles/next), kept here
+        # because that host doesn't resolve from the runners (as in staff-kit).
         run: |
-          mkdir -p .graphql-check && cd .graphql-check
-          curl -fsSLO https://developer.audiencekit.com/graphql/check.mjs
           npm install --silent --no-save --no-package-lock graphql@16
-          node check.mjs --schema ../graphql/schema.graphql --endpoint consumer ../swift/Sources ../android/audiencekit/src/main
+          node scripts/graphql/check.mjs --schema graphql/schema.graphql --endpoint consumer swift/Sources android/audiencekit/src/main
 
   apple:
     # The update prompts' StoreKit, SwiftUI and UIKit code only builds on Apple platforms, which Linux skips.

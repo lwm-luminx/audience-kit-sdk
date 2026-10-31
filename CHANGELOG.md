@@ -3,6 +3,15 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.36.0 (2026-10-31)
+
+A Mac app keeps its sign-in across rebuilds (Rick, 2026-10-31: Arbiter's keychain items didn't match the M4 build's
+signature). Additive.
+
+- `KeychainCredentialStore(dataProtection:)` keeps the item in the data protection keychain on the Mac, which goes by
+  the app's team and bundle ID, instead of the file keychain, whose items open only for the exact signature that saved
+  them. Off by default; the app must be signed with a provisioning profile. No change on iOS.
+
 ## 0.35.0 (2026-10-31)
 
 The lineup strip snaps to who's on (Rick, 2026-10-31).

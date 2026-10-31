@@ -3,6 +3,16 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.34.0 (2026-10-31)
+
+A lineup lists who's on, not an act's billing (Rick, 2026-10-31: Hot Mess showed "First Set"). Additive.
+
+- Swift `LineupEntry.scenes` (each with its performers and when it went on and came off) and `afterSceneID` (a
+  break inside an act). `VenueLineup.entries` lists an act with scenes as its scenes in turn (`LineupEntry.inTurn`),
+  each with its performers and its own state and followed by the breaks after it; `onStageID` and `upNextID` name the
+  scene (`LineupEntry.turnID`).
+- `graphql/schema.graphql` is the API's consumer schema as of next.
+
 ## 0.33.0 (2026-10-31)
 
 Keeping a production sign-in on Next (Rick, 2026-10-31). Additive; needs audience_kit_api #253 with

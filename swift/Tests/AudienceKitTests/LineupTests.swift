@@ -210,7 +210,9 @@ private func song(_ id: String, _ title: String, state: String = "QUEUED", mine:
 
         let turns = LineupEntry.inTurn(order)
         #expect(turns.map(\.id) == ["host", "sc1", "break", "sc2", "sc3"])
-        #expect(turns.map(\.displayName) == ["Kiki", "Kiki", "Bar break", "Aurora", "Kiki & Aurora"])
+        // The last scene has no performers set, so its act's people are on it.
+        #expect(turns.map { $0.people.compactMap(\.name) } == [["Kiki"], ["Kiki"], [], ["Aurora"], ["Kiki", "Aurora"]])
+        #expect(turns.allSatisfy { $0.title == nil || $0.kind == .intermission })
         #expect(turns.map(\.state) == [.upcoming, .done, .upcoming, .on, .upcoming])
         #expect(LineupEntry.turnID(of: "act", in: order, state: .on) == "sc2")
         #expect(LineupEntry.turnID(of: "host", in: order, state: .on) == "host")

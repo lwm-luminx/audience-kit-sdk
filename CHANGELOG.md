@@ -3,6 +3,15 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.35.0 (2026-10-31)
+
+The lineup strip snaps to who's on (Rick, 2026-10-31).
+
+- `VenueLineupStrip` snaps card by card (iOS 17 and macOS 14 on) and rests on the act on now, with a hint of the one
+  done before it at the leading edge (`VenueLineupStrip.peek`, 64 points), following as the venue advances. Earlier
+  systems keep scrolling freely to the act on now.
+- Blank space after the last card lets the act on now reach that spot even when little or nothing follows it.
+
 ## 0.34.0 (2026-10-31)
 
 A lineup lists who's on, not an act's billing (Rick, 2026-10-31: Hot Mess showed "First Set"). Additive.

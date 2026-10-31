@@ -332,7 +332,7 @@ public actor AudienceSession {
         let request = APIRequest(method: "POST", path: endpoint.path(audienceID: audienceID), body: body,
                                  headers: headers)
 
-        let data = try await data(for: request, baseURL: credential?.origin ?? configuration.baseURL)
+        let data = try await data(for: request, baseURL: configuration.apiBase(for: credential))
         // Errors first: a refused mutation comes back as `{"errors":[…],"data":{"field":null}}`, which the caller's
         // types usually can't hold, so decoding `data` first would hide the refusal.
         let errors = try Self.decode(GraphQLErrors.self, from: data, decoder: decoder).errors

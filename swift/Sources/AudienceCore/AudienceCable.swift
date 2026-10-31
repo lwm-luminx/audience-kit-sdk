@@ -220,7 +220,7 @@ public actor AudienceCable {
         guard socket == nil else { return }
         let signedWith = credential()
         socketToken = signedWith?.token
-        var request = URLRequest(url: address ?? Self.url(for: signedWith?.origin ?? configuration.baseURL))
+        var request = URLRequest(url: address ?? Self.url(for: configuration.apiBase(for: signedWith)))
         request.setAudienceKitHeaders(environment: configuration.environment, token: signedWith?.token)
         let socket = openSocket(request)
         self.socket = socket

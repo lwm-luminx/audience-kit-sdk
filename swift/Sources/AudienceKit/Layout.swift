@@ -15,6 +15,10 @@ import Foundation
 /// A screen whose cards the server ranks.
 public enum LayoutScreen: String, Codable, Sendable, Hashable {
     case now = "NOW", venues = "VENUES", people = "PEOPLE"
+    /// The Venues screen's Everywhere view: a ``CardKind/localesShowcase`` card per locale.
+    case everywhere = "EVERYWHERE"
+    /// One locale's screen, opened from its showcase card: pass its id as `localeID`; the position is not used.
+    case locale = "LOCALE"
 }
 
 /// The card kinds the API knows of today. `kind` is a string, so a newer API can add kinds; an app lists the ones it
@@ -31,6 +35,9 @@ public enum CardKind {
     public static let venuesTonight = "venues.tonight"
     public static let venuesAll = "venues.all"
     public static let venuesThinCity = "venues.thinCity"
+    /// A locale on the Everywhere view (``LayoutCard/localeID``) with a few of its venues (``LayoutCard/venueIDs``) to
+    /// show in turn. Tapping it opens the ``LayoutScreen/locale`` layout for that locale.
+    public static let localesShowcase = "locales.showcase"
     public static let peoplePlayingThisWeek = "people.playingThisWeek"
     public static let peopleBasedHere = "people.basedHere"
     public static let peopleEveryone = "people.everyone"

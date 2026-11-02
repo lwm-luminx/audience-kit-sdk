@@ -857,6 +857,203 @@ type ApproximateCount {
 }
 
 """
+One of Arbiter's guard policies about the AI host, and the score it flags at for the audience.
+"""
+type ArbiterGuardPolicy {
+  """
+  The score it flags at unless someone sets another.
+  """
+  default: Float!
+
+  """
+  The policy, e.g. rule_override.
+  """
+  key: String!
+
+  """
+  What it checks, for people.
+  """
+  name: String!
+
+  """
+  Whether someone set its score.
+  """
+  overridden: Boolean!
+
+  """
+  The score (0 to 1) it flags at.
+  """
+  value: Float!
+}
+
+"""
+Arbiter (Moderation::Arbiter, key moderation_lmstudio): the moderator and AI
+host (Glam) that runs on someone's own Mac with local models, following the
+moderation feed over a websocket. How it judges and hosts for the audience is
+set in the Moderation plugin's settings.
+"""
+type ArbiterModerationProvider implements IModerationProvider & IProvider {
+  """
+  Actions it can take, e.g. escalate or remove_message. An audience grants it some of them.
+  """
+  actions: [String!]!
+
+  """
+  Policy categories it judges, e.g. spam or threats.
+  """
+  categories: [String!]!
+
+  """
+  Chat events it receives, e.g. message.created or user.joined.
+  """
+  events: [String!]!
+
+  """
+  Whether it reads this audience's chat now: always for inline ones; for remote
+  ones, while a live service token of the audience's is issued for it with
+  chat:moderate:*.
+  """
+  following: Boolean!
+
+  """
+  Whether it receives each event on this server as it happens.
+  """
+  inline: Boolean!
+
+  """
+  Its key, e.g. karafun.
+  """
+  key: String!
+
+  """
+  Its name, e.g. KaraFun.
+  """
+  name: String!
+
+  """
+  Whether it runs on its own server and dials in for the event feed.
+  """
+  remote: Boolean!
+
+  """
+  How Arbiter judges and hosts for the endpoint audience. Admins only; null for everyone else.
+  """
+  settings: ArbiterModerationSettings @requires(permissions: ["audience:admin:*"])
+}
+
+"""
+How Arbiter judges and hosts for an audience, set in the console's Moderation
+plugin. Unset values show their defaults; the Mac keeps its own value for
+anything nobody has set yet.
+"""
+type ArbiterModerationSettings {
+  """
+  The conformal sets' error rate (0.01 to 0.3): lower makes more answers unsure.
+  """
+  alpha: Float!
+
+  """
+  Whether anyone has set anything yet.
+  """
+  configured: Boolean!
+
+  """
+  Under this share of the answer on true/false (0.1 to 0.9), a check is unscored and goes to a person.
+  """
+  coverageThreshold: Float!
+
+  """
+  The evaluation queue's work types Arbiter's worker takes.
+  """
+  evaluationTypes: [String!]!
+
+  """
+  What Glam, the AI host, does: shadow (drafts, posts nothing), approve (a person approves each step) or live.
+  """
+  glamMode: String!
+
+  """
+  The guard's policies about the AI host, with the score each flags at.
+  """
+  guardPolicies: [ArbiterGuardPolicy!]!
+
+  """
+  What Glam's “Re-show guidelines” posts.
+  """
+  roomGuidelines: String!
+
+  """
+  The moderation rules (config/moderation/matchers.yml), with the score each is acted on at per venue rating.
+  """
+  rules: [ArbiterRule!]!
+
+  """
+  Whether the moderation rules are checked.
+  """
+  rulesEnabled: Boolean!
+
+  """
+  Which model judges the rules: guard (fast) or decisions.
+  """
+  rulesModel: String!
+
+  """
+  When someone last changed them.
+  """
+  updatedAt: ISO8601DateTime
+
+  """
+  Which rules' thresholds apply: general (all ages) or adult.
+  """
+  venueRating: String!
+
+  """
+  The work types there are to choose from.
+  """
+  workTypes: [String!]!
+}
+
+"""
+One moderation rule Arbiter checks, and the score it is acted on at for the audience, per venue rating.
+"""
+type ArbiterRule {
+  """
+  The score (0 to 1) it is acted on at in an adult room.
+  """
+  adult: Float!
+
+  """
+  The matchers' seed score for an adult room.
+  """
+  defaultAdult: Float!
+
+  """
+  The matchers' seed score for a general room.
+  """
+  defaultGeneral: Float!
+
+  """
+  The score (0 to 1) it is acted on at in a general room.
+  """
+  general: Float!
+
+  """
+  The rule, e.g. identity_hate.
+  """
+  key: String!
+
+  """
+  The rule, for people.
+  """
+  name: String!
+
+  """
+  Whether someone set its scores.
+  """
+  overridden: Boolean!
+}
+
+"""
 An audience: its listings, members and configuration. On an audience's endpoints it is the query root.
 """
 type Audience implements IAudienceWithChat & IAudienceWithEvents & IAudienceWithFacebook & IAudienceWithKaraoke & IAudienceWithPayments & IAudienceWithPeople & IAudienceWithPhotography & IAudienceWithPing & IAudienceWithPosts & IAudienceWithPush & IAudienceWithTicketing & IAudienceWithTipping & IAudienceWithVenues & IRelay & Node {
@@ -2214,9 +2411,9 @@ type BasicCard implements ICard {
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
   events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
-  pings, web or promo.slot. New kinds are added; a kind the app did not list in
-  cardKinds is never sent.
+  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
+  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
+  did not list in cardKinds is never sent.
   """
   kind: String!
 
@@ -2560,9 +2757,9 @@ type ChatCard implements ICard {
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
   events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
-  pings, web or promo.slot. New kinds are added; a kind the app did not list in
-  cardKinds is never sent.
+  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
+  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
+  did not list in cardKinds is never sent.
   """
   kind: String!
 
@@ -6204,9 +6401,9 @@ type EventsCard implements ICard {
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
   events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
-  pings, web or promo.slot. New kinds are added; a kind the app did not list in
-  cardKinds is never sent.
+  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
+  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
+  did not list in cardKinds is never sent.
   """
   kind: String!
 
@@ -7861,9 +8058,9 @@ interface ICard {
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
   events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
-  pings, web or promo.slot. New kinds are added; a kind the app did not list in
-  cardKinds is never sent.
+  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
+  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
+  did not list in cardKinds is never sent.
   """
   kind: String!
 
@@ -10899,6 +11096,17 @@ A screen whose cards the server ranks (Audience.layout).
 """
 enum LayoutScreen {
   """
+  The Venues screen's Everywhere view: a card per locale (locales.showcase).
+  """
+  EVERYWHERE
+
+  """
+  One locale's screen, opened from its Everywhere card: its next events and its
+  venues. Needs localeId; the position is not used.
+  """
+  LOCALE
+
+  """
   Now: where the viewer is and what is on.
   """
   NOW
@@ -11748,55 +11956,6 @@ enum ListingVisibility {
   Full editorial listing details, including event time and place.
   """
   PUBLIC
-}
-
-"""
-A moderator that runs on its own Mac (Moderation::LmStudio, workers/moderator)
-and judges messages with a local model in LM Studio, following the moderation
-feed over a websocket.
-"""
-type LmStudioModerationProvider implements IModerationProvider & IProvider {
-  """
-  Actions it can take, e.g. escalate or remove_message. An audience grants it some of them.
-  """
-  actions: [String!]!
-
-  """
-  Policy categories it judges, e.g. spam or threats.
-  """
-  categories: [String!]!
-
-  """
-  Chat events it receives, e.g. message.created or user.joined.
-  """
-  events: [String!]!
-
-  """
-  Whether it reads this audience's chat now: always for inline ones; for remote
-  ones, while a live service token of the audience's is issued for it with
-  chat:moderate:*.
-  """
-  following: Boolean!
-
-  """
-  Whether it receives each event on this server as it happens.
-  """
-  inline: Boolean!
-
-  """
-  Its key, e.g. karafun.
-  """
-  key: String!
-
-  """
-  Its name, e.g. KaraFun.
-  """
-  name: String!
-
-  """
-  Whether it runs on its own server and dials in for the event feed.
-  """
-  remote: Boolean!
 }
 
 """
@@ -14036,9 +14195,9 @@ type PeopleCard implements ICard {
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
   events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
-  pings, web or promo.slot. New kinds are added; a kind the app did not list in
-  cardKinds is never sent.
+  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
+  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
+  did not list in cardKinds is never sent.
   """
   kind: String!
 
@@ -15438,9 +15597,9 @@ type PostsCard implements ICard {
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
   events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
-  pings, web or promo.slot. New kinds are added; a kind the app did not list in
-  cardKinds is never sent.
+  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
+  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
+  did not list in cardKinds is never sent.
   """
   kind: String!
 
@@ -15693,9 +15852,9 @@ type PromoSlotCard implements ICard {
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
   events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
-  pings, web or promo.slot. New kinds are added; a kind the app did not list in
-  cardKinds is never sent.
+  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
+  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
+  did not list in cardKinds is never sent.
   """
   kind: String!
 
@@ -17254,6 +17413,11 @@ enum SignInMethod {
   APPLE
 
   """
+  Sign in with Discord.
+  """
+  DISCORD
+
+  """
   Facebook Login.
   """
   FACEBOOK
@@ -17911,9 +18075,9 @@ type StageCard implements ICard {
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
   events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
-  pings, web or promo.slot. New kinds are added; a kind the app did not list in
-  cardKinds is never sent.
+  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
+  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
+  did not list in cardKinds is never sent.
   """
   kind: String!
 
@@ -21229,8 +21393,9 @@ type VenueTriviaView implements IVenueTrivia {
 
 """
 A group of venues: nearby (venues.nearby), where friends are (venues.friends),
-on tonight (venues.tonight), all of them (venues.all), or the "help fill your
-city" card (venues.thinCity, no venues).
+on tonight (venues.tonight), all of them (venues.all), the "help fill your city"
+card (venues.thinCity, no venues), or a locale on the Everywhere view with a few
+of its venues to show in turn (locales.showcase; open the LOCALE layout for it).
 """
 type VenuesCard implements ICard {
   """
@@ -21241,9 +21406,9 @@ type VenuesCard implements ICard {
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
   events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
-  pings, web or promo.slot. New kinds are added; a kind the app did not list in
-  cardKinds is never sent.
+  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
+  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
+  did not list in cardKinds is never sent.
   """
   kind: String!
 
@@ -21325,9 +21490,9 @@ type WebCard implements ICard & IPromoContent {
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
   events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, people.playingThisWeek, people.basedHere, people.everyone,
-  pings, web or promo.slot. New kinds are added; a kind the app did not list in
-  cardKinds is never sent.
+  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
+  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
+  did not list in cardKinds is never sent.
   """
   kind: String!
 

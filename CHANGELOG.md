@@ -3,6 +3,16 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.37.0 (2026-11-02)
+
+The Venues screen's Everywhere view lists locales, each with some of its venues in turn, and opens a locale's own
+screen (Rick, 2026-11-02). Additive.
+
+- `LayoutScreen.everywhere` / `EVERYWHERE`: a `locales.showcase` card per locale (`CardKind.localesShowcase` /
+  `LOCALES_SHOWCASE`), carrying the locale and a few of its venues to rotate through. The viewer's locale comes first.
+- `LayoutScreen.locale` / `LOCALE`: one locale's screen (pass its id as the locale id): `events.upcoming`,
+  `venues.tonight`, `venues.all`, plus announcements and promo slots.
+
 ## 0.36.0 (2026-10-31)
 
 A Mac app keeps its sign-in across rebuilds (Rick, 2026-10-31: Arbiter's keychain items didn't match the M4 build's

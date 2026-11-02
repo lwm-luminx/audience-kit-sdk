@@ -25,8 +25,12 @@ import kotlin.coroutines.cancellation.CancellationException
 // - Promoted cards come in slots with ranked candidates. The app draws the first one whose category the viewer hasn't
 //   turned off (CardFilter); what they turned off stays on the device and is never sent.
 
-/** A screen whose cards the server ranks. */
-public enum class LayoutScreen { NOW, VENUES, PEOPLE }
+/**
+ * A screen whose cards the server ranks. EVERYWHERE is the Venues screen's Everywhere view (a [CardKind.LOCALES_SHOWCASE]
+ * card per locale); LOCALE is one locale's screen, opened from its showcase card: pass its id as localeId, the position
+ * is not used.
+ */
+public enum class LayoutScreen { NOW, VENUES, PEOPLE, EVERYWHERE, LOCALE }
 
 /** The card kinds the API knows of today. `kind` is a string, so a newer API can add kinds; an app lists the ones it draws. */
 public object CardKind {
@@ -41,6 +45,9 @@ public object CardKind {
     public const val VENUES_TONIGHT: String = "venues.tonight"
     public const val VENUES_ALL: String = "venues.all"
     public const val VENUES_THIN_CITY: String = "venues.thinCity"
+
+    /** A locale on the Everywhere view (localeId) with a few of its venues (venueIds) to show in turn. */
+    public const val LOCALES_SHOWCASE: String = "locales.showcase"
     public const val PEOPLE_PLAYING_THIS_WEEK: String = "people.playingThisWeek"
     public const val PEOPLE_BASED_HERE: String = "people.basedHere"
     public const val PEOPLE_EVERYONE: String = "people.everyone"

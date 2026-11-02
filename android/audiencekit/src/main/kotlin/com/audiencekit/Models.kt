@@ -380,16 +380,8 @@ public enum class AdmissionStatus {
 public data class Admission(
     val id: String,
     val status: AdmissionStatus = AdmissionStatus.UNKNOWN,
-    /** Cover, or a coat check pass. */
-    val kind: AdmissionKind = AdmissionKind.COVER,
     /** The night it is for, as an ISO 8601 date. */
     val night: String,
-    /** How many people (cover) or coats (coat check) it's for. */
-    val quantity: Int = 1,
-    /** The cover tier bought, when the venue has tiers. */
-    val tier: String? = null,
-    /** A coat check pass's ticket number, once the venue has given one out. */
-    val claimCheckNumber: String? = null,
     /** The cover. */
     val amount: Money = Money(0),
     /** The Hot Mess fee. */
@@ -410,6 +402,15 @@ public data class Admission(
     val venue: CoverVenue? = null,
     /** The event that night, if it set the cover. */
     val event: CoverEvent? = null,
+    // Added in 0.38.0, after the existing parameters so positional calls still compile.
+    /** Cover, or a coat check pass. */
+    val kind: AdmissionKind = AdmissionKind.COVER,
+    /** How many people (cover) or coats (coat check) it's for. */
+    val quantity: Int = 1,
+    /** The cover tier bought, when the venue has tiers. */
+    val tier: String? = null,
+    /** A coat check pass's ticket number, once the venue has given one out. */
+    val claimCheckNumber: String? = null,
 ) {
     val isPaid: Boolean get() = status == AdmissionStatus.PAID
 

@@ -551,6 +551,19 @@ public class AudienceKitClient(
         graphQL(Queries.buyCover, BuyCoverResponse.serializer(), graphQLVariables("venueId" to venueId), "BuyCover").buyCover
 
     /**
+     * Starts paying tonight's coat check at a venue for [quantity] coats, the same way as [buyCover]: Stripe's payment
+     * sheet then [confirmCover], or Square's token then [payCover]. The pass's [Admission.kind] is
+     * [AdmissionKind.COAT_CHECK]. Asking again the same night returns the same pass.
+     */
+    public suspend fun buyCoatCheck(venueId: String, quantity: Int = 1): CoverPurchase =
+        graphQL(
+            Queries.buyCoatCheck,
+            BuyCoatCheckResponse.serializer(),
+            graphQLVariables("venueId" to venueId, "quantity" to quantity),
+            "BuyCoatCheck",
+        ).buyCoatCheck
+
+    /**
      * Pays a Square venue's cover with a payment token (nonce) from Square's In-App Payments SDK: a card, Google
      * Pay or Apple Pay. The returned pass is paid when Square took the payment.
      */

@@ -975,6 +975,38 @@ class CoverChargeTest {
     }
 
     @Test
+    fun startsPayingCoatCheckForSeveralCoats() = runTest {
+        val pass = ADMISSION_JSON.replace("\"PAID\"", "\"PENDING\"").replaceFirst("{", """{"kind":"COAT_CHECK","quantity":2,"claimCheckNumber":"A12",""")
+        val stub = StubTransport {
+            StubTransport.json(
+                200,
+                """{"data":{"buyCoatCheck":{"admission":$pass,
+                 "paymentIntentClientSecret":"pi_9_secret_9","publishableKey":"pk_test_1","stripeAccountId":"acct_1"}}}""",
+            )
+        }
+        val (client, _) = makeClient(stub)
+
+        val purchase = client.buyCoatCheck(venueId = "v-1", quantity = 2)
+
+        assertTrue(purchase.admission.isCoatCheck)
+        assertEquals(2, purchase.admission.quantity)
+        assertEquals("A12", purchase.admission.claimCheckNumber)
+        assertFalse(purchase.isPaid)
+        val body = stub.requests.single().jsonBody()
+        assertEquals("BuyCoatCheck", body.string("operationName"))
+        val variables = body["variables"]!!.jsonObject
+        assertEquals("v-1", variables.string("venueId"))
+        assertEquals("2", variables["quantity"].toString())
+    }
+
+    @Test
+    fun aPassFromAnOlderApiIsCover() {
+        val admission = Json { ignoreUnknownKeys = true }.decodeFromString(Admission.serializer(), ADMISSION_JSON)
+        assertFalse(admission.isCoatCheck)
+        assertEquals(1, admission.quantity)
+    }
+
+    @Test
     fun paysSquareCoverWithAToken() = runTest {
         val stub = StubTransport { request ->
             if (request.jsonBody().string("operationName") == "BuyCover") {

@@ -314,7 +314,28 @@ public data class CoverCharge(
     val payable: Boolean = false,
     /** The event that night, when it sets the night's cover. */
     val event: CoverEvent? = null,
+    /** The venue's coat check that night, when it has one: pay it with [AudienceKitClient.buyCoatCheck]. */
+    val coatCheck: CoatCheck? = null,
 )
+
+/** What checking a coat costs at a venue on a night. Show [total], the all-in price per coat. */
+@Serializable
+public data class CoatCheck(
+    val amount: Money,
+    val total: Money,
+    val fee: Money = Money(0, amount.currency),
+    /** The night it is for, as an ISO 8601 date. */
+    val night: String,
+    /** Whether it can be paid in the app. */
+    val payable: Boolean = false,
+)
+
+/** What an [Admission] gets you: in the door, or a coat checked. Values from a newer API decode as [COVER]. */
+@Serializable
+public enum class AdmissionKind {
+    COVER,
+    COAT_CHECK,
+}
 
 /** The event an [Admission] or [CoverCharge] is for. */
 @Serializable
@@ -381,8 +402,19 @@ public data class Admission(
     val venue: CoverVenue? = null,
     /** The event that night, if it set the cover. */
     val event: CoverEvent? = null,
+    // Added in 0.38.0, after the existing parameters so positional calls still compile.
+    /** Cover, or a coat check pass. */
+    val kind: AdmissionKind = AdmissionKind.COVER,
+    /** How many people (cover) or coats (coat check) it's for. */
+    val quantity: Int = 1,
+    /** The cover tier bought, when the venue has tiers. */
+    val tier: String? = null,
+    /** A coat check pass's ticket number, once the venue has given one out. */
+    val claimCheckNumber: String? = null,
 ) {
     val isPaid: Boolean get() = status == AdmissionStatus.PAID
+
+    val isCoatCheck: Boolean get() = kind == AdmissionKind.COAT_CHECK
 
     /** The pass's QR code at [epochSeconds], or `null` without a [passSecret]. */
     public fun passCode(epochSeconds: Long = System.currentTimeMillis() / 1000): String? =
@@ -429,6 +461,9 @@ public data class VenueCover(
 
     /** The signed-in user's cover for tonight, paid or being paid. */
     val viewerAdmission: Admission? get() = cover?.viewerAdmission
+
+    /** The signed-in user's coat check for tonight, paid or being paid. */
+    val viewerCoatCheck: Admission? get() = cover?.viewerCoatCheck
 }
 
 /** The part of a venue's `tickets` mixin a fan reads: the cover inside it. */
@@ -442,4 +477,6 @@ public data class ViewerCover(
     val charge: CoverCharge? = null,
     /** The signed-in user's cover for tonight, paid or being paid. */
     val viewerAdmission: Admission? = null,
+    /** The signed-in user's coat check for tonight, paid or being paid. */
+    val viewerCoatCheck: Admission? = null,
 )

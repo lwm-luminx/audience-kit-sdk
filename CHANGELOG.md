@@ -3,6 +3,16 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.38.0 (2026-11-02)
+
+Coat check on Android, as Hot Mess iOS has it (Android parity, 2026-11-02). Additive.
+
+- `AudienceKitClient.buyCoatCheck(venueId, quantity)`: starts paying tonight's coat check, paid the same way as
+  cover (Stripe's payment sheet then `confirmCover`, or Square's token then `payCover`).
+- `CoverCharge.coatCheck` (`CoatCheck`: amount, fee, total, night, payable) and `VenueCover.viewerCoatCheck`.
+- `Admission.kind` (`AdmissionKind.COVER` / `COAT_CHECK`, `isCoatCheck`), `quantity`, `tier` and `claimCheckNumber`;
+  `Queries.ADMISSION_FIELDS` asks for them.
+
 ## 0.37.0 (2026-11-02)
 
 The Venues screen's Everywhere view lists locales, each with some of its venues in turn, and opens a locale's own

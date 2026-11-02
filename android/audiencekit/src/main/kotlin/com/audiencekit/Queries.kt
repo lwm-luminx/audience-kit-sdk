@@ -13,11 +13,13 @@ public object Queries {
     public const val MONEY_FIELDS: String = "cents currency"
     public const val PROFILE_FIELDS: String = "id name avatarUrl"
     public const val COVER_CHARGE_FIELDS: String =
-        "amount { $MONEY_FIELDS } total { $MONEY_FIELDS } fee { $MONEY_FIELDS } night from payable event { id name }"
+        "amount { $MONEY_FIELDS } total { $MONEY_FIELDS } fee { $MONEY_FIELDS } night from payable event { id name } " +
+            "coatCheck { amount { $MONEY_FIELDS } fee { $MONEY_FIELDS } total { $MONEY_FIELDS } night payable }"
 
     /** An [Admission], with the pass secret the buyer makes the QR code from. */
     public const val ADMISSION_FIELDS: String =
-        "id status night amount { $MONEY_FIELDS } fee { $MONEY_FIELDS } total { $MONEY_FIELDS } isRefundable " +
+        "id status kind night quantity tier claimCheckNumber amount { $MONEY_FIELDS } fee { $MONEY_FIELDS } " +
+            "total { $MONEY_FIELDS } isRefundable " +
             "passSecret scanCount checkedInAt createdAt profile { $PROFILE_FIELDS } venue { id name photoUrl } event { id name }"
 
     public val audience: String = """
@@ -156,6 +158,7 @@ public object Queries {
                 cover {
                   charge { $COVER_CHARGE_FIELDS }
                   viewerAdmission { $ADMISSION_FIELDS }
+                  viewerCoatCheck { $ADMISSION_FIELDS }
                 }
               }
             }
@@ -166,6 +169,15 @@ public object Queries {
     public val buyCover: String = """
         mutation BuyCover(${'$'}venueId: ID!) {
           buyCover(input: { venueId: ${'$'}venueId }) {
+            admission { $ADMISSION_FIELDS }
+            provider paymentIntentClientSecret publishableKey stripeAccountId squareApplicationId squareLocationId
+          }
+        }
+    """.trimIndent()
+
+    public val buyCoatCheck: String = """
+        mutation BuyCoatCheck(${'$'}venueId: ID!, ${'$'}quantity: Int) {
+          buyCoatCheck(input: { venueId: ${'$'}venueId, quantity: ${'$'}quantity }) {
             admission { $ADMISSION_FIELDS }
             provider paymentIntentClientSecret publishableKey stripeAccountId squareApplicationId squareLocationId
           }
@@ -267,6 +279,7 @@ internal data class AdmissionsResponse(val me: Me? = null) {
 }
 
 @Serializable internal data class BuyCoverResponse(val buyCover: CoverPurchase)
+@Serializable internal data class BuyCoatCheckResponse(val buyCoatCheck: CoverPurchase)
 
 @Serializable
 internal data class VenueCoverResponse(val venues: Venues) {

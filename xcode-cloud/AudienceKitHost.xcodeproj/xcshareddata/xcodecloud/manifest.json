@@ -1,0 +1,17 @@
+{
+  "id" : "3a5bb256-299a-4f82-a817-8142c7092225",
+  "targets" : [
+    {
+      "id" : "e0de4620-3524-45df-92f2-dfafed4c3813",
+      "name" : "AudienceCore"
+    },
+    {
+      "id" : "e9072115-a002-4f8e-95aa-0ff15aa43804",
+      "name" : "AudienceKit"
+    },
+    {
+      "id" : "9d369b88-9f10-4c8b-80cd-37ed19b30235",
+      "name" : "AudienceKitUI"
+    }
+  ]
+}

@@ -45,12 +45,26 @@
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
+		<key>AC5D00000000000000000009</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>wrapper</string>
+			<key>name</key>
+			<string>AudienceKit</string>
+			<key>path</key>
+			<string>..</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
 		<key>AC5D00000000000000000004</key>
 		<dict>
 			<key>isa</key>
 			<string>PBXGroup</string>
 			<key>children</key>
 			<array>
+				<string>AC5D00000000000000000009</string>
 				<string>AC5D00000000000000000002</string>
 				<string>AC5D00000000000000000003</string>
 			</array>

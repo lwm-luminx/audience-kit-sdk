@@ -1,6 +1,8 @@
 .build/
 .swiftpm/
 *.xcodeproj/
+# The Xcode Cloud host project (xcode-cloud/README.md) is the one checked in.
+!/xcode-cloud/AudienceKitHost.xcodeproj/
 xcuserdata/
 DerivedData/
 Package.resolved

@@ -3,6 +3,16 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.39.0 (2026-11-04)
+
+Update prompts compare build numbers only within the branch that made them (Rick, 2026-11-04): main and next builds
+share Xcode Cloud's counter, so main's TestFlight installs were offered next's betas. Additive.
+
+- `AppRelease.testFlightBeta` (`testflight_beta`): the TestFlight channel for betas (next and feature branches);
+  `testFlight` is main's archives. `AppRelease.forBeta()` reads the beta channel as TestFlight's.
+- `AudienceUpdates(isBeta:)` and `AudienceUpdates.configure(…, isBeta:)`: a beta build is compared with the beta
+  channel, and gets no TestFlight prompt when there is none.
+
 ## 0.38.0 (2026-11-02)
 
 Coat check on Android, as Hot Mess iOS has it (Android parity, 2026-11-02). Additive.

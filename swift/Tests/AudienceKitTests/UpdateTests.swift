@@ -44,6 +44,21 @@ private func makeSession(_ stub: Stub) -> AudienceSession {
         #expect(release.channel(for: .unknown) == nil)
     }
 
+    @Test func aBetaReadsTheBetaChannel() throws {
+        let release = try decodeRelease(#"""
+        { "identifier": "social.hotmess.HotMess",
+          "testflight": { "latest_build": 420526, "latest_version": "2.5" },
+          "testflight_beta": { "latest_build": 420532, "latest_version": "2.6" },
+          "app_store": { "latest_build": 420526, "latest_version": "2.5" } }
+        """#)
+
+        #expect(release.testFlight?.latestBuild == 420_526)
+        #expect(release.testFlightBeta?.latestBuild == 420_532)
+        #expect(release.forBeta().channel(for: .testFlight)?.latestBuild == 420_532)
+        #expect(release.forBeta().channel(for: .appStore)?.latestBuild == 420_526)
+        #expect(try decodeRelease().forBeta().testFlight == nil)
+    }
+
     @Test func everyFieldMayBeNull() throws {
         let release = try decodeRelease(#"""
         { "identifier": "social.hotmess.HotMess", "app_store_id": null, "app_store_url": null, "testflight_url": null,
@@ -328,10 +343,11 @@ private final class FakeAPI: @unchecked Sendable {
 @Suite struct UpdateChecker {
     private func makeUpdates(_ api: FakeAPI, source: InstallSource = .testFlight, build: Int? = 420_212,
                              store: InMemoryAppReleaseStore = InMemoryAppReleaseStore(),
-                             testFlightInstalled: Bool = true, opened: OpenedLinks? = nil) -> AudienceUpdates
+                             testFlightInstalled: Bool = true, opened: OpenedLinks? = nil,
+                             isBeta: Bool = false) -> AudienceUpdates
     {
         AudienceUpdates(app: "social.hotmess.HotMess", appName: "Hot Mess", currentBuild: build,
-                        currentVersion: "2.1", store: store,
+                        currentVersion: "2.1", store: store, isBeta: isBeta,
                         fetch: { try api.fetch() }, installSource: { source },
                         testFlightInstalled: { _ in testFlightInstalled },
                         openURL: { url in opened?.open(url) ?? false },
@@ -367,6 +383,29 @@ private final class FakeAPI: @unchecked Sendable {
         api.release = newer
         await updates.checkNow()
         #expect(updates.prompt?.offer.latestBuild == 420_220)
+    }
+
+    @Test func mainAndBetaBuildsOnlyCompareWithinTheirBranch() async throws {
+        var release = try decodeRelease()
+        release.testFlight = AppRelease.Channel(latestBuild: 420_526, latestVersion: "2.5")
+        release.testFlightBeta = AppRelease.Channel(latestBuild: 420_532, latestVersion: "2.6")
+
+        // Main's archive on TestFlight (external testers, App Review) isn't offered next's newer beta.
+        let main = makeUpdates(FakeAPI(release), build: 420_526)
+        await main.checkNow()
+        #expect(main.prompt == nil)
+        #expect(main.status == .upToDate)
+
+        // A beta is offered the newer beta.
+        let beta = makeUpdates(FakeAPI(release), build: 420_530, isBeta: true)
+        await beta.checkNow()
+        #expect(beta.prompt?.offer.latestBuild == 420_532)
+
+        // A beta newer than main's latest isn't sent back to main.
+        release.testFlightBeta = nil
+        let lone = makeUpdates(FakeAPI(release), build: 420_530, isBeta: true)
+        await lone.checkNow()
+        #expect(lone.prompt == nil)
     }
 
     @Test func fetchesAtMostOncePerIntervalUnlessAsked() async throws {

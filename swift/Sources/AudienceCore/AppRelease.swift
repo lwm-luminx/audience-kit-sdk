@@ -65,14 +65,18 @@ public struct AppRelease: Codable, Sendable, Hashable {
     public var appStoreURL: URL?
     /// The public TestFlight invite (`https://testflight.apple.com/join/<code>`), for when `itms-beta://` doesn't open.
     public var testFlightURL: URL?
-    /// The TestFlight channel: what `sandbox` installs are compared with.
+    /// The TestFlight channel for main's archives (App Store candidates, which external testers and App Review
+    /// install): what `sandbox` installs are compared with.
     public var testFlight: Channel?
+    /// The TestFlight channel for betas (next and feature-branch archives). Build numbers only compare within the
+    /// branch that made them, so a beta build reads this instead of ``testFlight`` (``forBeta()``).
+    public var testFlightBeta: Channel?
     /// The App Store channel: what `production` installs are compared with.
     public var appStore: Channel?
 
     public init(identifier: String? = nil, platform: String? = "ios", environment: String? = nil,
                 appStoreID: String? = nil, appStoreURL: URL? = nil, testFlightURL: URL? = nil,
-                testFlight: Channel? = nil, appStore: Channel? = nil)
+                testFlight: Channel? = nil, testFlightBeta: Channel? = nil, appStore: Channel? = nil)
     {
         self.identifier = identifier
         self.platform = platform
@@ -81,6 +85,7 @@ public struct AppRelease: Codable, Sendable, Hashable {
         self.appStoreURL = appStoreURL
         self.testFlightURL = testFlightURL
         self.testFlight = testFlight
+        self.testFlightBeta = testFlightBeta
         self.appStore = appStore
     }
 
@@ -90,6 +95,7 @@ public struct AppRelease: Codable, Sendable, Hashable {
         case appStoreURL = "app_store_url"
         case testFlightURL = "testflight_url"
         case testFlight = "testflight"
+        case testFlightBeta = "testflight_beta"
         case appStore = "app_store"
     }
 
@@ -102,7 +108,16 @@ public struct AppRelease: Codable, Sendable, Hashable {
         appStoreURL = container.lenientString(forKey: .appStoreURL).flatMap(URL.init(string:))
         testFlightURL = container.lenientString(forKey: .testFlightURL).flatMap(URL.init(string:))
         testFlight = try container.decodeIfPresent(Channel.self, forKey: .testFlight)
+        testFlightBeta = try container.decodeIfPresent(Channel.self, forKey: .testFlightBeta)
         appStore = try container.decodeIfPresent(Channel.self, forKey: .appStore)
+    }
+
+    /// The release as a beta build sees it: ``testFlightBeta`` in place of ``testFlight``, so a beta is only compared
+    /// with other betas. With no beta channel, TestFlight says nothing rather than offering main's builds.
+    public func forBeta() -> AppRelease {
+        var release = self
+        release.testFlight = testFlightBeta
+        return release
     }
 
     /// The channel an install from `source` updates on: TestFlight for a TestFlight install, the App Store for an App

@@ -13,7 +13,7 @@ import AppKit
 /// Update prompts for TestFlight and App Store installs, driven by the API's release config
 /// (``AudienceSession/appRelease(app:)``) and StoreKit 2's install environment (``InstallSource``).
 ///
-/// Configure one at launch with ``configure(session:appName:testFlightURL:appStoreURL:minimumInterval:store:)``, then
+/// Configure one at launch with ``configure(session:appName:testFlightURL:appStoreURL:minimumInterval:store:isBeta:)``, then
 /// either apply AudienceKitUI's `.audienceUpdatePrompts()` at the root of the app (or `AudienceUpdatePromptPresenter`
 /// in UIKit), or draw your own UI from ``prompt``, ``prompts`` or ``onPrompt``.
 ///
@@ -25,7 +25,7 @@ import AppKit
 ///   config. A soft prompt shows only after a fetch, once per build: "Not now" (``dismiss()``) skips that build.
 @MainActor
 public final class AudienceUpdates {
-    /// The instance ``configure(session:appName:testFlightURL:appStoreURL:minimumInterval:store:)`` made, which the
+    /// The instance ``configure(session:appName:testFlightURL:appStoreURL:minimumInterval:store:isBeta:)`` made, which the
     /// SwiftUI modifier and UIKit presenter use when not handed one.
     public private(set) static var shared: AudienceUpdates?
 
@@ -39,6 +39,9 @@ public final class AudienceUpdates {
     public let currentVersion: String
     /// How long to wait between fetches on foreground.
     public let minimumInterval: TimeInterval
+    /// Whether this is a beta build (next or a feature branch), compared with the config's TestFlight betas
+    /// (``AppRelease/testFlightBeta``) instead of main's TestFlight builds: build numbers only compare within a branch.
+    public let isBeta: Bool
 
     /// Where this install came from, once StoreKit has said (`nil` before the first check).
     public private(set) var installSource: InstallSource? {
@@ -86,10 +89,11 @@ public final class AudienceUpdates {
     ///   - appStoreURL: the App Store page to fall back to when the config has none.
     ///   - minimumInterval: how long to wait between fetches on foreground; a day by default.
     ///   - store: where the config and dismissals are kept; `UserDefaults` by default.
+    ///   - isBeta: whether this is a beta build (next or a feature branch) rather than one of main's archives.
     public convenience init(session: AudienceSession, app: String? = nil, appName: String? = nil,
                             bundle: Bundle = .main, testFlightURL: URL? = nil, appStoreURL: URL? = nil,
                             minimumInterval: TimeInterval = UpdateRules.defaultInterval,
-                            store: (any AppReleaseStore)? = nil)
+                            store: (any AppReleaseStore)? = nil, isBeta: Bool = false)
     {
         let app = app ?? bundle.bundleIdentifier ?? ""
         let name = appName
@@ -101,12 +105,13 @@ public final class AudienceUpdates {
                   currentVersion: bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
                   testFlightURL: testFlightURL, appStoreURL: appStoreURL, minimumInterval: minimumInterval,
                   store: store ?? UserDefaultsAppReleaseStore(key: "AudienceKit.appRelease.\(app)"),
-                  fetch: { [session] in try await session.appRelease(app: app) })
+                  isBeta: isBeta, fetch: { [session] in try await session.appRelease(app: app) })
     }
 
     /// Update prompts with every outside dependency handed in: for tests, previews and apps with their own transport.
     ///
     /// - Parameters:
+    ///   - isBeta: whether this is a beta build, compared with ``AppRelease/testFlightBeta`` on TestFlight.
     ///   - fetch: fetches the config; `nil` when the API has none for the app.
     ///   - installSource: where this install came from; ``InstallSource/current`` by default.
     ///   - testFlightInstalled: whether the TestFlight app can be opened; `canOpenURL("itms-beta://…")` by default.
@@ -116,6 +121,7 @@ public final class AudienceUpdates {
                 testFlightURL: URL? = nil, appStoreURL: URL? = nil,
                 minimumInterval: TimeInterval = UpdateRules.defaultInterval,
                 store: any AppReleaseStore = InMemoryAppReleaseStore(),
+                isBeta: Bool = false,
                 fetch: @escaping @Sendable () async throws -> AppRelease?,
                 installSource: @escaping @Sendable () async -> InstallSource = { await InstallSource.current },
                 testFlightInstalled: (@MainActor (AppRelease) -> Bool)? = nil,
@@ -127,6 +133,7 @@ public final class AudienceUpdates {
         self.currentBuild = currentBuild
         self.currentVersion = currentVersion
         self.minimumInterval = minimumInterval
+        self.isBeta = isBeta
         self.store = store
         self.fetch = fetch
         readInstallSource = installSource
@@ -142,10 +149,11 @@ public final class AudienceUpdates {
     @discardableResult
     public static func configure(session: AudienceSession, appName: String? = nil, testFlightURL: URL? = nil,
                                  appStoreURL: URL? = nil, minimumInterval: TimeInterval = UpdateRules.defaultInterval,
-                                 store: (any AppReleaseStore)? = nil) -> AudienceUpdates
+                                 store: (any AppReleaseStore)? = nil, isBeta: Bool = false) -> AudienceUpdates
     {
         let updates = AudienceUpdates(session: session, appName: appName, testFlightURL: testFlightURL,
-                                      appStoreURL: appStoreURL, minimumInterval: minimumInterval, store: store)
+                                      appStoreURL: appStoreURL, minimumInterval: minimumInterval, store: store,
+                                      isBeta: isBeta)
         shared = updates
         return updates
     }
@@ -157,9 +165,10 @@ public final class AudienceUpdates {
 
     // MARK: - State
 
-    /// The stored config, with the fallback links filled in.
+    /// The stored config as this build reads it (betas see ``AppRelease/testFlightBeta`` as TestFlight's channel),
+    /// with the fallback links filled in.
     public var release: AppRelease? {
-        guard var filled = state.release else { return nil }
+        guard var filled = state.release.map({ isBeta ? $0.forBeta() : $0 }) else { return nil }
         if filled.testFlightURL == nil { filled.testFlightURL = fallbackTestFlightURL }
         if filled.appStoreURL == nil { filled.appStoreURL = fallbackAppStoreURL }
         return filled

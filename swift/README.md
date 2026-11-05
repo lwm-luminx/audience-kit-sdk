@@ -13,8 +13,12 @@ audience's venues, people, locales and events over GraphQL, and its branding ove
 Add the package with Swift Package Manager:
 
 ```swift
-.package(url: "https://github.com/lwm-luminx/audience-kit-sdk.git", from: "0.24.0")
+.package(url: "https://github.com/lwm-luminx/audience-kit-sdk.git", from: "0.39.0")
 ```
+
+Each version is a tag (`0.39.0`, no `v`) with a GitHub release; the
+[releases page](https://github.com/lwm-luminx/audience-kit-sdk/releases) lists them. `from:` accepts every later
+version below 1.0.0, so use `.upToNextMinor(from:)` to take only patch releases.
 
 and depend on the products you need (in Xcode, **File › Add Package
 Dependencies…** with the same URL):

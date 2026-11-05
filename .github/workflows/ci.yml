@@ -62,3 +62,24 @@ jobs:
         with:
           fetch-depth: 0
       - run: scripts/check-version.sh origin/${{ github.base_ref || 'main' }}
+
+  release:
+    # Publishes the Swift package: once everything above passes on main, tags each VERSION that has no tag yet (no "v",
+    # at the merge that set it) and opens its GitHub release from CHANGELOG.md. Swift Package Manager and Xcode resolve
+    # `from: "X.Y.Z"` from these tags. The workflow's own token pushes them, so no secret is needed; the Xcode Cloud
+    # workflow runs the same script and finds the tag there already (xcode-cloud/README.md).
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [swift, kotlin, graphql, apple, version]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: scripts/tag-release.sh --all
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

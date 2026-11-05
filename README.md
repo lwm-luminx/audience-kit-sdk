@@ -25,9 +25,10 @@ scripts/set-version.sh 0.25.0   # writes VERSION and both constants
 scripts/check-version.sh        # CI runs this on every pull request
 ```
 
-Add the version's entry to [`CHANGELOG.md`](CHANGELOG.md). Once it merges to `main` and the tests pass, Xcode Cloud tags
-the release (`0.25.0`, no `v`) so Swift Package Manager can resolve it, and opens its GitHub release
-([`xcode-cloud/`](xcode-cloud/README.md)).
+Add the version's entry to [`CHANGELOG.md`](CHANGELOG.md). Once it merges to `main` and CI passes, the `release` job in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) tags the release (`0.25.0`, no `v`) so Swift Package Manager can
+resolve it, and opens its GitHub release from the changelog entry. The Xcode Cloud workflow runs the same script
+([`xcode-cloud/`](xcode-cloud/README.md)); whichever finishes second finds the tag there already.
 
 ## License
 

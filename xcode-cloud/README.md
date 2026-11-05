@@ -41,7 +41,8 @@ scripts/tag-release.sh --all    # and every untagged version before it
    - No post-actions.
 3. Start a build on `main` to see it work; it tags the current `VERSION` if it isn't yet.
 
-Without `GITHUB_TOKEN` the workflow still builds and tests; it just says it didn't publish.
+Without `GITHUB_TOKEN` the workflow still builds and tests; it just says it didn't publish. Publishing doesn't depend on
+it: GitHub Actions' `release` job (`.github/workflows/ci.yml`) tags each version on `main` with the workflow's own token.
 
 The Kotlin and Android libraries aren't built here (Xcode Cloud images carry no Android SDK); Maven publishing is still
 to come.

@@ -1,0 +1,5 @@
+# Swift Package Index (https://swiftpackageindex.com): which modules it builds DocC documentation for.
+version: 1
+builder:
+  configs:
+    - documentation_targets: [AudienceCore, AudienceKit, AudienceKitUI]

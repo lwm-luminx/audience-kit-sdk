@@ -227,7 +227,8 @@ private func reducedSchema(_ request: RecordedRequest) -> StubResponse {
     let message = try await eventsClient(stub).sendChatMessage("on my way", in: .locale(id: "l-1"))
 
     #expect(message.id == "m-9")
-    let input = try #require(try #require(stub.requests.first).variables["input"] as? [String: Any])
+    let request = try #require(stub.requests.first)
+    let input = try #require(request.variables["input"] as? [String: Any])
     #expect(input["localeId"] as? String == "l-1")
     #expect(input["message"] as? String == "on my way")
     #expect(input["venueId"] == nil)

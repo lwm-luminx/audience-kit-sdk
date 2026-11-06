@@ -1,0 +1,48 @@
+{
+    "name": "audiencekit/audiencekit",
+    "description": "PHP client for the AudienceKit GraphQL API: sign in, then read an audience's venues, people, locales, events, chat and cover charges.",
+    "type": "library",
+    "keywords": ["audiencekit", "graphql", "sdk"],
+    "homepage": "https://github.com/lwm-luminx/audience-kit-sdk",
+    "support": {
+        "issues": "https://github.com/lwm-luminx/audience-kit-sdk/issues",
+        "source": "https://github.com/lwm-luminx/audience-kit-sdk/tree/main/php",
+        "docs": "https://developer.audiencekit.com"
+    },
+    "authors": [
+        { "name": "Love Wins Media, Inc.", "homepage": "https://lovewins.media" }
+    ],
+    "require": {
+        "php": "^8.1",
+        "ext-json": "*",
+        "psr/http-client": "^1.0",
+        "psr/http-factory": "^1.0",
+        "psr/http-message": "^1.1 || ^2.0",
+        "php-http/discovery": "^1.19"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.5",
+        "php-http/mock-client": "^1.6",
+        "nyholm/psr7": "^1.8"
+    },
+    "suggest": {
+        "guzzlehttp/guzzle": "A PSR-18 HTTP client the SDK finds on its own (any PSR-18 client and PSR-17 factories work)"
+    },
+    "autoload": {
+        "psr-4": { "AudienceKit\\": "src/" }
+    },
+    "autoload-dev": {
+        "psr-4": { "AudienceKit\\Tests\\": "tests/" }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "coverage": "phpunit --coverage-clover build/clover.xml && php scripts/coverage.php build/clover.xml 85",
+        "graphql-documents": "php bin/graphql-documents build/graphql"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": { "php-http/discovery": false }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

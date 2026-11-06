@@ -88,6 +88,51 @@ jobs:
       - run: bundle exec rake
       - run: gem build audience-kit.gemspec
 
+  php:
+    # The audiencekit/audiencekit Composer package in php/: PHPUnit with the 85% line-coverage floor
+    # (php/scripts/coverage.php), its GraphQL documents checked against the schema like the Swift and Kotlin ones,
+    # and its own version (php/src/AudienceKit.php, php/CHANGELOG.md), which the version job doesn't look at. On
+    # main, tags the version php/<version> (a prefix, so it never clashes with the Swift package's bare tags).
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.1", "8.2", "8.3", "8.4"]
+    defaults:
+      run:
+        working-directory: php
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: pcov
+          tools: composer:v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - run: scripts/check-version.sh origin/${{ github.base_ref || 'main' }}
+      - name: Tests, with line coverage at 85% or more (98.9% at 0.1.0)
+        run: |
+          vendor/bin/phpunit --coverage-clover build/clover.xml
+          php scripts/coverage.php build/clover.xml 85
+      - name: GraphQL documents match the API schema
+        run: |
+          php bin/graphql-documents build/graphql
+          # The checker imports graphql from where it lives, so the package goes at the repository root.
+          (cd .. && npm install --silent --no-save --no-package-lock graphql@16)
+          node ../scripts/graphql/check.mjs --schema ../graphql/schema.graphql --endpoint consumer build/graphql
+      - name: Tag the release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.php == '8.3'
+        run: scripts/tag-release.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   release:
     # Publishes the Swift package: once everything above passes on main, tags each VERSION that has no tag yet (no "v",
     # at the merge that set it) and opens its GitHub release from CHANGELOG.md. Swift Package Manager and Xcode resolve

@@ -88,6 +88,31 @@ jobs:
       - run: bundle exec rake
       - run: gem build audience-kit.gemspec
 
+  python:
+    # The audiencekit package in python/: ruff, mypy, pytest with coverage (fails under 85%, the repository's floor) and
+    # the package build, on each Python it supports. It has its own version, so the version job doesn't look at it;
+    # python-release.yml publishes it from `python-<version>` tags.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: python/pyproject.toml
+      - run: pip install -e ".[dev]" build
+      - run: ruff check . && ruff format --check .
+      - run: mypy
+      - run: pytest --cov
+      - run: python -m build
+
   release:
     # Publishes the Swift package: once everything above passes on main, tags each VERSION that has no tag yet (no "v",
     # at the merge that set it) and opens its GitHub release from CHANGELOG.md. Swift Package Manager and Xcode resolve

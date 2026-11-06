@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "audiencekit"
+dynamic = ["version"]
+description = "AudienceKit SDK for Python: an audience's venues, people, locales and events over its GraphQL API"
+readme = "README.md"
+license = { text = "See LICENSE at the root of the audience-kit-sdk repository, which this package is distributed under" }
+authors = [{ name = "Love Wins Media, Inc." }]
+requires-python = ">=3.10"
+keywords = ["audiencekit", "graphql", "nightlife", "events"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Typing :: Typed",
+]
+dependencies = ["httpx>=0.27,<1"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "pytest-cov>=5", "ruff>=0.6", "mypy>=1.11"]
+
+[project.urls]
+Homepage = "https://audiencekit.com"
+Documentation = "https://developer.audiencekit.com/sdks/python/"
+License = "https://github.com/lwm-luminx/audience-kit-sdk/blob/main/LICENSE"
+Source = "https://github.com/lwm-luminx/audience-kit-sdk/tree/main/python"
+Changelog = "https://github.com/lwm-luminx/audience-kit-sdk/blob/main/python/CHANGELOG.md"
+
+[tool.setuptools.dynamic]
+version = { attr = "audiencekit._version.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+audiencekit = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.coverage.run]
+source = ["audiencekit"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+# Line coverage stays at 85% or more, the SDK repository's floor for every platform.
+fail_under = 85
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["RUF012"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["src"]

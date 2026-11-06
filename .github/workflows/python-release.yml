@@ -1,0 +1,36 @@
+name: Python release
+
+# Publishes the audiencekit package in python/ to PyPI from a `python-<version>` tag (`python-0.1.0`): the prefix keeps
+# these tags apart from the Swift package's bare version tags, which Swift Package Manager resolves. The tag's version
+# has to match python/src/audiencekit/_version.py. Uploads with PyPI trusted publishing, so no token is stored here;
+# the `pypi` environment is set up once on PyPI for this repository and workflow.
+
+on:
+  push:
+    tags: ["python-*"]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+      contents: read
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The tag names the package's version
+        run: |
+          version="$(python -c 'import re,pathlib; print(re.search(r"\"([^\"]+)\"", pathlib.Path("src/audiencekit/_version.py").read_text()).group(1))')"
+          [[ "${GITHUB_REF_NAME#python-}" == "$version" ]] || { echo "Tag $GITHUB_REF_NAME, but the package is $version." >&2; exit 1; }
+      - run: pip install -e ".[dev]" build
+      - run: pytest --cov
+      - run: python -m build
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: python/dist

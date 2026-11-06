@@ -1,0 +1,24 @@
+plugins:
+  - rubocop-rake
+  - rubocop-rspec
+
+AllCops:
+  TargetRubyVersion: 3.2
+  NewCops: enable
+  SuggestExtensions: false
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/StringLiteralsInInterpolation:
+  EnforcedStyle: double_quotes
+
+Naming/FileName:
+  Exclude:
+    - lib/audience-kit.rb
+
+RSpec/SpecFilePathFormat:
+  Enabled: false
+
+RSpec/MultipleDescribes:
+  Enabled: false

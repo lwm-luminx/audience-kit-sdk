@@ -1,5 +1,14 @@
 # frozen_string_literal: true
 
+# Coverage starts before the gem loads, or its files count as never run. Every line and branch is covered; CI (which
+# sets CI) fails when that drops, while running one spec file locally doesn't.
+require "simplecov"
+SimpleCov.start do
+  enable_coverage :branch
+  add_filter "/spec/"
+  minimum_coverage line: 100, branch: 100 if ENV["CI"]
+end
+
 require "audience-kit"
 
 module ApiHelpers

@@ -85,6 +85,7 @@ jobs:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
           working-directory: ruby
+      # Specs (SimpleCov fails them when a line or branch of lib/ isn't covered, since CI sets CI) and RuboCop.
       - run: bundle exec rake
       - run: gem build audience-kit.gemspec
 

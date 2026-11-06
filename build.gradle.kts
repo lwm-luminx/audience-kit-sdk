@@ -21,6 +21,24 @@ plugins {
     alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.kotlin.multiplatform) apply false
     alias(libs.plugins.kotlin.serialization) apply false
+    alias(libs.plugins.kover)
+}
+
+// Line coverage of the core and the JVM library together (Kover): `./gradlew koverVerify` fails under the floor, and
+// `koverXmlReport`/`koverHtmlReport` show where. The Android extras module needs a device for most of what it does.
+dependencies {
+    kover(project(":audiencekit-core"))
+    kover(project(":audiencekit"))
+}
+
+kover {
+    reports {
+        verify {
+            rule("SDK line coverage") {
+                minBound(85)
+            }
+        }
+    }
 }
 
 // One version for the whole SDK, Swift and Kotlin alike: the VERSION file beside this one.

@@ -18,7 +18,10 @@ public data class Coordinate(val latitude: Double, val longitude: Double) {
 
             val numbers = wkt.substring(open + 1, close).trim().split(Regex("\\s+")).mapNotNull { it.toDoubleOrNull() }
             if (numbers.size < 2) return null
-            return Coordinate(latitude = numbers[1], longitude = numbers[0])
+            val (longitude, latitude) = numbers
+            // Not a place on Earth: NaN, infinity, or out of range (often the two swapped).
+            if (latitude !in -90.0..90.0 || longitude !in -180.0..180.0) return null
+            return Coordinate(latitude = latitude, longitude = longitude)
         }
     }
 }

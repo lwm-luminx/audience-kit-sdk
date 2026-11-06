@@ -67,6 +67,17 @@ class GraphQLContractTest {
         }
     }
 
+    // The same cases as the Swift SDK's parsesWKTPoints: both must agree.
+    @Test
+    fun wktEdgeCasesMatchTheSwiftSdk() {
+        assertEquals(Coordinate(2.0, 1.0), Coordinate.fromWkt("POINT(1 2)"))
+        assertEquals(Coordinate(2.0, 1.0), Coordinate.fromWkt("POINT Z (1 2 3)"))
+        assertEquals(Coordinate(-90.0, 180.0), Coordinate.fromWkt("POINT (180 -90)"))
+        for (invalid in listOf("POINT EMPTY", "POINT (NaN NaN)", "POINT (Infinity 0)", "POINT (37.25 -122.5)", "POINT (181 0)")) {
+            assertNull(Coordinate.fromWkt(invalid), invalid)
+        }
+    }
+
     @Test
     fun serializesCoordinateWithoutChangingFieldNames() {
         val coordinate = Coordinate(37.25, -122.5)

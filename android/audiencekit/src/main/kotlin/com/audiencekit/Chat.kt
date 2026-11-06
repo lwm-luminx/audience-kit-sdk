@@ -1,7 +1,7 @@
 package com.audiencekit
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.transformWhile
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -89,13 +89,16 @@ public sealed interface ChatRoomEvent {
             val json = AudienceKitClient.json
             fun string(key: String) = (room[key] as? JsonPrimitive)?.contentOrNull
             fun bool(key: String) = (room[key] as? JsonPrimitive)?.booleanOrNull
-            fun message(element: Any?) = (element as? JsonObject)?.let { json.decodeFromJsonElement(ChatMessage.serializer(), it) }
+            // A message that doesn't decode is left out (or makes the event Unknown) rather than failing the stream.
+            fun message(element: Any?) = (element as? JsonObject)?.let {
+                runCatching { json.decodeFromJsonElement(ChatMessage.serializer(), it) }.getOrNull()
+            }
             fun posted(element: Any?) = message((element as? JsonObject)?.get("message"))
             val typename = string("__typename").orEmpty()
             return when (typename) {
                 "ChatJoined" -> Joined(
-                    people = ((room["roster"] as? JsonObject)?.get("people") as? JsonArray).orEmpty().map {
-                        json.decodeFromJsonElement(ChatRosterPerson.serializer(), it)
+                    people = ((room["roster"] as? JsonObject)?.get("people") as? JsonArray).orEmpty().mapNotNull {
+                        runCatching { json.decodeFromJsonElement(ChatRosterPerson.serializer(), it) }.getOrNull()
                     },
                     history = (room["history"] as? JsonArray).orEmpty().mapNotNull(::posted),
                     pinned = posted(room["pinnedMessage"]),
@@ -252,9 +255,15 @@ public suspend fun AudienceKitClient.venueDetail(id: String, recentMessages: Int
         Queries.venueDetail(it)
     }.venues?.venue ?: return null
     val json = AudienceKitClient.json
-    val extra = json.decodeFromJsonElement(VenueDetailResponse.Extra.serializer(), venue)
+    // Decoded here from the raw object, so wrap failures the way every other call reports them.
+    val (extra, decoded) = try {
+        json.decodeFromJsonElement(VenueDetailResponse.Extra.serializer(), venue) to
+            json.decodeFromJsonElement(Venue.serializer(), venue)
+    } catch (e: IllegalArgumentException) { // SerializationException is one
+        throw AudienceKitException.Decoding(e.message ?: e.toString())
+    }
     return VenueDetail(
-        venue = json.decodeFromJsonElement(Venue.serializer(), venue),
+        venue = decoded,
         description = extra.description,
         address = extra.profile?.address,
         phone = extra.profile?.phone,
@@ -286,9 +295,10 @@ public suspend fun AudienceKitClient.removeChatMessage(id: String) {
  * Joins a chat room (or, with [watch], follows it without being in it: no presence) in [audienceId] and emits what
  * happens in it. Cancelling the collector leaves the room.
  */
-public fun CableConnection.chat(audienceId: String, room: ChatRoom, watch: Boolean = false): Flow<ChatRoomUpdate> = flow {
+public fun CableConnection.chat(audienceId: String, room: ChatRoom, watch: Boolean = false): Flow<ChatRoomUpdate> {
     val variables = JsonObject(mapOf("id" to JsonPrimitive(room.id)))
-    subscribe(audienceId, Queries.chatRoom(room, watch), variables, "ChatRoom").collect { event ->
+    // transformWhile, not collect: returning false ends the flow (and leaves the room) once the server refuses it.
+    return subscribe(audienceId, Queries.chatRoom(room, watch), variables, "ChatRoom").transformWhile { event ->
         when (event) {
             CableEvent.Subscribed -> emit(ChatRoomUpdate.Subscribed)
             is CableEvent.Result -> {
@@ -298,12 +308,13 @@ public fun CableConnection.chat(audienceId: String, room: ChatRoom, watch: Boole
                     data != null -> emit(ChatRoomUpdate.Event(ChatRoomEvent.decode(data)))
                     result.errors.isNotEmpty() -> {
                         emit(ChatRoomUpdate.Refused(result.errors))
-                        return@collect
+                        return@transformWhile false
                     }
                 }
             }
             CableEvent.Rejected -> emit(ChatRoomUpdate.Refused(JsonArray(emptyList())))
             is CableEvent.Disconnected -> emit(ChatRoomUpdate.Disconnected(event.reason, event.reconnects))
         }
+        true
     }
 }

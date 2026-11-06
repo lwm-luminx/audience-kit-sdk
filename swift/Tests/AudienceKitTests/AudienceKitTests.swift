@@ -1200,6 +1200,13 @@ private func makeClient(
         #expect(Coordinate(wkt: "SRID=4326;POINT(1 2)") == Coordinate(latitude: 2, longitude: 1))
         #expect(Coordinate(wkt: "POLYGON ((0 0, 1 1))") == nil)
         #expect(Coordinate(wkt: "") == nil)
+        // The same cases as the Kotlin SDK's wktEdgeCasesMatchTheSwiftSdk: both must agree.
+        #expect(Coordinate(wkt: "POINT(1 2)") == Coordinate(latitude: 2, longitude: 1))
+        #expect(Coordinate(wkt: "POINT Z (1 2 3)") == Coordinate(latitude: 2, longitude: 1))
+        #expect(Coordinate(wkt: "POINT (180 -90)") == Coordinate(latitude: -90, longitude: 180))
+        for invalid in ["POINT EMPTY", "POINT (NaN NaN)", "POINT (Infinity 0)", "POINT (37.25 -122.5)", "POINT (181 0)"] {
+            #expect(Coordinate(wkt: invalid) == nil, "\(invalid)")
+        }
     }
 
     @Test func inMemoryStoreRoundTrips() throws {

@@ -21,6 +21,8 @@ public struct Coordinate: Codable, Sendable, Hashable {
             Double($0)
         }
         guard numbers.count >= 2 else { return nil }
+        // Not a place on Earth: NaN, infinity, or out of range (often the two swapped).
+        guard (-90 ... 90).contains(numbers[1]), (-180 ... 180).contains(numbers[0]) else { return nil }
 
         self.init(latitude: numbers[1], longitude: numbers[0])
     }

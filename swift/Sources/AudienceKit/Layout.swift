@@ -353,7 +353,8 @@ public actor PromoViewRecorder {
     private let minimumOnScreen: Duration
     private var visible: [String: Task<Void, Never>] = [:]
     private var reported: Set<String> = []
-    private var pending: [String: String?] = [:]
+    /// Seen and not yet sent, by "layout:promo", so one promo seen in two layouts is reported in each.
+    private var pending: [String: (promoID: String, layoutID: String?)] = [:]
     private var flushing: Task<Void, Never>?
 
     public init(session: AudienceSession, minimumOnScreen: Duration = .seconds(1)) {
@@ -379,7 +380,7 @@ public actor PromoViewRecorder {
     private func seen(_ promoID: String, layoutID: String?, key: String) async {
         visible[promoID] = nil
         guard await session.isSignedIn, reported.insert(key).inserted else { return }
-        pending[promoID] = layoutID
+        pending[key] = (promoID, layoutID)
         guard flushing == nil else { return }
         flushing = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(500))
@@ -392,7 +393,8 @@ public actor PromoViewRecorder {
         let batch = pending
         pending = [:]
         // One call per layout; the API takes ten at a time.
-        for (layoutID, ids) in Dictionary(grouping: batch.keys, by: { batch[$0] ?? nil }) {
+        for (layoutID, seen) in Dictionary(grouping: batch.values, by: \.layoutID) {
+            let ids = seen.map(\.promoID)
             for chunk in stride(from: 0, to: ids.count, by: 10).map({ Array(ids[$0 ..< min($0 + 10, ids.count)]) }) {
                 _ = try? await session.recordCardViews(promoIDs: chunk, layoutID: layoutID)
             }

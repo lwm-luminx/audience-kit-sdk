@@ -262,7 +262,8 @@ public class PromoViewRecorder(
     private val mutex = Mutex()
     private val visible = mutableMapOf<String, Job>()
     private val reported = mutableSetOf<String>()
-    private val pending = mutableMapOf<String, String?>()
+    /** Seen and not yet sent, by "layout:promo", so one promo seen in two layouts is reported in each. */
+    private val pending = mutableMapOf<String, Pair<String, String?>>()
     private var flushing: Job? = null
 
     public fun appeared(promoId: String, layoutId: String?) {
@@ -286,7 +287,7 @@ public class PromoViewRecorder(
         mutex.withLock {
             visible.remove(promoId)
             if (client.sessionToken() == null || !reported.add(key)) return
-            pending[promoId] = layoutId
+            pending[key] = promoId to layoutId
             if (flushing != null) return
             flushing = scope.launch {
                 delay(500)
@@ -301,7 +302,7 @@ public class PromoViewRecorder(
             pending.toMap().also { pending.clear() }
         }
         // One call per layout; the API takes ten at a time.
-        batch.entries.groupBy({ it.value }, { it.key }).forEach { (layoutId, ids) ->
+        batch.values.groupBy({ it.second }, { it.first }).forEach { (layoutId, ids) ->
             ids.chunked(10).forEach { chunk ->
                 try {
                     client.recordCardViews(chunk, layoutId)

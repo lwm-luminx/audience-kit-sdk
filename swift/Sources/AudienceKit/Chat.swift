@@ -392,12 +392,13 @@ extension ChatRoomEvent {
     /// Every `ChatRoomEvent` member's fields, flattened.
     struct Wire: Decodable {
         struct Posted: Decodable { var message: ChatMessage }
-        struct Roster: Decodable { var people: [ChatRosterPerson]? }
+        struct Roster: Decodable { var people: [Lenient<ChatRosterPerson>]? }
 
         var __typename: String
         var outOfRange: Bool?
         var roster: Roster?
-        var history: [Posted]?
+        /// Lenient: one message that doesn't decode (a bad date, say) is left out rather than losing the whole join.
+        var history: [Lenient<Posted>]?
         var pinnedMessage: Posted?
         var message: ChatMessage?
         var messageId: String?
@@ -414,7 +415,7 @@ extension ChatRoomEvent {
         var event: ChatRoomEvent {
             switch __typename {
             case "ChatJoined":
-                return .joined(people: roster?.people ?? [], history: history?.map(\.message) ?? [],
+                return .joined(people: roster?.people?.compactMap(\.value) ?? [], history: history?.compactMap(\.value?.message) ?? [],
                                pinned: pinnedMessage?.message, outOfRange: outOfRange ?? false)
             case "ChatMessagePosted":
                 return message.map(ChatRoomEvent.posted) ?? .unknown(__typename)

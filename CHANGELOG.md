@@ -9,6 +9,21 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   is as broad, with one condition: the SDK and works derived from it may only be used with the AudienceKit service
   Love Wins Media operates. Releases through 0.42.0 stay MIT. The Ruby gem (`ruby/`) carries the same license.
 
+## 0.43.0 (2026-11-06)
+
+Calendar sync in the SDK (Rick, 2026-11-06: "sync one venue to my calendar like 801labs" in Hack Different), so apps
+stop hand-writing it as staff-kit did. Needs the API's `setCalendarFeedVenue` and `CalendarFeed.venues`
+(audience_kit_api #398).
+
+- `CalendarFeed` (links plus the venues it follows) and `CalendarLinks` (https, webcal:// and Google Calendar links).
+- `calendarFeed()`, `createCalendarFeed(reset:)`, `deleteCalendarFeed()`: the person's one private subscription.
+- `followVenueInCalendar(venueID:following:)`: adds every event at a venue to that same feed (one subscription, not a
+  calendar per venue). The feed reads as the person, so a venue that bans them drops out.
+- SwiftUI: `VenueCalendarButton` (Add to Calendar on a venue, then offers to subscribe), `CalendarSubscribeMenu` and
+  `CalendarSubscribeButtons`. Android: `Context.subscribeToCalendar`, `addToGoogleCalendar`, `copyCalendarLink` in
+  audiencekit-android.
+- `graphql/schema.graphql` is the API's next schema with those fields.
+
 ## 0.42.0 (2026-11-06)
 
 Tests for the shared calls apps are moving onto, with a Fable review for gaps line coverage hides, and fixes for what

@@ -165,7 +165,8 @@ public fun Queries.venueDetail(shape: SchemaShape): String {
         if (shape.has("Venue", "chat")) {
             append(" chat { open recentMessages(limit: \$recentMessages) { nodes { $CHAT_MESSAGE_FIELDS } } }")
         }
-        if (shape.has("Venue", "events")) append(" events { upcoming(first: 20) { nodes { ${eventFields(shape)} } } }")
+        // Each event costs about 75 of the API's 1000 complexity budget, so the page shows the next few.
+        if (shape.has("Venue", "events")) append(" events { upcoming(first: 5) { nodes { ${eventFields(shape)} } } }")
     }
     return """
         query VenueDetail(${'$'}id: ID!$recentMessages) {

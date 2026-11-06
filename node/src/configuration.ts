@@ -56,9 +56,16 @@ export interface ResolvedConfiguration {
   environment: AudienceKitEnvironment;
 }
 
+/** `url` without its trailing slashes. (A loop, not `/\/+$/`, which CodeQL flags as polynomial on untrusted input.) */
+function withoutTrailingSlashes(url: string): string {
+  let end = url.length;
+  while (end > 0 && url[end - 1] === "/") end -= 1;
+  return url.slice(0, end);
+}
+
 export function resolveConfiguration(configuration: AudienceKitConfiguration = {}): ResolvedConfiguration {
   return {
-    baseUrl: (configuration.baseUrl ?? AudienceKitSDK.PRODUCTION_BASE_URL).replace(/\/+$/, ""),
+    baseUrl: withoutTrailingSlashes(configuration.baseUrl ?? AudienceKitSDK.PRODUCTION_BASE_URL),
     host: configuration.host ?? null,
     audienceId: configuration.audienceId ?? null,
     facebookAppId: configuration.facebookAppId ?? null,

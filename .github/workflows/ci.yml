@@ -93,6 +93,8 @@ jobs:
     # validated against graphql/schema.graphql) with line coverage at 85% or more (100% at 0.1.0), and the ESM + CJS
     # build, on each Node it supports. It has its own version, so the version job doesn't look at it.
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:

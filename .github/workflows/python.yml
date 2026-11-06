@@ -1,0 +1,40 @@
+name: Python
+
+# The audiencekit package in python/: ruff, mypy, pytest with coverage (fails under 85%, the repository's floor) and
+# the package build, on each Python it supports. It has its own version, so the Swift/Kotlin version job doesn't look
+# at it; python-release.yml publishes it from `python-<version>` tags.
+
+on:
+  push:
+    branches: [main]
+    paths: ["python/**", ".github/workflows/python.yml"]
+  pull_request:
+    paths: ["python/**", ".github/workflows/python.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: python-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: python/pyproject.toml
+      - run: pip install -e ".[dev]" build
+      - run: ruff check . && ruff format --check .
+      - run: mypy
+      - run: pytest --cov
+      - run: python -m build

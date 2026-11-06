@@ -614,7 +614,9 @@ public class AudienceKitClient(
 
     /** A venue's cover tonight and the signed-in user's pass for it, or `null` when the venue doesn't exist. */
     public suspend fun venueCover(venueId: String): VenueCover? =
-        graphQL(Queries.venueCover, VenueCoverResponse.serializer(), graphQLVariables("id" to venueId), "VenueCover").venues.venue
+        graphQL(VENUE_TICKET_TYPES, VenueCoverResponse.serializer(), graphQLVariables("id" to venueId), "VenueCover") {
+            Queries.venueCover(it)
+        }.venues.venue
 
     /**
      * Starts paying tonight's cover at a venue. For a Stripe venue, finish the payment with Stripe's payment

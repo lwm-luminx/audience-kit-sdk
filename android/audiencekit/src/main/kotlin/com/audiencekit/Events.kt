@@ -40,8 +40,34 @@ public data class EventPeople(
     val lineup: Connection<EventPerson>? = null,
 )
 
+/**
+ * A way into an event or a venue night (the API's `IAdmissionOffer`): tickets on a ticketing partner, or the cover
+ * AudienceKit takes.
+ */
 @Serializable
-public data class EventTickets(val url: String? = null)
+public data class AdmissionOffer(
+    /** What it costs the buyer, all in (the lowest price for tickets); null when the seller doesn't say. */
+    val price: Money? = null,
+    /** Where to buy it on the web; null when it's bought in the app (the cover) or at the door. */
+    val url: String? = null,
+    val seller: Seller,
+) {
+    /** Who sells it (the API's `IProvider`): a ticketing partner, or AudienceKit itself. */
+    @Serializable
+    public data class Seller(val key: String, val name: String)
+}
+
+/** The Cover module's part of an event's tickets: the cover at its venue that night. */
+@Serializable
+public data class EventCover(val charge: CoverCharge? = null)
+
+/** The Ticketing module's part of an event: where to buy tickets, every offer and (with Cover) the night's cover. */
+@Serializable
+public data class EventTickets(
+    val url: String? = null,
+    val offers: Connection<AdmissionOffer>? = null,
+    val cover: EventCover? = null,
+)
 
 /** A connection read as `nodes { … }`. */
 @Serializable
@@ -85,6 +111,12 @@ public data class Event(
     val hosts: List<EventPerson>? get() = people?.hosts?.items
     val lineup: List<EventPerson>? get() = people?.lineup?.items
     val ticketUrl: String? get() = tickets?.url
+
+    /** Every way in on sale, whichever module sells it; null without the Ticketing module. */
+    val ticketOffers: List<AdmissionOffer>? get() = tickets?.offers?.items
+
+    /** The cover at its venue that night: null when there's none, when it sells tickets, or without the Cover module. */
+    val coverCharge: CoverCharge? get() = tickets?.cover?.charge
 }
 
 /** A recurring event: a weekly meetup or a monthly night. */
@@ -111,7 +143,16 @@ public data class EventSeries(
 }
 
 /** The types whose fields the event documents depend on. */
-internal val EVENT_TYPES: List<String> = Queries.LISTING_TYPES + "EventSeries"
+internal val EVENT_TYPES: List<String> = Queries.LISTING_TYPES + "EventSeries" + "EventTickets"
+
+/** An [AdmissionOffer]. */
+public const val ADMISSION_OFFER_FIELDS: String = "price { ${Queries.MONEY_FIELDS} } url seller { key name }"
+
+/** The Ticketing module's part of an event, with the Cover module's charge when the audience has it. */
+public fun Queries.eventTicketsFields(shape: SchemaShape): String {
+    val cover = if (shape.has("EventTickets", "cover")) " cover { charge { ${Queries.COVER_CHARGE_FIELDS} } }" else ""
+    return "tickets { url offers { nodes { $ADMISSION_OFFER_FIELDS } }$cover }"
+}
 
 /** An event: its own fields, then those of the Venues, RSVP, People and Ticketing modules the audience has. */
 public fun Queries.eventFields(shape: SchemaShape): String = buildString {
@@ -122,7 +163,7 @@ public fun Queries.eventFields(shape: SchemaShape): String = buildString {
     if (shape.has("Event", "people")) {
         append(" people { hosts { nodes { id name avatarUrl } } lineup { nodes { id name avatarUrl } } }")
     }
-    if (shape.has("Event", "tickets")) append(" tickets { url }")
+    if (shape.has("Event", "tickets")) append(" ").append(eventTicketsFields(shape))
 }
 
 /** The Venues module's part of an event or series. */
@@ -202,3 +243,38 @@ public suspend fun AudienceKitClient.eventSeries(
     graphQLVariables("localeId" to localeId, "venueId" to venueId, "first" to first),
     "EventSeries",
 ) { Queries.eventSeries(it) }.events?.series?.items.orEmpty()
+
+/** The types [AudienceKitClient.venueCover] and [venueOffers] depend on. */
+internal val VENUE_TICKET_TYPES: List<String> = listOf("Venue", "VenueTickets")
+
+/** Every way into a venue on a night, or just the venue where the audience doesn't have the Ticketing module. */
+public fun Queries.venueOffers(shape: SchemaShape): String {
+    // A variable the document doesn't use is an error, so night goes with the field.
+    val hasTickets = shape.has("Venue", "tickets")
+    val offers = if (hasTickets) " tickets { offers(night: \$night) { nodes { $ADMISSION_OFFER_FIELDS } } }" else ""
+    val night = if (hasTickets) ", \$night: ISO8601Date" else ""
+    return """
+        query VenueOffers(${'$'}id: ID!$night) {
+          venues { venue(id: ${'$'}id) { id$offers } }
+        }
+    """.trimIndent()
+}
+
+@Serializable
+internal data class VenueOffersResponse(val venues: Venues? = null) {
+    @Serializable internal data class Venues(val venue: Venue? = null)
+    @Serializable internal data class Venue(val tickets: Tickets? = null)
+    @Serializable internal data class Tickets(val offers: Connection<AdmissionOffer>? = null)
+}
+
+/**
+ * Every way into a venue on a night (tonight when [night] is null, `yyyy-MM-dd` otherwise): its cover and tickets on
+ * its events' partner listings. Empty when there are none, or without the Ticketing module.
+ */
+public suspend fun AudienceKitClient.venueOffers(venueId: String, night: String? = null): List<AdmissionOffer> =
+    graphQL(
+        VENUE_TICKET_TYPES,
+        VenueOffersResponse.serializer(),
+        graphQLVariables("id" to venueId, "night" to night),
+        "VenueOffers",
+    ) { Queries.venueOffers(it) }.venues?.venue?.tickets?.offers?.items.orEmpty()

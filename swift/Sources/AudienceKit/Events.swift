@@ -92,12 +92,19 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
     public var lineup: [EventPerson]? { people?.lineup?.nodes.compactMap { $0 } }
     /// Where to buy tickets elsewhere, if anywhere; nil without the Ticketing module.
     public var ticketURL: URL? { tickets?.url.flatMap(URL.init(string:)) }
+    /// Every way in on sale, whichever module sells it: tickets on its partner listings and its night's cover.
+    /// Nil without the Ticketing module.
+    public var ticketOffers: [AdmissionOffer]? { tickets?.offers?.nodes }
+    /// The cover at its venue that night: nil when there's none, when it sells tickets instead, or without the
+    /// Cover module. Take it with ``AudienceKitClient/buyCover(venueID:)`` when it's payable.
+    public var coverCharge: CoverCharge? { tickets?.cover?.charge }
 
     public init(id: String, name: String? = nil, description: String? = nil, startAt: Date? = nil,
                 endAt: Date? = nil, isFeatured: Bool = false, isCanceled: Bool = false, bannerUrl: String? = nil,
                 sourceUrl: String? = nil, locale: AudienceLocale? = nil, tags: [Tag]? = nil,
                 venue: EventVenue? = nil, venueName: String? = nil, rsvp: RSVP? = nil, hosts: [EventPerson]? = nil,
-                lineup: [EventPerson]? = nil, ticketURL: URL? = nil)
+                lineup: [EventPerson]? = nil, ticketURL: URL? = nil, ticketOffers: [AdmissionOffer]? = nil,
+                coverCharge: CoverCharge? = nil)
     {
         self.id = id
         self.name = name
@@ -114,7 +121,9 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
         venueMixin = venue == nil && venueName == nil ? nil : EventVenueMixin(name: venueName, venue: venue)
         people = hosts == nil && lineup == nil ? nil
             : PeopleMixin(hosts: hosts.map { Nodes(nodes: $0) }, lineup: lineup.map { Nodes(nodes: $0) })
-        tickets = ticketURL.map { TicketsMixin(url: $0.absoluteString) }
+        tickets = ticketURL == nil && ticketOffers == nil && coverCharge == nil ? nil
+            : TicketsMixin(url: ticketURL?.absoluteString, offers: ticketOffers.map { OfferNodes(nodes: $0) },
+                           cover: coverCharge.map { CoverMixin(charge: $0) })
     }
 
     private struct Nodes: Codable, Sendable, Hashable { var nodes: [EventPerson?] }
@@ -123,7 +132,13 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
         var lineup: Nodes?
     }
 
-    private struct TicketsMixin: Codable, Sendable, Hashable { var url: String? }
+    private struct OfferNodes: Codable, Sendable, Hashable { var nodes: [AdmissionOffer] }
+    private struct CoverMixin: Codable, Sendable, Hashable { var charge: CoverCharge? }
+    private struct TicketsMixin: Codable, Sendable, Hashable {
+        var url: String?
+        var offers: OfferNodes?
+        var cover: CoverMixin?
+    }
 
     private enum CodingKeys: String, CodingKey {
         case id, name, description, startAt, endAt, isFeatured, isCanceled, bannerUrl, sourceUrl, locale, tags, rsvp
@@ -169,6 +184,35 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
         try container.encodeIfPresent(venueMixin, forKey: .venueMixin)
         try container.encodeIfPresent(people, forKey: .people)
         try container.encodeIfPresent(tickets, forKey: .tickets)
+    }
+}
+
+/// A way into an event or a venue night (GraphQL's `IAdmissionOffer`): tickets on a ticketing partner, or the cover
+/// AudienceKit takes.
+public struct AdmissionOffer: Codable, Sendable, Hashable {
+    /// Who sells it (GraphQL's `IProvider`): a ticketing partner, or AudienceKit itself.
+    public struct Seller: Codable, Sendable, Hashable {
+        /// Its key, e.g. `karafun`.
+        public let key: String
+        /// Its name, e.g. KaraFun.
+        public let name: String
+
+        public init(key: String, name: String) {
+            self.key = key
+            self.name = name
+        }
+    }
+
+    /// What it costs the buyer, all in (the lowest price for tickets); nil when the seller doesn't say.
+    public let price: Money?
+    /// Where to buy it on the web; nil when it's bought in the app (the cover) or at the door.
+    public let url: String?
+    public let seller: Seller
+
+    public init(price: Money? = nil, url: String? = nil, seller: Seller) {
+        self.price = price
+        self.url = url
+        self.seller = seller
     }
 }
 
@@ -224,7 +268,16 @@ public struct EventSeries: Codable, Sendable, Hashable, Identifiable {
 
 extension Queries {
     /// The types whose fields the event documents depend on.
-    static let eventTypes = listingTypes + ["EventSeries"]
+    static let eventTypes = listingTypes + ["EventSeries", "EventTickets"]
+
+    /// An ``AdmissionOffer``.
+    static let admissionOfferFields = "price { \(moneyFields) } url seller { key name }"
+
+    /// The Ticketing module's part of an event, with the Cover module's charge when the audience has it.
+    static func eventTicketsFields(_ shape: SchemaShape) -> String {
+        let cover = shape.has("EventTickets", "cover") ? " cover { charge { \(coverChargeFields) } }" : ""
+        return "tickets { url offers { nodes { \(admissionOfferFields) } }\(cover) }"
+    }
 
     /// An event: its own fields, then those of the Venues, RSVP, People and Ticketing modules the audience has.
     static func eventFields(_ shape: SchemaShape) -> String {
@@ -237,7 +290,7 @@ extension Queries {
         if shape.has("Event", "people") {
             fields += " people { hosts { nodes { id name avatarUrl } } lineup { nodes { id name avatarUrl } } }"
         }
-        if shape.has("Event", "tickets") { fields += " tickets { url }" }
+        if shape.has("Event", "tickets") { fields += " " + eventTicketsFields(shape) }
         return fields
     }
 

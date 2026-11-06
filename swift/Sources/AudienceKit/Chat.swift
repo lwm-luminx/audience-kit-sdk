@@ -194,7 +194,7 @@ public struct SocialLink: Codable, Sendable, Hashable, Identifiable {
 extension Queries {
     static let chatMessageFields = "id body message name userId avatarUrl photoUrl sentAt role kind title pinned"
 
-    static let venueDetailTypes = listingTypes + ["EventSeries"]
+    static let venueDetailTypes = eventTypes
 
     static func venueDetail(_ shape: SchemaShape) -> String {
         var fields = venueFields(shape) + " description"
@@ -202,13 +202,13 @@ extension Queries {
             fields += " profile { address phone website socialLinks { nodes { id handle provider url } } }"
         }
         if shape.has("Venue", "chat") {
-            fields += " chat { open recentMessages(limit: 20) { nodes { \(chatMessageFields) } } }"
+            fields += " chat { open recentMessages(limit: $recentMessages) { nodes { \(chatMessageFields) } } }"
         }
         if shape.has("Venue", "events") {
             fields += " events { upcoming(first: 20) { nodes { \(eventFields(shape)) } } }"
         }
         return """
-        query VenueDetail($id: ID!) {
+        query VenueDetail($id: ID!\(shape.has("Venue", "chat") ? ", $recentMessages: Int" : "")) {
           venues { venue(id: $id) { \(fields) } }
         }
         """
@@ -304,9 +304,11 @@ struct RemoveChatMessageResponse: Decodable, Sendable {
 }
 
 extension AudienceSession {
-    /// A venue's page, or `nil` when it doesn't exist or belongs to another audience.
-    public func venueDetail(id: String) async throws -> VenueDetail? {
-        let wire = try await graphQL(types: Queries.venueDetailTypes, variables: ["id": .string(id)],
+    /// A venue's page with its `recentMessages` latest chat messages (the API gives at most 20), or `nil` when it doesn't exist or belongs to
+    /// another audience.
+    public func venueDetail(id: String, recentMessages: Int = 20) async throws -> VenueDetail? {
+        let wire = try await graphQL(types: Queries.venueDetailTypes,
+                                     variables: ["id": .string(id), "recentMessages": .int(recentMessages)],
                                      operationName: "VenueDetail", as: VenueDetailResponse.self,
                                      document: Queries.venueDetail).venues?.venue
         return wire.map { wire in

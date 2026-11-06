@@ -33,6 +33,12 @@ Additive.
   charge instead of failing.
 - `venueDetail(id:recentMessages:)` takes how many chat messages to load (20 by default, the API's most).
 
+## Unreleased
+
+- License: the SDK moves from the MIT License to the [AudienceKit SDK License](LICENSE) (Rick, 2026-11-06). The grant
+  is as broad, with one condition: the SDK and works derived from it may only be used with the AudienceKit service
+  Love Wins Media operates. Releases through 0.40.0 stay MIT. The Ruby gem (`ruby/`) carries the same license.
+
 ## 0.40.0 (2026-11-06)
 
 Apps no longer write their own GraphQL for what every AudienceKit app shows (Rick, 2026-11-06: "apps should be easily

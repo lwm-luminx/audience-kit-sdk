@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
   spec.summary = "AudienceKit SDK bindings for Ruby"
   spec.description = "AudienceKit allows for creating curated collections of culture"
   spec.homepage = "https://audiencekit.io"
-  spec.license = "MIT"
+  spec.license = "LicenseRef-AudienceKit-SDK-1.0"
   spec.required_ruby_version = ">= 3.2"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"

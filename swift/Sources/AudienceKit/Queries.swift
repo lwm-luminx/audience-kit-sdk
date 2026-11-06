@@ -6,15 +6,48 @@ import Foundation
 /// their own models.
 enum Queries {
     static let pageFields = "id name photoUrl bannerUrl"
-    static let localeFields = "id name label cityNames bannerUrl profile { places { placeId } }"
     /// A tag on a venue, person or event: its name and chip color.
     static let tagFields = "id name color"
-    /// A person's home venue or gig venue: where it is, and which of the signed-in user's
-    /// friends are there now.
-    static let personVenueFields = "id name photoUrl locale { id name } friends { list { nodes { id name facebookId presence } } }"
+
+    // Fragments with module fields take the audience's ``SchemaShape``: the API leaves a module's fields out of an
+    // audience that hasn't installed it, and asking for one fails the whole operation.
+
+    /// A locale, with its Google place ID (Listings and Google Places).
+    static func localeFields(_ shape: SchemaShape) -> String {
+        "id name label cityNames bannerUrl" + (shape.has("Locale", "profile") && shape.has("ListingProfile", "places")
+            ? " profile { places { placeId } }" : "")
+    }
+
+    /// A venue in a list: its Facebook Page (Listings and Facebook) and its location's Google place ID.
+    static func venueFields(_ shape: SchemaShape) -> String {
+        let page = shape.has("Venue", "profile") && shape.has("ListingProfile", "facebook")
+            ? "profile { facebook { page { \(pageFields) } } }" : ""
+        let place = shape.has("Location", "places") ? " places { placeId }" : ""
+        return """
+        id name hidden order photoUrl bannerUrl \(page)
+        locale { \(localeFields(shape)) }
+        location { id point address\(place) }
+        tags { \(tagFields) }
+        """
+    }
+
+    /// A person's home venue or gig venue: where it is, and which of the signed-in user's friends are there now
+    /// (Friends).
+    static func personVenueFields(_ shape: SchemaShape) -> String {
+        "id name photoUrl locale { id name }" + (shape.has("Venue", "friends")
+            ? " friends { list { nodes { id name facebookId presence } } }" : "")
+    }
+
     /// One of a person's events (`PersonEvent`), on its own or as the node of a `PersonEventInvolvement`. Its
     /// `venue` is the events mixin: a display name ("To be announced" when there is none) and the venue, if any.
-    static let personEventFields = "id name startAt locale { id name } venue { name venue { \(personVenueFields) } } tags { \(tagFields) }"
+    static func personEventFields(_ shape: SchemaShape) -> String {
+        "id name startAt locale { id name }"
+            + (shape.has("Event", "venue") ? " venue { name venue { \(personVenueFields(shape)) } }" : "")
+            + " tags { \(tagFields) }"
+    }
+
+    /// The types whose fields the documents above depend on.
+    static let listingTypes = ["Locale", "ListingProfile", "Venue", "Location", "Person", "Event"]
 
     static let audience = """
     query Audience {
@@ -22,43 +55,45 @@ enum Queries {
     }
     """
 
-    static let venues = """
-    query Venues {
-      venues {
-        list {
-          nodes {
-            id name hidden order photoUrl bannerUrl
-            profile { facebook { page { \(pageFields) } } }
-            locale { \(localeFields) }
-            location { id point address places { placeId } }
-            tags { \(tagFields) }
+    static func venues(_ shape: SchemaShape) -> String {
+        """
+        query Venues {
+          venues { list { nodes { \(venueFields(shape)) } } }
+        }
+        """
+    }
+
+    static func people(_ shape: SchemaShape) -> String {
+        let page = shape.has("Person", "profile") && shape.has("ListingProfile", "facebook")
+            ? "profile { facebook { page { \(pageFields) } } }" : ""
+        let venues = shape.has("Person", "venues") ? "venues { home { \(personVenueFields(shape)) } }" : ""
+        let events = shape.has("Person", "events")
+            ? "events { involvements { edges { relationship role via { id name } node { \(personEventFields(shape)) } } } }"
+            : ""
+        return """
+        query People {
+          people {
+            list {
+              nodes {
+                id name avatarUrl bannerUrl order global likeRequired \(page)
+                \(venues)
+                locales { id name }
+                \(events)
+                tags { \(tagFields) }
+              }
+            }
           }
         }
-      }
+        """
     }
-    """
 
-    static let people = """
-    query People {
-      people {
-        list {
-          nodes {
-            id name avatarUrl bannerUrl order global likeRequired profile { facebook { page { \(pageFields) } } }
-            venues { home { \(personVenueFields) } }
-            locales { id name }
-            events { involvements { edges { relationship role via { id name } node { \(personEventFields) } } } }
-            tags { \(tagFields) }
-          }
+    static func locales(_ shape: SchemaShape) -> String {
+        """
+        query Locales {
+          locales { \(localeFields(shape)) }
         }
-      }
+        """
     }
-    """
-
-    static let locales = """
-    query Locales {
-      locales { \(localeFields) }
-    }
-    """
 
     static let me = """
     query Me {
@@ -66,11 +101,13 @@ enum Queries {
     }
     """
 
-    static let closestLocale = """
-    query ClosestLocale($near: CoordinatesInput!) {
-      closestLocale(near: $near) { \(localeFields) }
+    static func closestLocale(_ shape: SchemaShape) -> String {
+        """
+        query ClosestLocale($near: CoordinatesInput!) {
+          closestLocale(near: $near) { \(localeFields(shape)) }
+        }
+        """
     }
-    """
 
     static let rsvpEvent = """
     mutation RSVPEvent($eventId: ID!, $state: RSVPState!) {

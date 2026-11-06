@@ -79,7 +79,8 @@ private func reducedSchema(_ request: RecordedRequest) -> StubResponse {
     #expect(request.operationName == "Events")
     #expect(request.variables["window"] as? String == "UPCOMING")
     #expect(request.variables["localeId"] as? String == "l-1")
-    #expect(request.variables["first"] as? Int == 100)
+    // No page: a page of 100 events is over the API's complexity budget.
+    #expect(request.variables["first"] == nil)
     #expect(request.query.contains("rsvp { mine count }"))
 
     let event = try #require(events.first)

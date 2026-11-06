@@ -2,6 +2,7 @@ package com.audiencekit
 
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
@@ -64,6 +65,8 @@ class EventsTest {
         val variables = stub.requests.single().jsonBody()["variables"]!!.jsonObject
         assertEquals("UPCOMING", (variables["window"] as JsonPrimitive).content)
         assertEquals("l-1", (variables["localeId"] as JsonPrimitive).content)
+        // No page: a page of 100 events is over the API's complexity budget.
+        assertEquals(JsonNull, variables["first"])
         val event = events.single()
         assertEquals("LVCC", event.venueName)
         assertEquals(36.1318, event.venue?.location?.coordinate?.latitude)

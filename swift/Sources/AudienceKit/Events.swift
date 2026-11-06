@@ -351,11 +351,13 @@ struct EventsResponse: Decodable, Sendable {
 
 extension AudienceSession {
     /// The audience's events, soonest first for ``EventWindow/upcoming`` (latest first for ``EventWindow/past``),
-    /// in a locale or at a venue when given. Up to `first` of them.
+    /// in a locale or at a venue when given: every one of them, or up to `first`. A page costs `first` times an event
+    /// in the API's complexity budget (1000), so leave it nil unless you page: `first: 100` alone is over budget.
     public func events(window: EventWindow = .upcoming, localeID: String? = nil, venueID: String? = nil,
-                       first: Int = 100) async throws -> [Event]
+                       first: Int? = nil) async throws -> [Event]
     {
-        var variables: [String: GraphQLValue] = ["window": .string(window.rawValue), "first": .int(first)]
+        var variables: [String: GraphQLValue] = ["window": .string(window.rawValue)]
+        if let first { variables["first"] = .int(first) }
         if let localeID { variables["localeId"] = .string(localeID) }
         if let venueID { variables["venueId"] = .string(venueID) }
         return try await graphQL(types: Queries.eventTypes, variables: variables, operationName: "Events",
@@ -368,11 +370,13 @@ extension AudienceSession {
                           as: EventsResponse.self, document: Queries.event).events?.event
     }
 
-    /// The audience's recurring events by name, in a locale or at a venue when given. Up to `first` of them.
-    public func eventSeries(localeID: String? = nil, venueID: String? = nil, first: Int = 100) async throws
+    /// The audience's recurring events by name, in a locale or at a venue when given: all of them, or up to `first`
+    /// (which multiplies its cost in the API's complexity budget, as in ``events(window:localeID:venueID:first:)``).
+    public func eventSeries(localeID: String? = nil, venueID: String? = nil, first: Int? = nil) async throws
         -> [EventSeries]
     {
-        var variables: [String: GraphQLValue] = ["first": .int(first)]
+        var variables: [String: GraphQLValue] = [:]
+        if let first { variables["first"] = .int(first) }
         if let localeID { variables["localeId"] = .string(localeID) }
         if let venueID { variables["venueId"] = .string(venueID) }
         return try await graphQL(types: Queries.eventTypes, variables: variables, operationName: "EventSeries",

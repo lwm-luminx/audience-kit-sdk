@@ -3,6 +3,27 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## Unreleased
+
+- License: the SDK moves from the MIT License to the [AudienceKit SDK License](LICENSE) (Rick, 2026-11-06). The grant
+  is as broad, with one condition: the SDK and works derived from it may only be used with the AudienceKit service
+  Love Wins Media operates. Releases through 0.42.0 stay MIT. The Ruby gem (`ruby/`) carries the same license.
+
+## 0.43.0 (2026-11-06)
+
+Calendar sync in the SDK (Rick, 2026-11-06: "sync one venue to my calendar like 801labs" in Hack Different), so apps
+stop hand-writing it as staff-kit did. Needs the API's `setCalendarFeedVenue` and `CalendarFeed.venues`
+(audience_kit_api #398).
+
+- `CalendarFeed` (links plus the venues it follows) and `CalendarLinks` (https, webcal:// and Google Calendar links).
+- `calendarFeed()`, `createCalendarFeed(reset:)`, `deleteCalendarFeed()`: the person's one private subscription.
+- `followVenueInCalendar(venueID:following:)`: adds every event at a venue to that same feed (one subscription, not a
+  calendar per venue). The feed reads as the person, so a venue that bans them drops out.
+- SwiftUI: `VenueCalendarButton` (Add to Calendar on a venue, then offers to subscribe), `CalendarSubscribeMenu` and
+  `CalendarSubscribeButtons`. Android: `Context.subscribeToCalendar`, `addToGoogleCalendar`, `copyCalendarLink` in
+  audiencekit-android.
+- `graphql/schema.graphql` is the API's next schema with those fields.
+
 ## 0.42.0 (2026-11-06)
 
 Tests for the shared calls apps are moving onto, with a Fable review for gaps line coverage hides, and fixes for what
@@ -19,6 +40,16 @@ up from 81.7% and 82.3%, and CI now fails under 85% on either (`scripts/swift-co
   coordinate on both platforms.
 - The promo view recorder reports one promo seen in two layouts in each of them (the second overwrote the first).
 - Android: `venueDetail` reports a venue that doesn't decode as `AudienceKitException.Decoding`, like every other call.
+
+## 0.41.1 (2026-11-06)
+
+Hack Different's events came back empty: `events()` and `eventSeries()` asked for `first: 100`, and the API costs a
+page as `first` times an event (about 75 with every module), far over its 1000 complexity budget, so the query was
+refused. Fixed.
+
+- `events(window:localeID:venueID:first:)` and `eventSeries(localeID:venueID:first:)` take `first` as optional and
+  leave it out by default, so the API returns every upcoming event at the cost of one.
+- `venueDetail` shows the venue's next five events (was twenty, also over budget with the chat history).
 
 ## 0.41.0 (2026-11-06)
 

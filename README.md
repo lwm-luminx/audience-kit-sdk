@@ -10,6 +10,7 @@ lineups and chat. One repository and one version for every platform.
 | [`core/`](core/README.md) | `com.audiencekit:audiencekit-core`, the Kotlin Multiplatform code shared by every platform (JVM, Android, Apple) | Gradle |
 | [`android/`](android/README.md) | `com.audiencekit:audiencekit` (the Kotlin client, plain JVM) and `audiencekit-android` | Gradle composite build of the repository (Maven publishing to come) |
 | [`ruby/`](ruby/README.md) | The `audience-kit` gem: Ruby bindings for the API (Ruby 3.2+), versioned on its own | RubyGems: `gem "audience-kit"` |
+| [`node/`](node/README.md) | The `audience-kit` npm package: a Node.js and TypeScript client for the consumer GraphQL API (Node 20+), versioned on its own | npm: `npm install audience-kit` |
 | [`python/`](python/README.md) | The `audiencekit` package: the shared calls for Python 3.10+, blocking and asyncio, versioned on its own | PyPI: `pip install audiencekit` |
 | [`graphql/`](graphql/schema.graphql) | The API's consumer GraphQL schema the SDKs are checked against | |
 
@@ -18,9 +19,10 @@ and the Gradle build (`settings.gradle.kts`) builds `core/` and `android/`.
 
 ## Versioning
 
-The Ruby gem keeps its own version in [`ruby/lib/audience-kit/version.rb`](ruby/lib/audience-kit/version.rb) and the
-Python package its own in [`python/src/audiencekit/_version.py`](python/src/audiencekit/_version.py) (released from
-`python-<version>` tags, [python/README.md](python/README.md)); neither is part of the release below. Swift and Kotlin release together under one [semantic version](https://semver.org), kept in [`VERSION`](VERSION).
+The Ruby gem keeps its own version in [`ruby/lib/audience-kit/version.rb`](ruby/lib/audience-kit/version.rb), the
+npm package in [`node/package.json`](node/package.json) and the Python package in
+[`python/src/audiencekit/_version.py`](python/src/audiencekit/_version.py) (released from `python-<version>` tags,
+[python/README.md](python/README.md)); none is part of the release below. Swift and Kotlin release together under one [semantic version](https://semver.org), kept in [`VERSION`](VERSION).
 Gradle reads it; the Swift and Kotlin clients also carry it as a constant, because they send it to the API with every
 call and the API refuses versions older than its minimum. So every change to either SDK takes a new version:
 
@@ -36,4 +38,8 @@ resolve it, and opens its GitHub release from the changelog entry. The Xcode Clo
 
 ## License
 
-MIT, © Love Wins Media, Inc. See [LICENSE](LICENSE).
+[AudienceKit SDK License](LICENSE), © Love Wins Media, Inc. You may use, change and redistribute the SDK and build
+it into your apps, on one condition: the SDK and anything derived from it may only be used with the AudienceKit
+service that Love Wins Media operates (audiencekit.com, the audiences' own domains, and the development instances it
+provides). Using it with another implementation of the API, self-hosted or otherwise, isn't allowed. Versions released
+under the MIT License before this license was adopted (through 0.42.0) stay MIT.

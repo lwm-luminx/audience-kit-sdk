@@ -213,13 +213,14 @@ internal data class EventsResponse(val events: Mixin? = null) {
 
 /**
  * The audience's events, soonest first for [EventWindow.UPCOMING] (latest first for [EventWindow.PAST]), in a locale
- * or at a venue when given. Up to [first] of them.
+ * or at a venue when given: every one of them, or up to [first]. A page costs [first] times an event in the API's
+ * complexity budget (1000), so leave it null unless you page: `first = 100` alone is over budget.
  */
 public suspend fun AudienceKitClient.events(
     window: EventWindow = EventWindow.UPCOMING,
     localeId: String? = null,
     venueId: String? = null,
-    first: Int = 100,
+    first: Int? = null,
 ): List<Event> = graphQL(
     EVENT_TYPES,
     EventsResponse.serializer(),
@@ -232,11 +233,11 @@ public suspend fun AudienceKitClient.event(id: String): Event? =
     graphQL(EVENT_TYPES, EventsResponse.serializer(), graphQLVariables("id" to id), "Event") { Queries.event(it) }
         .events?.event
 
-/** The audience's recurring events by name, in a locale or at a venue when given. Up to [first] of them. */
+/** The audience's recurring events by name, in a locale or at a venue when given: all of them, or up to [first]. */
 public suspend fun AudienceKitClient.eventSeries(
     localeId: String? = null,
     venueId: String? = null,
-    first: Int = 100,
+    first: Int? = null,
 ): List<EventSeries> = graphQL(
     EVENT_TYPES,
     EventsResponse.serializer(),

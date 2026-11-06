@@ -9,7 +9,7 @@ import FoundationNetworking
 // MARK: - The cable's protocol, over a socket the test drives
 
 /// A socket the test feeds frames into and reads the cable's commands from.
-private final class FakeSocket: CableSocket, @unchecked Sendable {
+final class FakeSocket: CableSocket, @unchecked Sendable {
     let request: URLRequest
     private let lock = NSLock()
     private var sentFrames: [[String: Any]] = []
@@ -45,7 +45,7 @@ private final class FakeSocket: CableSocket, @unchecked Sendable {
     }
 }
 
-private final class Sockets: @unchecked Sendable {
+final class Sockets: @unchecked Sendable {
     private let lock = NSLock()
     private var opened: [FakeSocket] = []
     var all: [FakeSocket] { lock.withLock { opened } }
@@ -63,7 +63,7 @@ private final class Refusals: @unchecked Sendable {
     func record(_ token: String?) { lock.withLock { recorded.append(token) } }
 }
 
-private func eventually(_ condition: () -> Bool) async throws {
+func eventually(_ condition: () -> Bool) async throws {
     for _ in 0 ..< 400 where !condition() { try await Task.sleep(for: .milliseconds(10)) }
     #expect(condition())
 }
@@ -331,6 +331,62 @@ private func credential(_ token: String, other: Bool = false) -> Credential {
         socket.push(#"{"type":"disconnect","reason":"server_restart","reconnect":false}"#)
         guard case .disconnected? = await events.next() else { Issue.record("no disconnect"); return }
         #expect(refused.tokens.isEmpty)
+    }
+
+    @Test func anUnauthorizedDisconnectEndsTheSessionEvenWithoutReconnectFalse() async throws {
+        let sockets = Sockets()
+        let refused = Refusals()
+        let cable = AudienceCable(configuration: configuration, credential: { credential("revoked-jwt") },
+                                  unauthorized: { refused.record($0) }, openSocket: { sockets.open($0) })
+        var events = await cable.subscribe(query: "subscription A { myNotifications { notificationId } }", audienceID: "aud").makeAsyncIterator()
+        let socket = try #require(sockets.all.first)
+        socket.push(#"{"type":"disconnect","reason":"unauthorized"}"#)
+        guard case .disconnected(_, false)? = await events.next() else { Issue.record("no final disconnect"); return }
+        #expect(await events.next() == nil)
+        #expect(refused.tokens == ["revoked-jwt"])
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(sockets.all.count == 1, "no reconnect with a dead token")
+    }
+
+    @Test func aRepeatedConfirmationRunsTheOperationOnce() async throws {
+        let sockets = Sockets()
+        let cable = AudienceCable(configuration: configuration, credential: { credential("session-jwt") },
+                                  openSocket: { sockets.open($0) })
+        var events = await cable.subscribe(query: "subscription A { myNotifications { notificationId } }", audienceID: "aud").makeAsyncIterator()
+        let socket = try #require(sockets.all.first)
+        socket.push(#"{"type":"welcome"}"#)
+        try await eventually { socket.commands("subscribe").count == 1 }
+        let identifier = try #require(socket.commands("subscribe").first?["identifier"] as? String)
+        socket.push(json(["type": "confirm_subscription", "identifier": identifier]))
+        socket.push(json(["type": "confirm_subscription", "identifier": identifier]))
+        socket.push(json(["identifier": identifier,
+                          "message": ["result": ["data": ["myNotifications": ["notificationId": "n1"]]], "more": true]]))
+        guard case .subscribed? = await events.next() else { Issue.record("not subscribed"); return }
+        guard case .result? = await events.next() else { Issue.record("no result"); return }
+        #expect(socket.commands("message").count == 1)
+        withExtendedLifetime(cable) {}
+    }
+
+    @Test func aResultBeforeTheConfirmationIsDropped() async throws {
+        let sockets = Sockets()
+        let cable = AudienceCable(configuration: configuration, credential: { credential("session-jwt") },
+                                  openSocket: { sockets.open($0) })
+        var events = await cable.subscribe(query: "subscription A { myNotifications { notificationId } }", audienceID: "aud").makeAsyncIterator()
+        let socket = try #require(sockets.all.first)
+        socket.push(#"{"type":"welcome"}"#)
+        try await eventually { socket.commands("subscribe").count == 1 }
+        let identifier = try #require(socket.commands("subscribe").first?["identifier"] as? String)
+        func result(_ id: String) -> String {
+            json(["identifier": identifier,
+                  "message": ["result": ["data": ["myNotifications": ["notificationId": id]]], "more": true]])
+        }
+        socket.push(result("early"))
+        socket.push(json(["type": "confirm_subscription", "identifier": identifier]))
+        socket.push(result("on time"))
+        guard case .subscribed? = await events.next() else { Issue.record("not subscribed"); return }
+        guard case .result(let data)? = await events.next() else { Issue.record("no result"); return }
+        #expect(String(decoding: data, as: UTF8.self).contains("on time"))
+        withExtendedLifetime(cable) {}
     }
 
     @Test func framesAreReadLeniently() throws {

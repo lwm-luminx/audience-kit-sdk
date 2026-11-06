@@ -56,6 +56,9 @@ public actor AudienceCable {
         let name: String?
         /// When it last went out, until its first result after that.
         var sentAt: ContinuousClock.Instant?
+        /// Whether the current socket confirmed its channel: it runs once per confirmation, and only hears results
+        /// after one.
+        var confirmed = false
     }
 
     private let configuration: AudienceKitConfiguration
@@ -267,6 +270,7 @@ public actor AudienceCable {
         socket = nil
         generation += 1
         welcomed = false
+        for identifier in operations.keys { operations[identifier]?.confirmed = false }
     }
 
     private func socketFailed(_ reason: String?, generation: Int) {
@@ -318,7 +322,9 @@ public actor AudienceCable {
             record(socket: .connected)
             for identifier in operations.keys.sorted() { send(command: "subscribe", identifier: identifier) }
         case "confirm_subscription":
-            guard let identifier = frame.identifier, let operation = operations[identifier] else { return }
+            guard let identifier = frame.identifier, let operation = operations[identifier], !operation.confirmed
+            else { return }
+            operations[identifier]?.confirmed = true
             send(command: "message", identifier: identifier, data: operation.execute)
             operations[identifier]?.sentAt = .now
             record(.subscribed, operation)
@@ -330,7 +336,8 @@ public actor AudienceCable {
             operation.continuation.finish()
             if operations.isEmpty { closeSocket() }
         case "disconnect":
-            let reconnects = frame.reconnect ?? true
+            // An unauthorized connection ends the session whatever the frame says about reconnecting: the token is gone.
+            let reconnects = frame.reason != "unauthorized" && (frame.reconnect ?? true)
             if reconnects {
                 socketFailed(frame.reason, generation: generation)
             } else {
@@ -345,7 +352,8 @@ public actor AudienceCable {
         case "ping":
             break
         default:
-            guard let identifier = frame.identifier, let operation = operations[identifier] else { return }
+            guard let identifier = frame.identifier, let operation = operations[identifier], operation.confirmed
+            else { return }
             if let result = frame.result {
                 operations[identifier]?.sentAt = nil
                 record(.result, operation, error: Self.errorMessage(in: result))

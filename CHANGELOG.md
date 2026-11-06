@@ -3,6 +3,23 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.42.0 (2026-11-06)
+
+Tests for the shared calls apps are moving onto, with a Fable review for gaps line coverage hides, and fixes for what
+they found (Rick, 2026-11-06: "build out this testing"). Line coverage is 86.8% on Swift (Linux) and 90.7% on Kotlin,
+up from 81.7% and 82.3%, and CI now fails under 85% on either (`scripts/swift-coverage.sh`, Kover's `koverVerify`).
+
+- Android: a chat room the server refuses (`ChatRoomUpdate.Refused`) now ends the flow, as documented; it stayed open.
+- One chat message or roster entry that doesn't decode (a bad date, a missing id) is left out of a join instead of
+  losing the whole `joined` event (Swift) or failing the flow with a raw serialization error (Android).
+- Swift: the cable ends the session on an `unauthorized` disconnect even when the frame doesn't say `reconnect: false`
+  (it reconnected with the dead token), runs an operation once however often the channel is confirmed, and ignores
+  results for an operation the current socket hasn't confirmed, as Android already did.
+- WKT points that aren't on Earth (NaN, infinity, out of range, often latitude and longitude swapped) decode as no
+  coordinate on both platforms.
+- The promo view recorder reports one promo seen in two layouts in each of them (the second overwrote the first).
+- Android: `venueDetail` reports a venue that doesn't decode as `AudienceKitException.Decoding`, like every other call.
+
 ## 0.41.0 (2026-11-06)
 
 What Hack Different still queried itself after moving to 0.40, so the app can drop its last ticketing queries.

@@ -12,7 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: swift build
-      - run: swift test
+      - run: swift test --enable-code-coverage
+      # Line coverage of what builds on Linux must stay at 85% or more (86.8% at 0.42.0).
+      - run: scripts/swift-coverage.sh 85
 
   kotlin:
     # core/ and android/ are one Gradle build at the root. The runner image ships the Android SDK (ANDROID_HOME), so
@@ -27,6 +29,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build and test the JVM library and the Android library
         run: ./gradlew build
+      - name: Line coverage of the core and the JVM library stays at 85% or more (90.7% at 0.42.0)
+        run: ./gradlew koverVerify koverLog
 
   graphql:
     # The documents are string literals no codegen reads yet; check them against graphql/schema.graphql, the API's

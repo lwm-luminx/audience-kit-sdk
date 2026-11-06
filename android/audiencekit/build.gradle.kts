@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     `java-library`
     `maven-publish`
+    alias(libs.plugins.kover)
 }
 
 kotlin {

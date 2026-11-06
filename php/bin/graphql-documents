@@ -1,0 +1,23 @@
+#!/usr/bin/env php
+<?php
+// Writes every GraphQL document the SDK can send, built for an audience with every module, to a directory as
+// <OperationName>.graphql, so the repository's schema check (scripts/graphql/check.mjs) can validate them:
+//   php bin/graphql-documents build/graphql
+declare(strict_types=1);
+
+require __DIR__ . '/../vendor/autoload.php';
+
+$directory = $argv[1] ?? null;
+if ($directory === null) {
+    fwrite(STDERR, "usage: bin/graphql-documents <directory>\n");
+    exit(2);
+}
+if (!is_dir($directory) && !mkdir($directory, 0777, true) && !is_dir($directory)) {
+    fwrite(STDERR, "Couldn't create $directory.\n");
+    exit(1);
+}
+$documents = AudienceKit\Queries::all();
+foreach ($documents as $name => $document) {
+    file_put_contents("$directory/$name.graphql", $document . "\n");
+}
+echo 'Wrote ' . count($documents) . " documents to $directory.\n";

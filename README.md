@@ -35,4 +35,8 @@ resolve it, and opens its GitHub release from the changelog entry. The Xcode Clo
 
 ## License
 
-MIT, © Love Wins Media, Inc. See [LICENSE](LICENSE).
+[AudienceKit SDK License](LICENSE), © Love Wins Media, Inc. You may use, change and redistribute the SDK and build
+it into your apps, on one condition: the SDK and anything derived from it may only be used with the AudienceKit
+service that Love Wins Media operates (audiencekit.com, the audiences' own domains, and the development instances it
+provides). Using it with another implementation of the API, self-hosted or otherwise, isn't allowed. Versions released
+under the MIT License before this license was adopted (through 0.42.0) stay MIT.

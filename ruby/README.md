@@ -36,7 +36,7 @@ HTTP failures raise `Audience::Kit::Error`.
 
 ## Development
 
-After checking out the repo, `cd ruby` and run `bin/setup` to install dependencies. Then, run `bundle exec rake` to run the specs and RuboCop. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+After checking out the repo, `cd ruby` and run `bin/setup` to install dependencies. Then, run `bundle exec rake` to run the specs and RuboCop. The specs measure coverage with SimpleCov (`coverage/index.html`); every line and branch of `lib/` is covered, and CI fails if a change leaves any uncovered. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
 
 To install this gem onto your local machine, run `bundle exec rake install`. The gem keeps its own version in `lib/audience-kit/version.rb`, separate from the Swift and Kotlin SDKs' `VERSION`. To publish it, run `gem build audience-kit.gemspec` and `gem push` the `.gem` to [rubygems.org](https://rubygems.org); don't use `bundle exec rake release`, which would push a bare version tag that the Swift package's release tags share.
 
@@ -46,7 +46,7 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/lwm-lu
 
 ## License
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+The gem is available under the [AudienceKit SDK License](LICENSE): use it freely, with the AudienceKit service Love Wins Media operates only.
 
 ## Code of Conduct
 

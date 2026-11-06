@@ -3,6 +3,12 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## Unreleased
+
+- License: the SDK moves from the MIT License to the [AudienceKit SDK License](LICENSE) (Rick, 2026-11-06). The grant
+  is as broad, with one condition: the SDK and works derived from it may only be used with the AudienceKit service
+  Love Wins Media operates. Releases through 0.42.0 stay MIT. The Ruby gem (`ruby/`) carries the same license.
+
 ## 0.42.0 (2026-11-06)
 
 Tests for the shared calls apps are moving onto, with a Fable review for gaps line coverage hides, and fixes for what

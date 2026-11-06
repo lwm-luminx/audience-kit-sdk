@@ -417,4 +417,4 @@ Tests stub HTTP with a `URLProtocol`, so they run offline.
 
 ## License
 
-MIT. See [LICENSE](../LICENSE).
+[AudienceKit SDK License](../LICENSE): use it freely, with the AudienceKit service Love Wins Media operates only.

@@ -5,6 +5,19 @@ schema {
 }
 
 """
+App Clips call this field (HOT_MESS, VELVET, BACKSTAGE), so their small clients
+(doc/APP_CLIP_API.md) depend on it. Keep it working for clips people already
+have: add a replacement and deprecate rather than change it. It is a marking,
+not security: @requires is enforced as on any other field.
+"""
+directive @appClip(
+  """
+  The clips that call it.
+  """
+  clips: [String!]!
+) on FIELD_DEFINITION
+
+"""
 The endpoints this field is on: AUDIENCE (an audience's graph), STAFF (the same
 graph with the staff edges) and TENANTS (platform administration). Without it a
 field is on every endpoint where its type is reachable. It is visibility, not
@@ -26,21 +39,6 @@ directive @facet(
   """
   tag: String!
 ) on INTERFACE | OBJECT
-
-"""
-Marks an interface the mixin composer generated to hold a mixin edge: types implement it to say they have the edge.
-"""
-directive @holder(
-  """
-  The edge it holds.
-  """
-  field: String!
-
-  """
-  The mixin interface the edge returns.
-  """
-  mixin: String!
-) on INTERFACE
 
 """
 Declares a module-owned interface available as an edge on eligible object types.
@@ -978,6 +976,21 @@ type ArbiterModerationSettings {
   guardPolicies: [ArbiterGuardPolicy!]!
 
   """
+  The AI host's picture in the chats, an https URL; blank for Glam's.
+  """
+  hostAvatar: String!
+
+  """
+  What the AI host is called in the chats and its own prompt (default Glam).
+  """
+  hostName: String!
+
+  """
+  The prompts Arbiter's models are shown, as this audience has them.
+  """
+  prompts: [ArbiterPrompt!]!
+
+  """
   What Glam's “Re-show guidelines” posts.
   """
   roomGuidelines: String!
@@ -1011,6 +1024,63 @@ type ArbiterModerationSettings {
   The work types there are to choose from.
   """
   workTypes: [String!]!
+}
+
+"""
+One of the prompts Arbiter's models are shown, as this audience has it: the
+repo's default or the audience's own. {{host_name}} and {{app_name}} are filled
+in by the server, the arguments by the Mac.
+"""
+type ArbiterPrompt {
+  """
+  The {{variables}} the Mac fills in, besides the server’s.
+  """
+  arguments: [String!]!
+
+  """
+  The template as this audience has it.
+  """
+  body: String!
+
+  """
+  The repo's default (config/arbiter/prompts).
+  """
+  defaultBody: String!
+
+  """
+  Where it is used.
+  """
+  description: String!
+
+  """
+  The first 16 hex digits of the body's SHA-256, as traces record.
+  """
+  digest: String!
+
+  """
+  The template, e.g. glam.system.
+  """
+  name: String!
+
+  """
+  Whether this audience changed it.
+  """
+  overridden: Boolean!
+
+  """
+  When this audience last changed it.
+  """
+  updatedAt: ISO8601DateTime
+
+  """
+  How the Mac uses it: system (the system prompt) or user_suffix (after the chat).
+  """
+  use: String!
+
+  """
+  The default's version, with the audience's change time when overridden.
+  """
+  version: String!
 }
 
 """
@@ -1056,7 +1126,7 @@ type ArbiterRule {
 """
 An audience: its listings, members and configuration. On an audience's endpoints it is the query root.
 """
-type Audience implements IAudienceWithChat & IAudienceWithEvents & IAudienceWithFacebook & IAudienceWithKaraoke & IAudienceWithPayments & IAudienceWithPeople & IAudienceWithPhotography & IAudienceWithPing & IAudienceWithPosts & IAudienceWithPush & IAudienceWithTicketing & IAudienceWithTipping & IAudienceWithVenues & IRelay & Node {
+type Audience implements IRelay & Node {
   """
   App Review settings: period end time and reusable review code.
   """
@@ -1084,6 +1154,11 @@ type Audience implements IAudienceWithChat & IAudienceWithEvents & IAudienceWith
   ): Locale @endpoint(in: [AUDIENCE, STAFF])
 
   """
+  Plugins marked disabled in the admin console. Configuration and runtime behavior are preserved.
+  """
+  disabledPluginKeys: [String!]!
+
+  """
   Domains connected to this audience. They change on /v1/tenants/graphql only.
   """
   domains: [AudienceDomain!]!
@@ -1091,7 +1166,7 @@ type Audience implements IAudienceWithChat & IAudienceWithEvents & IAudienceWith
   """
   The instance's IAudienceEvents mixin. Left out of the schema where its module isn't installed.
   """
-  events: IAudienceEvents!
+  events: IAudienceEvents! @endpoint(in: [AUDIENCE, STAFF])
 
   """
   Declared mixins and viewer access gates.
@@ -1167,7 +1242,8 @@ type Audience implements IAudienceWithChat & IAudienceWithEvents & IAudienceWith
     client: LayoutClientInput!
 
     """
-    The app's locale, used when there is no position (location off).
+    The app's locale, used when there is no position (location off); for the
+    LOCALE screen, the locale it is about, position or not.
     """
     localeId: ID
 
@@ -1183,7 +1259,8 @@ type Audience implements IAudienceWithChat & IAudienceWithEvents & IAudienceWith
   ): Layout! @endpoint(in: [AUDIENCE, STAFF])
 
   """
-  Calendar listings files admins uploaded (uploadListings), newest first, at most 10. Admins only; empty for everyone else.
+  Listings files admins uploaded (uploadListings): calendar sites’ and
+  researched lists, newest first, at most 10. Admins only; empty for everyone else.
   """
   listingImports: [ListingImport!]! @requires(permissions: ["audience:read:*"])
 
@@ -1289,17 +1366,17 @@ type Audience implements IAudienceWithChat & IAudienceWithEvents & IAudienceWith
   """
   The instance's IAudiencePeople mixin. Left out of the schema where its module isn't installed.
   """
-  people: IAudiencePeople!
+  people: IAudiencePeople! @endpoint(in: [AUDIENCE, STAFF])
 
   """
   The instance's IPhotography mixin, when available to the viewer.
   """
-  photography: IPhotography @requires(permissions: ["photography:read:*"])
+  photography: IPhotography @requires(permissions: ["photography:read:*"]) @endpoint(in: [AUDIENCE, STAFF])
 
   """
   The instance's IAudiencePing mixin, when available.
   """
-  ping: IAudiencePing
+  ping: IAudiencePing @endpoint(in: [AUDIENCE, STAFF])
 
   """
   The instance's IAudiencePosts mixin. Left out of the schema where its module isn't installed.
@@ -1381,7 +1458,7 @@ type Audience implements IAudienceWithChat & IAudienceWithEvents & IAudienceWith
   """
   The instance's IAudienceTicketing mixin. Left out of the schema where its module isn't installed.
   """
-  ticketing: IAudienceTicketing!
+  ticketing: IAudienceTicketing! @endpoint(in: [AUDIENCE, STAFF])
 
   """
   The instance's IAudienceTipping mixin. Left out of the schema where its module isn't installed.
@@ -1412,7 +1489,7 @@ type Audience implements IAudienceWithChat & IAudienceWithEvents & IAudienceWith
   """
   The instance's IAudienceVenues mixin. Left out of the schema where its module isn't installed.
   """
-  venues: IAudienceVenues!
+  venues: IAudienceVenues! @endpoint(in: [AUDIENCE, STAFF])
 
   """
   Where the audience's web app lives (https://hotmess.social): its first
@@ -1423,7 +1500,7 @@ type Audience implements IAudienceWithChat & IAudienceWithEvents & IAudienceWith
 }
 
 """
-An audience's App Review period and reusable review code.
+An audience's App Review period and review codes for its apps.
 """
 type AudienceAppReview {
   """
@@ -1434,9 +1511,9 @@ type AudienceAppReview {
   clipUrl: String @requires(permissions: ["platform:admin:*"])
 
   """
-  The App Review codes, shared by every audience, and the test accounts they sign in as, for platform administrators.
+  This audience's App Review codes and the test accounts they sign in as.
   """
-  codes: [AppReviewCode!] @requires(permissions: ["platform:admin:*"])
+  codes: [AppReviewCode!] @requires(permissions: ["audience:admin:*"])
 
   """
   The main App Review code status (the demo venue grant).
@@ -1514,6 +1591,12 @@ type AudienceChatView implements IAudienceChat {
     """
     last: Int
   ): ChatProviderConnection!
+
+  """
+  Venues with a chat community of their own (e.g. a venue's own Discord server),
+  whose rooms go there instead of the audience's. Admins only.
+  """
+  venueAccounts: [ChatAccount!]! @requires(permissions: ["chat:write:*"])
 }
 
 """
@@ -1586,6 +1669,31 @@ The local Events implementation of an audience's events.
 """
 type AudienceEventsView implements IAudienceEvents {
   """
+  How many upcoming events it has (canceled ones included, as in `list`): from a series, one-off, and in all.
+  """
+  counts(
+    """
+    Only events in this locale, TBA ones included.
+    """
+    localeId: ID
+
+    """
+    Only events the viewer's listings cover, as in `list`.
+    """
+    mine: Boolean = false
+
+    """
+    Only events with this tag.
+    """
+    tagId: ID
+
+    """
+    Only events at this venue.
+    """
+    venueId: ID
+  ): EventCounts!
+
+  """
   An event in the audience by its UUID.
   """
   event(
@@ -1593,7 +1701,7 @@ type AudienceEventsView implements IAudienceEvents {
     Its UUID.
     """
     id: ID!
-  ): Event @endpoint(in: [AUDIENCE, STAFF])
+  ): Event @endpoint(in: [AUDIENCE, STAFF]) @appClip(clips: ["HOT_MESS"])
 
   """
   A recurring series in the audience by its UUID.
@@ -1645,6 +1753,12 @@ type AudienceEventsView implements IAudienceEvents {
     Only events whose name, or whose venue's name, contains this.
     """
     search: String
+
+    """
+    Only events starting before this time: an upcoming list a few weeks long,
+    which the admin console asks for so it never loads every generated night at once.
+    """
+    startsBefore: ISO8601DateTime
 
     """
     Only events with this tag.
@@ -2016,7 +2130,12 @@ type AudienceMobileApp implements Node {
   teamId: String
 
   """
-  iOS: what TestFlight installs are told about updates.
+  iOS: what TestFlight installs of betas (next and feature branches) are told about updates.
+  """
+  testflightBetaRelease: AppReleaseChannel
+
+  """
+  iOS: what TestFlight installs of main's archives are told about updates.
   """
   testflightRelease: AppReleaseChannel
 
@@ -2161,7 +2280,7 @@ type AudiencePeopleView implements IAudiencePeople {
     Its UUID.
     """
     id: ID!
-  ): Person @endpoint(in: [AUDIENCE, STAFF])
+  ): Person @endpoint(in: [AUDIENCE, STAFF]) @appClip(clips: ["HOT_MESS"])
 }
 
 """
@@ -2381,7 +2500,7 @@ type AudienceVenuesView implements IAudienceVenues {
     Its UUID.
     """
     id: ID!
-  ): Venue @endpoint(in: [AUDIENCE, STAFF])
+  ): Venue @endpoint(in: [AUDIENCE, STAFF]) @appClip(clips: ["HOT_MESS"])
 }
 
 """
@@ -2554,6 +2673,12 @@ type CalendarFeed {
   url: String!
 
   """
+  The venues it follows (setCalendarFeedVenue): every event at each is in it. A
+  venue that banned them, or closed, drops out.
+  """
+  venues: [Venue!]!
+
+  """
   The same link as webcal://, which Apple Calendar and Outlook open as a subscription.
   """
   webcalUrl: String!
@@ -2612,6 +2737,41 @@ type CalendarFeedDeletePayload {
   Whether there was one to end.
   """
   deleted: Boolean!
+}
+
+"""
+Autogenerated input type of CalendarFeedVenueSet
+"""
+input CalendarFeedVenueSetInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  False to stop following it.
+  """
+  following: Boolean = true
+
+  """
+  The venue's UUID.
+  """
+  venueId: ID!
+}
+
+"""
+Autogenerated return type of CalendarFeedVenueSet.
+"""
+type CalendarFeedVenueSetPayload {
+  """
+  The subscription.
+  """
+  calendarFeed: CalendarFeed!
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
 }
 
 """
@@ -2683,6 +2843,11 @@ Discord server. Its bot token is stored encrypted and never returned.
 """
 type ChatAccount {
   """
+  Whether its bot is AudienceKit's own, added through Discord's OAuth (startDiscordBotInstall), rather than a pasted token.
+  """
+  audiencekitBot: Boolean!
+
+  """
   Whether an admin turned the bridge on (connectChat bridge).
   """
   bridge: Boolean!
@@ -2704,7 +2869,7 @@ type ChatAccount {
   externalId: String!
 
   """
-  Whether a bot token for the provider is stored.
+  Whether it has a bot: a stored token, or AudienceKit's own bot.
   """
   hasBotToken: Boolean!
 
@@ -2737,6 +2902,16 @@ type ChatAccount {
   The provider.
   """
   provider: ChatProvider!
+
+  """
+  The venue whose own community it is; null for the audience's.
+  """
+  venueId: ID
+
+  """
+  That venue's name.
+  """
+  venueName: String
 }
 
 """
@@ -5096,7 +5271,7 @@ type EquipmentTrack {
 """
 An event hosted at a venue or awaiting a venue.
 """
-type Event implements HasBanner & HasTags & HasTaskTemplates & IEventWithChat & IEventWithKaraoke & IEventWithPeople & IEventWithPhotography & IEventWithPing & IEventWithPosts & IEventWithRSVP & IEventWithTickets & IEventWithVenue & Node {
+type Event implements HasBanner & HasTags & HasTaskTemplates & Node {
   """
   Identifier of the event's banner photo.
   """
@@ -5387,6 +5562,31 @@ type EventConnection {
 }
 
 """
+How many upcoming events there are (Audience.events.counts), by whether a series made them.
+"""
+type EventCounts {
+  """
+  The same counts for each locale with upcoming events, so a console can show its working locale's without asking again.
+  """
+  locales: [EventLocaleCounts!]!
+
+  """
+  Events on their own, not from a recurring series.
+  """
+  oneOff: Int!
+
+  """
+  Nights of a recurring series.
+  """
+  series: Int!
+
+  """
+  Both together.
+  """
+  total: Int!
+}
+
+"""
 The local Cover implementation of an event's cover.
 """
 type EventCoverView implements IEventCover {
@@ -5526,6 +5726,31 @@ enum EventListingOrigin {
   Created on the partner, which owns its details.
   """
   PARTNER
+}
+
+"""
+One locale's upcoming events, counted (EventCounts.locales).
+"""
+type EventLocaleCounts {
+  """
+  The locale.
+  """
+  localeId: ID!
+
+  """
+  Events on their own, not from a recurring series.
+  """
+  oneOff: Int!
+
+  """
+  Nights of a recurring series.
+  """
+  series: Int!
+
+  """
+  Both together.
+  """
+  total: Int!
 }
 
 """
@@ -6058,7 +6283,7 @@ type EventRSVPPayload {
 A recurring event, such as "first Friday of the month". Its occurrences are
 ordinary events, put on the calendar 90 days ahead.
 """
-type EventSeries implements HasBanner & HasTags & HasTaskTemplates & IEventSeriesWithPeople & IEventSeriesWithPosts & IEventSeriesWithTickets & IEventSeriesWithVenue & Node {
+type EventSeries implements HasBanner & HasTags & HasTaskTemplates & Node {
   """
   Its banner, which its occurrences show until one has its own.
   """
@@ -6135,6 +6360,18 @@ type EventSeries implements HasBanner & HasTags & HasTaskTemplates & IEventSerie
   Its rule in words, e.g. "Every month on the 1st Friday".
   """
   recurrenceText: String
+
+  """
+  Whether its occurrences have a back-of-house chat. An occurrence can say otherwise (Event.roomEnabled).
+  """
+  roomEnabled: Boolean!
+
+  """
+  How many of its upcoming occurrences have their back-of-house chat listed
+  among the rooms people are in (Audience.rooms), 2 unless changed. One further
+  ahead opens when asked for.
+  """
+  roomsAhead: Int!
 
   """
   Its RFC 5545 recurrence rule, e.g. FREQ=MONTHLY;BYDAY=1FR.
@@ -6292,7 +6529,7 @@ type EventSeriesVenueView implements IEventSeriesVenue {
 """
 The local Ticketing implementation of an event's tickets.
 """
-type EventTickets implements IEventTickets & IEventTicketsWithCover {
+type EventTickets implements IEventTickets {
   """
   The instance's IEventCover mixin. Left out of the schema where its module isn't installed.
   """
@@ -6763,7 +7000,7 @@ type FieldPermission {
 """
 A Facebook friend of the signed-in user who also uses the app (from the user_friends permission).
 """
-type Friend implements HasTribes & IFriendWithPing {
+type Friend implements HasTribes {
   """
   Their profile photo.
   """
@@ -7179,6 +7416,76 @@ type GooglePlace {
 }
 
 """
+Why a guest purchase's claim token claimed nothing (claimGuestPurchases).
+"""
+enum GuestClaimReason {
+  """
+  They already hold a cover at that venue that night. The guest pass still works in the App Clip with its token.
+  """
+  ALREADY_HAS_COVER
+
+  """
+  No unclaimed cover or tip in this audience has that token: it is unknown, already claimed, or another audience's.
+  """
+  NOT_FOUND
+}
+
+"""
+A claim token that claimed nothing, and why (ClipCheckout::Unclaimed).
+"""
+type GuestPurchaseUnclaimed {
+  """
+  The token as it was sent.
+  """
+  claimToken: String!
+
+  """
+  Why it claimed nothing.
+  """
+  reason: GuestClaimReason!
+}
+
+"""
+Autogenerated input type of GuestPurchasesClaim
+"""
+input GuestPurchasesClaimInput {
+  """
+  The claim tokens the App Clip kept, at most 20.
+  """
+  claimTokens: [String!]!
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+}
+
+"""
+Autogenerated return type of GuestPurchasesClaim.
+"""
+type GuestPurchasesClaimPayload {
+  """
+  The covers now theirs.
+  """
+  admissions: [Admission!]!
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The tips now theirs.
+  """
+  tips: [Tip!]!
+
+  """
+  The tokens that claimed nothing, and why.
+  """
+  unclaimed: [GuestPurchaseUnclaimed!]!
+}
+
+"""
 An object with a banner: a wide image shown across the top of its page.
 """
 interface HasBanner {
@@ -7379,12 +7686,43 @@ interface IAudienceChat @mixin(extensionKey: "chat", field: "chat", null: false,
     """
     last: Int
   ): ChatProviderConnection!
+
+  """
+  Venues with a chat community of their own (e.g. a venue's own Discord server),
+  whose rooms go there instead of the audience's. Admins only.
+  """
+  venueAccounts: [ChatAccount!]! @requires(permissions: ["chat:write:*"])
 }
 
 """
 An audience's events and the recurring series they come from, and lookups of one by its UUID.
 """
-interface IAudienceEvents @mixin(extensionKey: "events", field: "events", null: false, on: ["Audience"]) {
+interface IAudienceEvents @mixin(extensionKey: "events", field: "events", null: false, on: ["Audience"]) @endpoint(in: [AUDIENCE, STAFF]) {
+  """
+  How many upcoming events it has (canceled ones included, as in `list`): from a series, one-off, and in all.
+  """
+  counts(
+    """
+    Only events in this locale, TBA ones included.
+    """
+    localeId: ID
+
+    """
+    Only events the viewer's listings cover, as in `list`.
+    """
+    mine: Boolean = false
+
+    """
+    Only events with this tag.
+    """
+    tagId: ID
+
+    """
+    Only events at this venue.
+    """
+    venueId: ID
+  ): EventCounts!
+
   """
   An event in the audience by its UUID.
   """
@@ -7393,7 +7731,7 @@ interface IAudienceEvents @mixin(extensionKey: "events", field: "events", null: 
     Its UUID.
     """
     id: ID!
-  ): Event @endpoint(in: [AUDIENCE, STAFF])
+  ): Event @endpoint(in: [AUDIENCE, STAFF]) @appClip(clips: ["HOT_MESS"])
 
   """
   A recurring series in the audience by its UUID.
@@ -7445,6 +7783,12 @@ interface IAudienceEvents @mixin(extensionKey: "events", field: "events", null: 
     Only events whose name, or whose venue's name, contains this.
     """
     search: String
+
+    """
+    Only events starting before this time: an upcoming list a few weeks long,
+    which the admin console asks for so it never loads every generated night at once.
+    """
+    startsBefore: ISO8601DateTime
 
     """
     Only events with this tag.
@@ -7677,7 +8021,7 @@ interface IAudiencePayments @mixin(extensionKey: "payments", field: "payments", 
 """
 The people featured in an audience, and a lookup of one by their UUID.
 """
-interface IAudiencePeople @mixin(extensionKey: "people", field: "people", null: false, on: ["Audience"]) {
+interface IAudiencePeople @mixin(extensionKey: "people", field: "people", null: false, on: ["Audience"]) @endpoint(in: [AUDIENCE, STAFF]) {
   """
   The people featured in it. Guests (see IVenuePeople.guests) are left out.
   """
@@ -7716,14 +8060,14 @@ interface IAudiencePeople @mixin(extensionKey: "people", field: "people", null: 
     Its UUID.
     """
     id: ID!
-  ): Person @endpoint(in: [AUDIENCE, STAFF])
+  ): Person @endpoint(in: [AUDIENCE, STAFF]) @appClip(clips: ["HOT_MESS"])
 }
 
 """
 Ping across the audience: what's the audience's, not any one viewer's. The
 viewer's own pings and their friends' are `me { ping }` (IUserStatePing).
 """
-interface IAudiencePing @mixin(extensionKey: "ping", field: "ping", on: ["Audience"]) {
+interface IAudiencePing @mixin(extensionKey: "ping", field: "ping", on: ["Audience"]) @endpoint(in: [AUDIENCE, STAFF]) {
   """
   How many active pings there are tonight. Admins only; a count, never names.
   """
@@ -7779,7 +8123,7 @@ interface IAudiencePush @mixin(extensionKey: "push", field: "push", on: ["Audien
 """
 An audience's connections to ticketing partners, and the partners it can connect.
 """
-interface IAudienceTicketing @mixin(extensionKey: "ticketing", field: "ticketing", null: false, on: ["Audience"]) {
+interface IAudienceTicketing @mixin(extensionKey: "ticketing", field: "ticketing", null: false, on: ["Audience"]) @endpoint(in: [AUDIENCE, STAFF]) {
   """
   Connected ticketing partner accounts, oldest first. Admins only; empty for everyone else.
   """
@@ -7864,7 +8208,7 @@ interface IAudienceTipping @mixin(extensionKey: "tipping", field: "tipping", nul
 """
 An audience's venues, a lookup of one by its UUID, and a venue's staff devices.
 """
-interface IAudienceVenues @mixin(extensionKey: "venues", field: "venues", null: false, on: ["Audience"]) {
+interface IAudienceVenues @mixin(extensionKey: "venues", field: "venues", null: false, on: ["Audience"]) @endpoint(in: [AUDIENCE, STAFF]) {
   """
   Its venues, hidden ones included unless near is given.
   """
@@ -7913,137 +8257,7 @@ interface IAudienceVenues @mixin(extensionKey: "venues", field: "venues", null: 
     Its UUID.
     """
     id: ID!
-  ): Venue @endpoint(in: [AUDIENCE, STAFF])
-}
-
-"""
-Audience with the chat module's IAudienceChat mixin.
-"""
-interface IAudienceWithChat @holder(field: "chat", mixin: "IAudienceChat") {
-  """
-  The instance's IAudienceChat mixin. Left out of the schema where its module isn't installed.
-  """
-  chat: IAudienceChat! @endpoint(in: [AUDIENCE, STAFF])
-}
-
-"""
-Audience with the events module's IAudienceEvents mixin.
-"""
-interface IAudienceWithEvents @holder(field: "events", mixin: "IAudienceEvents") {
-  """
-  The instance's IAudienceEvents mixin. Left out of the schema where its module isn't installed.
-  """
-  events: IAudienceEvents!
-}
-
-"""
-Audience with the facebook module's IAudienceFacebook mixin.
-"""
-interface IAudienceWithFacebook @holder(field: "facebook", mixin: "IAudienceFacebook") {
-  """
-  The instance's IAudienceFacebook mixin. Left out of the schema where its module isn't installed.
-  """
-  facebook: IAudienceFacebook!
-}
-
-"""
-Audience with the karaoke module's IAudienceKaraoke mixin.
-"""
-interface IAudienceWithKaraoke @holder(field: "karaoke", mixin: "IAudienceKaraoke") {
-  """
-  The instance's IAudienceKaraoke mixin. Left out of the schema where its module isn't installed.
-  """
-  karaoke: IAudienceKaraoke! @endpoint(in: [AUDIENCE, STAFF])
-}
-
-"""
-Audience with the payments module's IAudiencePayments mixin.
-"""
-interface IAudienceWithPayments @holder(field: "payments", mixin: "IAudiencePayments") {
-  """
-  The instance's IAudiencePayments mixin, when available to the viewer.
-  """
-  payments: IAudiencePayments @requires(permissions: ["payments:read:*"])
-}
-
-"""
-Audience with the people module's IAudiencePeople mixin.
-"""
-interface IAudienceWithPeople @holder(field: "people", mixin: "IAudiencePeople") {
-  """
-  The instance's IAudiencePeople mixin. Left out of the schema where its module isn't installed.
-  """
-  people: IAudiencePeople!
-}
-
-"""
-Audience with the photography module's IPhotography mixin.
-"""
-interface IAudienceWithPhotography @holder(field: "photography", mixin: "IPhotography") {
-  """
-  The instance's IPhotography mixin, when available to the viewer.
-  """
-  photography: IPhotography @requires(permissions: ["photography:read:*"])
-}
-
-"""
-Audience with the ping module's IAudiencePing mixin.
-"""
-interface IAudienceWithPing @holder(field: "ping", mixin: "IAudiencePing") {
-  """
-  The instance's IAudiencePing mixin, when available.
-  """
-  ping: IAudiencePing
-}
-
-"""
-Audience with the posts module's IAudiencePosts mixin.
-"""
-interface IAudienceWithPosts @holder(field: "posts", mixin: "IAudiencePosts") {
-  """
-  The instance's IAudiencePosts mixin. Left out of the schema where its module isn't installed.
-  """
-  posts: IAudiencePosts! @endpoint(in: [AUDIENCE, STAFF])
-}
-
-"""
-Audience with the push module's IAudiencePush mixin.
-"""
-interface IAudienceWithPush @holder(field: "push", mixin: "IAudiencePush") {
-  """
-  The instance's IAudiencePush mixin, when available to the viewer.
-  """
-  push: IAudiencePush @requires(permissions: ["push:read:*"])
-}
-
-"""
-Audience with the ticketing module's IAudienceTicketing mixin.
-"""
-interface IAudienceWithTicketing @holder(field: "ticketing", mixin: "IAudienceTicketing") {
-  """
-  The instance's IAudienceTicketing mixin. Left out of the schema where its module isn't installed.
-  """
-  ticketing: IAudienceTicketing!
-}
-
-"""
-Audience with the tipping module's IAudienceTipping mixin.
-"""
-interface IAudienceWithTipping @holder(field: "tipping", mixin: "IAudienceTipping") {
-  """
-  The instance's IAudienceTipping mixin. Left out of the schema where its module isn't installed.
-  """
-  tipping: IAudienceTipping! @endpoint(in: [AUDIENCE, STAFF])
-}
-
-"""
-Audience with the venues module's IAudienceVenues mixin.
-"""
-interface IAudienceWithVenues @holder(field: "venues", mixin: "IAudienceVenues") {
-  """
-  The instance's IAudienceVenues mixin. Left out of the schema where its module isn't installed.
-  """
-  venues: IAudienceVenues!
+  ): Venue @endpoint(in: [AUDIENCE, STAFF]) @appClip(clips: ["HOT_MESS"])
 }
 
 """
@@ -8455,50 +8669,10 @@ interface IEventSeriesVenue @mixin(extensionKey: "venues", field: "venue", null:
 }
 
 """
-EventSeries with the people module's IEventSeriesPeople mixin.
-"""
-interface IEventSeriesWithPeople @holder(field: "people", mixin: "IEventSeriesPeople") {
-  """
-  The instance's IEventSeriesPeople mixin. Left out of the schema where its module isn't installed.
-  """
-  people: IEventSeriesPeople!
-}
-
-"""
-EventSeries with the posts module's IPosts mixin.
-"""
-interface IEventSeriesWithPosts @holder(field: "posts", mixin: "IPosts") {
-  """
-  The instance's IPosts mixin. Left out of the schema where its module isn't installed.
-  """
-  posts: IPosts!
-}
-
-"""
-EventSeries with the ticketing module's IEventSeriesTickets mixin.
-"""
-interface IEventSeriesWithTickets @holder(field: "tickets", mixin: "IEventSeriesTickets") {
-  """
-  The instance's IEventSeriesTickets mixin. Left out of the schema where its module isn't installed.
-  """
-  tickets: IEventSeriesTickets!
-}
-
-"""
-EventSeries with the venues module's IEventSeriesVenue mixin.
-"""
-interface IEventSeriesWithVenue @holder(field: "venue", mixin: "IEventSeriesVenue") {
-  """
-  The instance's IEventSeriesVenue mixin. Left out of the schema where its module isn't installed.
-  """
-  venue: IEventSeriesVenue!
-}
-
-"""
 How to get into an event: where to buy tickets, its copies on ticketing partners
 and every offer from any module, like tickets { offers } and tickets { cover }.
 """
-interface IEventTickets implements IEventTicketsWithCover @facet(tag: "tickets") @mixin(extensionKey: "ticketing", field: "tickets", null: false, on: ["Event"]) {
+interface IEventTickets @facet(tag: "tickets") @mixin(extensionKey: "ticketing", field: "tickets", null: false, on: ["Event"]) {
   """
   The instance's IEventCover mixin. Left out of the schema where its module isn't installed.
   """
@@ -8561,16 +8735,6 @@ interface IEventTickets implements IEventTicketsWithCover @facet(tag: "tickets")
 }
 
 """
-EventTickets with the cover module's IEventCover mixin.
-"""
-interface IEventTicketsWithCover @holder(field: "cover", mixin: "IEventCover") {
-  """
-  The instance's IEventCover mixin. Left out of the schema where its module isn't installed.
-  """
-  cover: IEventCover!
-}
-
-"""
 Where an event is: its venue, or still to be announced.
 """
 interface IEventVenue @mixin(extensionKey: "venues", field: "venue", null: false, on: ["Event"]) {
@@ -8583,96 +8747,6 @@ interface IEventVenue @mixin(extensionKey: "venues", field: "venue", null: false
   Its venue. Null while it is to be announced.
   """
   venue: Venue
-}
-
-"""
-Event with the chat module's IEventChat mixin.
-"""
-interface IEventWithChat @holder(field: "chat", mixin: "IEventChat") {
-  """
-  The instance's IEventChat mixin, when available to the viewer.
-  """
-  chat: IEventChat @requires(permissions: ["events:write:mine", "events:write:my_troupes", "events:write:venue"])
-}
-
-"""
-Event with the karaoke module's IKaraokeNight mixin.
-"""
-interface IEventWithKaraoke @facet(tag: "karaoke") @holder(field: "karaoke", mixin: "IKaraokeNight") {
-  """
-  The instance's IKaraokeNight mixin, when available. Null unless it has the karaoke facet (its facets).
-  """
-  karaoke: IKaraokeNight
-}
-
-"""
-Event with the people module's IEventPeople mixin.
-"""
-interface IEventWithPeople @holder(field: "people", mixin: "IEventPeople") {
-  """
-  The instance's IEventPeople mixin. Left out of the schema where its module isn't installed.
-  """
-  people: IEventPeople!
-}
-
-"""
-Event with the photography module's IEventPhotos mixin.
-"""
-interface IEventWithPhotography @holder(field: "photography", mixin: "IEventPhotos") {
-  """
-  The instance's IEventPhotos mixin, when available.
-  """
-  photography: IEventPhotos
-}
-
-"""
-Event with the ping module's IPingFeed mixin.
-"""
-interface IEventWithPing @holder(field: "ping", mixin: "IPingFeed") {
-  """
-  The instance's IPingFeed mixin, when available.
-  """
-  ping: IPingFeed
-}
-
-"""
-Event with the posts module's IPosts mixin.
-"""
-interface IEventWithPosts @holder(field: "posts", mixin: "IPosts") {
-  """
-  The instance's IPosts mixin. Left out of the schema where its module isn't installed.
-  """
-  posts: IPosts!
-}
-
-"""
-Event with the rsvp module's IEventRSVP mixin.
-"""
-interface IEventWithRSVP @holder(field: "rsvp", mixin: "IEventRSVP") {
-  """
-  The instance's IEventRSVP mixin. Left out of the schema where its module isn't installed.
-  """
-  rsvp: IEventRSVP!
-}
-
-"""
-Event with the ticketing module's IEventTickets mixin.
-"""
-interface IEventWithTickets @facet(tag: "tickets") @holder(field: "tickets", mixin: "IEventTickets") {
-  """
-  The instance's IEventTickets mixin. Left out of the schema where its module isn't installed.
-  """
-  tickets: IEventTickets!
-}
-
-"""
-Event with the venues module's IEventVenue mixin.
-"""
-interface IEventWithVenue @holder(field: "venue", mixin: "IEventVenue") {
-  """
-  The instance's IEventVenue mixin. Left out of the schema where its module isn't installed.
-  """
-  venue: IEventVenue!
 }
 
 """
@@ -8703,16 +8777,6 @@ interface IFacebookProfile @mixin(extensionKey: "facebook", field: "facebook", n
   Its Facebook Page, if it has one; talent added by name has none yet.
   """
   page: Page
-}
-
-"""
-Friend with the ping module's IUserPing mixin.
-"""
-interface IFriendWithPing @holder(field: "ping", mixin: "IUserPing") {
-  """
-  The instance's IUserPing mixin, when available.
-  """
-  ping: IUserPing
 }
 
 """
@@ -8803,7 +8867,7 @@ A listing's public profile: how to reach it, merged from its own details and
 every connected provider. Each provider module adds its own view of the listing
 to the profile, like profile { facebook { page } } and profile { places { place } }.
 """
-interface IListingProfile implements IListingProfileWithFacebook & IListingProfileWithPlaces @mixin(extensionKey: "listings", field: "profile", null: false, on: ["Venue", "Person", "Locale"]) {
+interface IListingProfile @mixin(extensionKey: "listings", field: "profile", null: false, on: ["Venue", "Person", "Locale"]) {
   """
   Its street address, from Google or the researcher.
   """
@@ -8853,26 +8917,6 @@ interface IListingProfile implements IListingProfileWithFacebook & IListingProfi
   Its public website.
   """
   website: String
-}
-
-"""
-ListingProfile with the facebook module's IFacebookProfile mixin.
-"""
-interface IListingProfileWithFacebook @holder(field: "facebook", mixin: "IFacebookProfile") {
-  """
-  The instance's IFacebookProfile mixin. Left out of the schema where its module isn't installed.
-  """
-  facebook: IFacebookProfile!
-}
-
-"""
-ListingProfile with the places module's IPlacesProfile mixin.
-"""
-interface IListingProfileWithPlaces @holder(field: "places", mixin: "IPlacesProfile") {
-  """
-  The instance's IPlacesProfile mixin. Left out of the schema where its module isn't installed.
-  """
-  places: IPlacesProfile!
 }
 
 """
@@ -9121,96 +9165,6 @@ interface ILocaleVenues @mixin(extensionKey: "venues", field: "venues", null: fa
 }
 
 """
-Locale with the chat module's ILocaleChat mixin.
-"""
-interface ILocaleWithChat @holder(field: "chat", mixin: "ILocaleChat") {
-  """
-  The instance's ILocaleChat mixin. Left out of the schema where its module isn't installed.
-  """
-  chat: ILocaleChat!
-}
-
-"""
-Locale with the events module's ILocaleEvents mixin.
-"""
-interface ILocaleWithEvents @holder(field: "events", mixin: "ILocaleEvents") {
-  """
-  The instance's ILocaleEvents mixin. Left out of the schema where its module isn't installed.
-  """
-  events: ILocaleEvents!
-}
-
-"""
-Locale with the friends module's ILocaleFriends mixin.
-"""
-interface ILocaleWithFriends @holder(field: "friends", mixin: "ILocaleFriends") {
-  """
-  The instance's ILocaleFriends mixin. Left out of the schema where its module isn't installed.
-  """
-  friends: ILocaleFriends!
-}
-
-"""
-Locale with the liquor module's ILocaleLiquor mixin.
-"""
-interface ILocaleWithLiquor @holder(field: "liquor", mixin: "ILocaleLiquor") {
-  """
-  The instance's ILocaleLiquor mixin. Left out of the schema where its module isn't installed.
-  """
-  liquor: ILocaleLiquor!
-}
-
-"""
-Locale with the people module's ILocalePeople mixin.
-"""
-interface ILocaleWithPeople @holder(field: "people", mixin: "ILocalePeople") {
-  """
-  The instance's ILocalePeople mixin. Left out of the schema where its module isn't installed.
-  """
-  people: ILocalePeople!
-}
-
-"""
-Locale with the posts module's IPosts mixin.
-"""
-interface ILocaleWithPosts @holder(field: "posts", mixin: "IPosts") {
-  """
-  The instance's IPosts mixin. Left out of the schema where its module isn't installed.
-  """
-  posts: IPosts!
-}
-
-"""
-Locale with the listings module's IListingProfile mixin.
-"""
-interface ILocaleWithProfile @holder(field: "profile", mixin: "IListingProfile") {
-  """
-  The instance's IListingProfile mixin. Left out of the schema where its module isn't installed.
-  """
-  profile: IListingProfile!
-}
-
-"""
-Locale with the venues module's ILocaleVenues mixin.
-"""
-interface ILocaleWithVenues @holder(field: "venues", mixin: "ILocaleVenues") {
-  """
-  The instance's ILocaleVenues mixin. Left out of the schema where its module isn't installed.
-  """
-  venues: ILocaleVenues!
-}
-
-"""
-Location with the places module's IPlacesProfile mixin.
-"""
-interface ILocationWithPlaces @holder(field: "places", mixin: "IPlacesProfile") {
-  """
-  The instance's IPlacesProfile mixin. Left out of the schema where its module isn't installed.
-  """
-  places: IPlacesProfile!
-}
-
-"""
 A chat moderator (a Moderation::Provider): a service that receives chat events
 (messages, joins, reports, kicks, bans) and can remove messages and warn, kick
 or ban people. Shows where it runs, the events it reads, the actions it can take
@@ -9436,76 +9390,6 @@ interface IPersonVenues @mixin(extensionKey: "venues", field: "venues", null: fa
 }
 
 """
-Person with the chat module's IPersonChat mixin.
-"""
-interface IPersonWithChat @holder(field: "chat", mixin: "IPersonChat") {
-  """
-  The instance's IPersonChat mixin. Left out of the schema where its module isn't installed.
-  """
-  chat: IPersonChat!
-}
-
-"""
-Person with the events module's IPersonEvents mixin.
-"""
-interface IPersonWithEvents @holder(field: "events", mixin: "IPersonEvents") {
-  """
-  The instance's IPersonEvents mixin. Left out of the schema where its module isn't installed.
-  """
-  events: IPersonEvents!
-}
-
-"""
-Person with the music module's IPersonMusic mixin.
-"""
-interface IPersonWithMusic @facet(tag: "music") @holder(field: "music", mixin: "IPersonMusic") {
-  """
-  The instance's IPersonMusic mixin. Left out of the schema where its module isn't installed.
-  """
-  music: IPersonMusic!
-}
-
-"""
-Person with the posts module's IPosts mixin.
-"""
-interface IPersonWithPosts @holder(field: "posts", mixin: "IPosts") {
-  """
-  The instance's IPosts mixin. Left out of the schema where its module isn't installed.
-  """
-  posts: IPosts!
-}
-
-"""
-Person with the listings module's IListingProfile mixin.
-"""
-interface IPersonWithProfile @holder(field: "profile", mixin: "IListingProfile") {
-  """
-  The instance's IListingProfile mixin. Left out of the schema where its module isn't installed.
-  """
-  profile: IListingProfile!
-}
-
-"""
-Person with the tipping module's ITipping mixin.
-"""
-interface IPersonWithTipping @holder(field: "tipping", mixin: "ITipping") {
-  """
-  The instance's ITipping mixin, when available.
-  """
-  tipping: ITipping
-}
-
-"""
-Person with the venues module's IPersonVenues mixin.
-"""
-interface IPersonWithVenues @holder(field: "venues", mixin: "IPersonVenues") {
-  """
-  The instance's IPersonVenues mixin. Left out of the schema where its module isn't installed.
-  """
-  venues: IPersonVenues!
-}
-
-"""
 A photographer supplied by any connected Photography provider.
 """
 interface IPhotographer {
@@ -9578,7 +9462,7 @@ type IPhotographerEdge {
 """
 Photographers connected to this audience through the Photography contract.
 """
-interface IPhotography @mixin(extensionKey: "photography", field: "photography", on: ["Audience"]) @requires(permissions: ["photography:read:*"]) {
+interface IPhotography @mixin(extensionKey: "photography", field: "photography", on: ["Audience"]) @requires(permissions: ["photography:read:*"]) @endpoint(in: [AUDIENCE, STAFF]) {
   """
   Photographers' hedonism_bot accounts granted to the audience, by name. Admins only; empty for everyone else.
   """
@@ -9889,7 +9773,7 @@ interface ITipping @mixin(extensionKey: "tipping", field: "tipping", on: ["Perso
     What the performer should get, in cents.
     """
     amountCents: Int!
-  ): TipQuote
+  ): TipQuote @appClip(clips: ["HOT_MESS"])
 
   """
   Their in-app tips, newest first. Admins and their listing managers only; null for everyone else.
@@ -10051,26 +9935,6 @@ interface IUserStatePing @mixin(extensionKey: "ping", field: "ping", on: ["UserS
 }
 
 """
-UserState with the cover module's IUserStateCover mixin.
-"""
-interface IUserStateWithCover @holder(field: "cover", mixin: "IUserStateCover") {
-  """
-  The instance's IUserStateCover mixin. Left out of the schema where its module isn't installed.
-  """
-  cover: IUserStateCover! @endpoint(in: [AUDIENCE, STAFF])
-}
-
-"""
-UserState with the ping module's IUserStatePing mixin.
-"""
-interface IUserStateWithPing @holder(field: "ping", mixin: "IUserStatePing") {
-  """
-  The instance's IUserStatePing mixin, when available.
-  """
-  ping: IUserStatePing @endpoint(in: [AUDIENCE, STAFF])
-}
-
-"""
 Someone shown by name and picture: an audience member, someone in a chat room, or a room member.
 """
 interface IUserSummary {
@@ -10088,16 +9952,6 @@ interface IUserSummary {
   The ID of the user.
   """
   userId: ID!
-}
-
-"""
-User with the ping module's IUserPing mixin.
-"""
-interface IUserWithPing @holder(field: "ping", mixin: "IUserPing") {
-  """
-  The instance's IUserPing mixin, when available.
-  """
-  ping: IUserPing
 }
 
 """
@@ -10635,7 +10489,7 @@ interface IVenueRequests @mixin(extensionKey: "requests", field: "requests", nul
 How to get into a venue on a night, a virtual event: every offer from any
 module, like tickets { offers(night:) } and tickets { cover }.
 """
-interface IVenueTickets implements IVenueTicketsWithCover @mixin(extensionKey: "ticketing", field: "tickets", null: false, on: ["Venue"]) {
+interface IVenueTickets @mixin(extensionKey: "ticketing", field: "tickets", null: false, on: ["Venue"]) {
   """
   The instance's IVenueCover mixin. Left out of the schema where its module isn't installed.
   """
@@ -10674,16 +10528,6 @@ interface IVenueTickets implements IVenueTicketsWithCover @mixin(extensionKey: "
 }
 
 """
-VenueTickets with the cover module's IVenueCover mixin.
-"""
-interface IVenueTicketsWithCover @holder(field: "cover", mixin: "IVenueCover") {
-  """
-  The instance's IVenueCover mixin. Left out of the schema where its module isn't installed.
-  """
-  cover: IVenueCover!
-}
-
-"""
 Group trivia in a venue's chat (doc/SHOW_CONTROL.md): runs while a trivia
 segment (or an intermission given a set) is on the lineup, so it never competes
 with the talent.
@@ -10715,156 +10559,6 @@ interface IVenueTrivia @mixin(extensionKey: "trivia", field: "trivia", null: fal
   The trivia sets, those whose topics meet the venue's tags first.
   """
   sets: [TriviaSet!]!
-}
-
-"""
-Venue with the chat module's IVenueChat mixin.
-"""
-interface IVenueWithChat @holder(field: "chat", mixin: "IVenueChat") {
-  """
-  The instance's IVenueChat mixin. Left out of the schema where its module isn't installed.
-  """
-  chat: IVenueChat!
-}
-
-"""
-Venue with the events module's IVenueEvents mixin.
-"""
-interface IVenueWithEvents @holder(field: "events", mixin: "IVenueEvents") {
-  """
-  The instance's IVenueEvents mixin. Left out of the schema where its module isn't installed.
-  """
-  events: IVenueEvents!
-}
-
-"""
-Venue with the friends module's IVenueFriends mixin.
-"""
-interface IVenueWithFriends @holder(field: "friends", mixin: "IVenueFriends") {
-  """
-  The instance's IVenueFriends mixin. Left out of the schema where its module isn't installed.
-  """
-  friends: IVenueFriends!
-}
-
-"""
-Venue with the karaoke module's IVenueKaraoke mixin.
-"""
-interface IVenueWithKaraoke @facet(tag: "karaoke") @holder(field: "karaoke", mixin: "IVenueKaraoke") {
-  """
-  The instance's IVenueKaraoke mixin, when available. Null unless it has the karaoke facet (its facets).
-  """
-  karaoke: IVenueKaraoke
-}
-
-"""
-Venue with the music module's IVenueMusic mixin.
-"""
-interface IVenueWithMusic @holder(field: "music", mixin: "IVenueMusic") {
-  """
-  The instance's IVenueMusic mixin. Left out of the schema where its module isn't installed.
-  """
-  music: IVenueMusic!
-}
-
-"""
-Venue with the ordering module's IVenueOrdering mixin.
-"""
-interface IVenueWithOrdering @facet(tag: "ordering") @holder(field: "ordering", mixin: "IVenueOrdering") {
-  """
-  The instance's IVenueOrdering mixin, when available. Null unless it has the ordering facet (its facets).
-  """
-  ordering: IVenueOrdering
-}
-
-"""
-Venue with the pair_up module's IVenuePairUp mixin.
-"""
-interface IVenueWithPairUp @facet(tag: "pair_up") @holder(field: "pairUp", mixin: "IVenuePairUp") {
-  """
-  The instance's IVenuePairUp mixin, when available. Null unless it has the pair_up facet (its facets).
-  """
-  pairUp: IVenuePairUp
-}
-
-"""
-Venue with the people module's IVenuePeople mixin.
-"""
-interface IVenueWithPeople @holder(field: "people", mixin: "IVenuePeople") {
-  """
-  The instance's IVenuePeople mixin. Left out of the schema where its module isn't installed.
-  """
-  people: IVenuePeople!
-}
-
-"""
-Venue with the photography module's IEventPhotos mixin.
-"""
-interface IVenueWithPhotography @holder(field: "photography", mixin: "IEventPhotos") {
-  """
-  The instance's IEventPhotos mixin, when available.
-  """
-  photography: IEventPhotos
-}
-
-"""
-Venue with the ping module's IPingFeed mixin.
-"""
-interface IVenueWithPing @holder(field: "ping", mixin: "IPingFeed") {
-  """
-  The instance's IPingFeed mixin, when available.
-  """
-  ping: IPingFeed
-}
-
-"""
-Venue with the posts module's IPosts mixin.
-"""
-interface IVenueWithPosts @holder(field: "posts", mixin: "IPosts") {
-  """
-  The instance's IPosts mixin. Left out of the schema where its module isn't installed.
-  """
-  posts: IPosts!
-}
-
-"""
-Venue with the listings module's IListingProfile mixin.
-"""
-interface IVenueWithProfile @holder(field: "profile", mixin: "IListingProfile") {
-  """
-  The instance's IListingProfile mixin. Left out of the schema where its module isn't installed.
-  """
-  profile: IListingProfile!
-}
-
-"""
-Venue with the requests module's IVenueRequests mixin.
-"""
-interface IVenueWithRequests @holder(field: "requests", mixin: "IVenueRequests") {
-  """
-  The instance's IVenueRequests mixin. Left out of the schema where its module isn't installed.
-  """
-  requests: IVenueRequests!
-}
-
-"""
-Venue with the ticketing module's IVenueTickets mixin.
-"""
-interface IVenueWithTickets @holder(field: "tickets", mixin: "IVenueTickets") {
-  """
-  The instance's IVenueTickets mixin. Left out of the schema where its module isn't installed.
-  """
-  tickets: IVenueTickets!
-}
-
-"""
-Venue with the trivia module's IVenueTrivia mixin.
-"""
-interface IVenueWithTrivia @holder(field: "trivia", mixin: "IVenueTrivia") {
-  """
-  The instance's IVenueTrivia mixin. Left out of the schema where its module isn't installed.
-  """
-  trivia: IVenueTrivia!
 }
 
 """
@@ -11752,8 +11446,9 @@ enum LiquorRuleKind {
 }
 
 """
-A calendar listings file (such as thegaycal.com’s) an admin uploaded: what its
-dry run found, and what the import did once they confirmed it.
+A listings file an admin uploaded (a calendar site’s, such as thegaycal.com’s,
+or a researched list of locales, People or social profiles): what its dry run
+found, and what the import did once they confirmed it.
 """
 type ListingImport {
   """
@@ -11762,9 +11457,14 @@ type ListingImport {
   createdAt: ISO8601DateTime!
 
   """
-  Events the venues already list that night.
+  Events the venues already list that night (calendar).
   """
   duplicates: Int!
+
+  """
+  Entries in the file: listings, locales, people or profiles, by its kind.
+  """
+  entryCount: Int!
 
   """
   Why it failed, if it did.
@@ -11797,7 +11497,17 @@ type ListingImport {
   importedAt: ISO8601DateTime
 
   """
-  Event listings in the file.
+  What the file holds.
+  """
+  kind: ListingImportKind!
+
+  """
+  What the file holds, in words: "calendar listings", "researched People".
+  """
+  kindName: String!
+
+  """
+  Event listings in the file (calendar); 0 otherwise.
   """
   listingCount: Int!
 
@@ -11822,6 +11532,11 @@ type ListingImport {
   status: ListingImportStatus!
 
   """
+  What the last run did, or would do, in a sentence: "3 locales added, 0 already there; …". Null until it ran.
+  """
+  summaryText: String
+
+  """
   The admin who uploaded it.
   """
   triggeredByName: String
@@ -11838,8 +11553,40 @@ type ListingImport {
 }
 
 """
-One decision of a calendar listings import: a venue it matched or added, or an
-event it added, refreshed, found already listed or skipped.
+What an uploaded listings file holds (ListingImport::KINDS).
+"""
+enum ListingImportKind {
+  """
+  A calendar site’s venues and events (CalendarSiteImport).
+  """
+  CALENDAR
+
+  """
+  Researched locales and their bars (ResearchedLocalesImport).
+  """
+  LOCALES
+
+  """
+  Researched talent and organizations (ResearchedPeopleImport).
+  """
+  PEOPLE
+
+  """
+  Researched social profiles and websites to fill in (ResearchedSocialsImport).
+  """
+  SOCIALS
+
+  """
+  Social profiles research was unsure of, filed as proposed changes (SocialLinkProposals).
+  """
+  SOCIAL_PROPOSALS
+}
+
+"""
+One decision of a listings import: a venue it matched or added, an event it
+added, refreshed, found already listed or skipped; or, for a researched list, a
+locale or person it added or found, a profile it filled or proposed, or what it
+skipped and why.
 """
 type ListingImportRow {
   """
@@ -11848,12 +11595,16 @@ type ListingImportRow {
   detail: String
 
   """
-  venue_created, venue_matched, event_created, event_updated, event_duplicate or skipped.
+  What it decided, by the importer: venue_created, venue_matched, event_created,
+  event_updated, event_duplicate or skipped for calendar listings;
+  locale_created, locale_found, venue_<status> or skipped for locales; created,
+  existing, no_locale or no_member for People; filled, removed, not_found,
+  ambiguous or proposed for social profiles.
   """
   kind: String!
 
   """
-  The venue or event, as the file names it.
+  The venue, event, locale or person, as the file names it.
   """
   name: String
 }
@@ -11891,7 +11642,7 @@ enum ListingImportStatus {
 """
 The local Listings implementation of a venue, person or locale's profile.
 """
-type ListingProfile implements IListingProfile & IListingProfileWithFacebook & IListingProfileWithPlaces {
+type ListingProfile implements IListingProfile {
   """
   Its street address, from Google or the researcher.
   """
@@ -11961,7 +11712,7 @@ enum ListingVisibility {
 """
 A geographic area containing venues and featured people.
 """
-type Locale implements HasBanner & HasTimestamps & ILocaleWithChat & ILocaleWithEvents & ILocaleWithFriends & ILocaleWithLiquor & ILocaleWithPeople & ILocaleWithPosts & ILocaleWithProfile & ILocaleWithVenues & Node {
+type Locale implements HasBanner & HasTimestamps & Node {
   """
   A photo of the place, for the top of its screens.
   """
@@ -12474,7 +12225,7 @@ type LocaleVenuesView implements ILocaleVenues {
 """
 A geographic place and its provider details.
 """
-type Location implements HasBanner & HasPhoto & HasTimestamps & ILocationWithPlaces & Node {
+type Location implements HasBanner & HasPhoto & HasTimestamps & Node {
   """
   Its full address.
   """
@@ -12696,7 +12447,7 @@ type Mutation {
     Parameters for TermsAccept
     """
     input: TermsAcceptInput!
-  ): TermsAcceptPayload @requires(permissions: ["users:write:self"])
+  ): TermsAcceptPayload @requires(permissions: ["users:write:self"]) @appClip(clips: ["HOT_MESS"])
 
   """
   Adds a photo taken with the app's camera at a venue (only while the app places
@@ -12747,7 +12498,7 @@ type Mutation {
     Parameters for CoverBuy
     """
     input: CoverBuyInput!
-  ): CoverBuyPayload @requires(permissions: ["cover:write:self"])
+  ): CoverBuyPayload @requires(permissions: ["cover:write:self"]) @appClip(clips: ["HOT_MESS"])
 
   """
   Cancels a pairing at any point: neither of you sees the other from then on.
@@ -12795,6 +12546,20 @@ type Mutation {
   ): ContactsCheckPayload @requires(permissions: ["users:write:self"])
 
   """
+  Attaches covers and tips bought in the App Clip before signing in to the
+  signed-in member, by the claim tokens the clip got when it started them (POST
+  /v1/clip/covers and /v1/clip/tips, doc/APP_CLIP_CHECKOUT.md). Each token works
+  once, in its own audience. A cover is left unclaimed when they already hold
+  one at that venue that night.
+  """
+  claimGuestPurchases(
+    """
+    Parameters for GuestPurchasesClaim
+    """
+    input: GuestPurchasesClaimInput!
+  ): GuestPurchasesClaimPayload @requires(permissions: ["cover:write:self", "tipping:write:self"]) @appClip(clips: ["HOT_MESS"])
+
+  """
   Checks a cover payment with its provider after the app finishes paying, so the pass works before the webhook arrives.
   """
   confirmCover(
@@ -12802,7 +12567,7 @@ type Mutation {
     Parameters for CoverConfirm
     """
     input: CoverConfirmInput!
-  ): CoverConfirmPayload @requires(permissions: ["cover:write:self"])
+  ): CoverConfirmPayload @requires(permissions: ["cover:write:self"]) @appClip(clips: ["HOT_MESS"])
 
   """
   Checks a tip payment with its provider after the app finishes paying, before the webhook arrives.
@@ -12812,7 +12577,7 @@ type Mutation {
     Parameters for TipConfirm
     """
     input: TipConfirmInput!
-  ): TipConfirmPayload @requires(permissions: ["tipping:write:self"])
+  ): TipConfirmPayload @requires(permissions: ["tipping:write:self"]) @appClip(clips: ["HOT_MESS"])
 
   """
   The signed-in user's calendar subscription link in this audience
@@ -12998,7 +12763,7 @@ type Mutation {
     Parameters for AdmissionRefund
     """
     input: AdmissionRefundInput!
-  ): AdmissionRefundPayload @requires(permissions: ["cover:write:self", "cover:write:door"])
+  ): AdmissionRefundPayload @requires(permissions: ["cover:write:self", "cover:write:door"]) @appClip(clips: ["HOT_MESS"])
 
   """
   Stores the push notification token for the device this session signed in on.
@@ -13216,6 +12981,18 @@ type Mutation {
   ): SafetyAlertMessageSendPayload @requires(permissions: ["users:write:self", "chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"])
 
   """
+  Follows a venue in the signed-in user's calendar subscription
+  (doc/CALENDAR_SYNC.md), so every event there is in it, or stops following it.
+  Makes the subscription on first ask.
+  """
+  setCalendarFeedVenue(
+    """
+    Parameters for CalendarFeedVenueSet
+    """
+    input: CalendarFeedVenueSetInput!
+  ): CalendarFeedVenueSetPayload @requires(permissions: ["users:write:self"])
+
+  """
   Shows the signed-in user's initials in chat rooms instead of their photo, or their photo again.
   """
   setChatInitials(
@@ -13328,7 +13105,7 @@ type Mutation {
     Parameters for TipStart
     """
     input: TipStartInput!
-  ): TipStartPayload @requires(permissions: ["tipping:write:self"])
+  ): TipStartPayload @requires(permissions: ["tipping:write:self"]) @appClip(clips: ["HOT_MESS"])
 
   """
   Suggests a missing venue or event, a correction, a closure, a tag or a
@@ -14225,7 +14002,7 @@ type PeopleCard implements ICard {
 """
 A performer, host or group featured in an audience.
 """
-type Person implements HasBanner & HasTags & HasTaskTemplates & IPersonWithChat & IPersonWithEvents & IPersonWithMusic & IPersonWithPosts & IPersonWithProfile & IPersonWithTipping & IPersonWithVenues & Node {
+type Person implements HasBanner & HasTags & HasTaskTemplates & Node {
   """
   The audience this record belongs to.
   """
@@ -16685,6 +16462,11 @@ type SafetyAlert {
   place: SafetyAlertPlace
 
   """
+  Staff sent it to rehearse (sendPracticeSafetyAlert); nobody needs help.
+  """
+  practice: Boolean!
+
+  """
   When the guest last sent it again.
   """
   remindedAt: ISO8601DateTime
@@ -18141,6 +17923,12 @@ type Submission {
   body: String @requires(permissions: ["audience:moderate:*"])
 
   """
+  For SOCIAL_LINK: the handles it found, the proposed one first. A reviewer
+  approves another with EDIT_APPROVE and {provider, handle}.
+  """
+  choices: [String!]!
+
+  """
   When it was filed.
   """
   createdAt: ISO8601DateTime!
@@ -18189,6 +17977,11 @@ type Submission {
   The city it was filed in.
   """
   locale: Locale
+
+  """
+  The person it is about (SOCIAL_LINK).
+  """
+  person: Person
 
   """
   Its place in the queue: higher first. Admins only.
@@ -18364,6 +18157,13 @@ enum SubmissionKind {
   A venue that is not listed yet.
   """
   MISSING_VENUE
+
+  """
+  A social profile for a person or venue that research wasn't sure of (an import
+  files these; members cannot). Its choices are the profiles it found; approving
+  one makes it the profile on that network.
+  """
+  SOCIAL_LINK
 
   """
   A tag for an event or a recurring night; never for a venue.
@@ -18966,6 +18766,12 @@ type Tip implements ICharge & Node {
   tipper: Profile
 
   """
+  The fan's first name, when they asked to show it with an App Clip tip
+  (showFirstName) and have claimed it since. Null otherwise.
+  """
+  tipperFirstName: String
+
+  """
   What the fan paid.
   """
   total: Money!
@@ -19379,7 +19185,7 @@ type TippingView implements ITipping {
     What the performer should get, in cents.
     """
     amountCents: Int!
-  ): TipQuote
+  ): TipQuote @appClip(clips: ["HOT_MESS"])
 
   """
   Their in-app tips, newest first. Admins and their listing managers only; null for everyone else.
@@ -19835,7 +19641,7 @@ type TriviaVoteCastPayload {
 """
 A user: their public profile, the same record whoever asks.
 """
-type User implements HasTribes & IUser & IUserWithPing & Node {
+type User implements HasTribes & IUser & Node {
   """
   Their profile picture: the URL of `photo`.
   """
@@ -19903,7 +19709,7 @@ type UserPingView implements IUserPing {
 """
 The signed-in viewer: their own profile (`self`) and their state in this audience.
 """
-type UserState implements IUserStateWithCover & IUserStateWithPing {
+type UserState {
   """
   People they blocked, whom chat rooms hide from them.
   """
@@ -20070,7 +19876,7 @@ type UserStatePingView implements IUserStatePing {
 """
 A venue in the audience.
 """
-type Venue implements HasBanner & HasPhoto & HasTags & HasTaskTemplates & HasTimestamps & IVenueWithChat & IVenueWithEvents & IVenueWithFriends & IVenueWithKaraoke & IVenueWithMusic & IVenueWithOrdering & IVenueWithPairUp & IVenueWithPeople & IVenueWithPhotography & IVenueWithPing & IVenueWithPosts & IVenueWithProfile & IVenueWithRequests & IVenueWithTickets & IVenueWithTrivia & Node {
+type Venue implements HasBanner & HasPhoto & HasTags & HasTaskTemplates & HasTimestamps & Node {
   """
   How busy it is right now, approximately. Admins and its managers only.
   """
@@ -21321,7 +21127,7 @@ type VenueTagLayers {
 """
 The local Ticketing implementation of a venue night's tickets.
 """
-type VenueTickets implements IVenueTickets & IVenueTicketsWithCover {
+type VenueTickets implements IVenueTickets {
   """
   The instance's IVenueCover mixin. Left out of the schema where its module isn't installed.
   """

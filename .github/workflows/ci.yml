@@ -88,6 +88,35 @@ jobs:
       - run: bundle exec rake
       - run: gem build audience-kit.gemspec
 
+  node:
+    # The audience-kit npm package in node/: typecheck, the tests (offline, against a stub transport; every document is
+    # validated against graphql/schema.graphql) with line coverage at 85% or more (100% at 0.1.0), and the ESM + CJS
+    # build, on each Node it supports. It has its own version, so the version job doesn't look at it.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22, 24]
+    defaults:
+      run:
+        working-directory: node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: node/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run coverage
+      - run: npm run build
+      - name: The built package loads from CommonJS and ES modules
+        run: |
+          node -e "const sdk = require('./dist/index.cjs'); if (!sdk.AudienceKitClient) process.exit(1)"
+          node --input-type=module -e "import { AudienceKitClient } from './dist/index.js'; if (!AudienceKitClient) process.exit(1)"
+      - run: npm pack --dry-run
+
   release:
     # Publishes the Swift package: once everything above passes on main, tags each VERSION that has no tag yet (no "v",
     # at the merge that set it) and opens its GitHub release from CHANGELOG.md. Swift Package Manager and Xcode resolve

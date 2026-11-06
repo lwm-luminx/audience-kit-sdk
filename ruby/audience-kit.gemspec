@@ -1,0 +1,39 @@
+# frozen_string_literal: true
+
+require_relative "lib/audience-kit/version"
+
+Gem::Specification.new do |spec|
+  spec.name = "audience-kit"
+  spec.version = Audience::Kit::VERSION
+  spec.authors = ["Rick Mark"]
+  spec.email = ["rickmark@outlook.com"]
+
+  spec.summary = "AudienceKit SDK bindings for Ruby"
+  spec.description = "AudienceKit allows for creating curated collections of culture"
+  spec.homepage = "https://audiencekit.io"
+  spec.license = "MIT"
+  spec.required_ruby_version = ">= 3.2"
+
+  spec.metadata["allowed_push_host"] = "https://rubygems.org"
+
+  spec.metadata["homepage_uri"] = spec.homepage
+  spec.metadata["source_code_uri"] = "https://github.com/lwm-luminx/audience-kit-sdk/tree/main/ruby"
+  spec.metadata["changelog_uri"] = "https://github.com/lwm-luminx/audience-kit-sdk/blob/main/ruby/CHANGELOG.md"
+  spec.metadata["rubygems_mfa_required"] = "true"
+
+  # Specify which files should be added to the gem when it is released.
+  # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
+  spec.files = Dir.chdir(File.expand_path(__dir__)) do
+    `git ls-files -z`.split("\x0").reject do |f|
+      (f == __FILE__) || f.match(%r{\A(?:(?:bin|test|spec|features)/|\.(?:git|github|rubocop|overcommit)|Gemfile)})
+    end
+  end
+  spec.bindir = "exe"
+  spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
+  spec.require_paths = ["lib"]
+
+  spec.add_dependency "faraday", "~> 2.9"
+
+  # For more information and examples about making a new gem, check out our
+  # guide at: https://bundler.io/guides/creating_gem.html
+end

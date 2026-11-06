@@ -67,6 +67,27 @@ jobs:
           fetch-depth: 0
       - run: scripts/check-version.sh origin/${{ github.base_ref || 'main' }}
 
+  ruby:
+    # The audience-kit gem in ruby/ (folded in from audience-kit-sdk-ruby): specs, RuboCop and the gem build, on each
+    # Ruby it supports. It has its own version, so the version job doesn't look at it.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.2", "3.3", "3.4", "4.0"]
+    defaults:
+      run:
+        working-directory: ruby
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+          working-directory: ruby
+      - run: bundle exec rake
+      - run: gem build audience-kit.gemspec
+
   release:
     # Publishes the Swift package: once everything above passes on main, tags each VERSION that has no tag yet (no "v",
     # at the merge that set it) and opens its GitHub release from CHANGELOG.md. Swift Package Manager and Xcode resolve

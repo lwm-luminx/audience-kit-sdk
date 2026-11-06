@@ -29,9 +29,18 @@ scripts/check-version.sh        # CI runs this on every pull request
 ```
 
 Add the version's entry to [`CHANGELOG.md`](CHANGELOG.md). Once it merges to `main` and CI passes, the `release` job in
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) tags the release (`0.25.0`, no `v`) so Swift Package Manager can
+[`.github/workflows/swift-kotlin.yml`](.github/workflows/swift-kotlin.yml) tags the release (`0.25.0`, no `v`) so Swift Package Manager can
 resolve it, and opens its GitHub release from the changelog entry. The Xcode Cloud workflow runs the same script
 ([`xcode-cloud/`](xcode-cloud/README.md)); whichever finishes second finds the tag there already.
+
+## CI
+
+Each SDK has its own GitHub Actions workflow in [`.github/workflows/`](.github/workflows), filtered to its own paths, so
+a change to one language only runs (and only edits) that language's CI: `swift-kotlin.yml` (Swift and Kotlin share
+`VERSION` and the release job, so they stay together), `ruby.yml`, `php.yml` and `node.yml`. A new SDK adds its own
+`<language>.yml` with a `paths:` filter on its directory (plus `graphql/**` and `scripts/graphql/**` if it checks its
+documents against the schema), keeps the repository's 85% line-coverage floor, and tags releases with a prefix
+(`php/<version>`, `python-<version>`), never bare, since bare tags are the Swift package's.
 
 ## License
 

@@ -1,0 +1,47 @@
+name: Ruby
+
+# The audience-kit gem in ruby/, which has its own version and isn't part of the Swift and Kotlin release.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ruby/**"
+      - ".github/workflows/ruby.yml"
+  pull_request:
+    paths:
+      - "ruby/**"
+      - ".github/workflows/ruby.yml"
+  workflow_dispatch:
+
+permissions:
+  # Read-only by default; jobs that tag releases ask for contents: write themselves.
+  contents: read
+
+concurrency:
+  # A newer push to a pull request replaces its run; runs on main always finish (they tag releases).
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ruby:
+    # The audience-kit gem in ruby/ (folded in from audience-kit-sdk-ruby): specs, RuboCop and the gem build, on each
+    # Ruby it supports. It has its own version, so the version job doesn't look at it.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.2", "3.3", "3.4", "4.0"]
+    defaults:
+      run:
+        working-directory: ruby
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+          working-directory: ruby
+      # Specs (SimpleCov fails them when a line or branch of lib/ isn't covered, since CI sets CI) and RuboCop.
+      - run: bundle exec rake
+      - run: gem build audience-kit.gemspec

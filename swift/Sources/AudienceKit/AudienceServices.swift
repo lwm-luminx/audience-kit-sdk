@@ -89,8 +89,18 @@ extension AudienceSession {
 
     /// A venue's cover tonight and the signed-in user's pass for it, or `nil` when the venue doesn't exist.
     public func venueCover(venueID: String) async throws -> VenueCover? {
-        try await graphQL(Queries.venueCover, variables: ["id": .string(venueID)], operationName: "VenueCover",
-                          as: VenueCoverResponse.self).venue
+        try await graphQL(types: Queries.venueTicketTypes, variables: ["id": .string(venueID)],
+                          operationName: "VenueCover", as: VenueCoverResponse.self, document: Queries.venueCover).venue
+    }
+
+    /// Every way into a venue on a night (tonight when `night` is nil, as `yyyy-MM-dd` otherwise): its cover and
+    /// tickets on its events' partner listings. Empty when there are none, or without the Ticketing module.
+    public func venueOffers(venueID: String, night: String? = nil) async throws -> [AdmissionOffer] {
+        var variables: [String: GraphQLValue] = ["id": .string(venueID)]
+        if let night { variables["night"] = .string(night) }
+        return try await graphQL(types: Queries.venueTicketTypes, variables: variables, operationName: "VenueOffers",
+                                 as: VenueOffersResponse.self, document: Queries.venueOffers)
+            .venues.venue?.tickets?.offers?.nodes ?? []
     }
 
     /// The signed-in user's cover passes, newest first.

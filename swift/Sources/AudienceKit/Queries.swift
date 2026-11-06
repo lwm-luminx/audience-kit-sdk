@@ -155,21 +155,32 @@ enum Queries {
     profile { id name avatarUrl } venue { id name photoUrl } event { id name }
     """
 
-    static let venueCover = """
-    query VenueCover($id: ID!) {
-      venues {
-        venue(id: $id) {
-          id name
-          tickets {
-            cover {
-              charge { \(coverChargeFields) }
-              viewerAdmission { \(admissionFields) }
-            }
-          }
+    /// The types ``venueCover(_:)`` and ``venueOffers(_:)`` depend on.
+    static let venueTicketTypes = ["Venue", "VenueTickets"]
+
+    /// A venue's cover tonight, or just the venue where the audience doesn't have the Ticketing and Cover modules.
+    static func venueCover(_ shape: SchemaShape) -> String {
+        let cover = shape.has("Venue", "tickets") && shape.has("VenueTickets", "cover") ? """
+         tickets { cover { charge { \(coverChargeFields) } viewerAdmission { \(admissionFields) } } }
+        """ : ""
+        return """
+        query VenueCover($id: ID!) {
+          venues { venue(id: $id) { id name\(cover) } }
         }
-      }
+        """
     }
-    """
+
+    /// Every way into a venue on a night, or just the venue where the audience doesn't have the Ticketing module.
+    static func venueOffers(_ shape: SchemaShape) -> String {
+        // A variable the document doesn't use is an error, so $night goes with the field.
+        let hasTickets = shape.has("Venue", "tickets")
+        let offers = hasTickets ? " tickets { offers(night: $night) { nodes { \(admissionOfferFields) } } }" : ""
+        return """
+        query VenueOffers($id: ID!\(hasTickets ? ", $night: ISO8601Date" : "")) {
+          venues { venue(id: $id) { id\(offers) } }
+        }
+        """
+    }
 
     static let admissions = """
     query Admissions {
@@ -271,6 +282,15 @@ struct RSVPEventResponse: Decodable, Sendable {
     var rsvpEvent: Payload
 }
 /// `venues { venue(id:) }`.
+/// `venues { venue { tickets { offers { nodes } } } }`.
+struct VenueOffersResponse: Decodable, Sendable {
+    struct Offers: Decodable, Sendable { var offers: Nodes<AdmissionOffer>? }
+    struct Venue: Decodable, Sendable { var tickets: Offers? }
+    struct Venues: Decodable, Sendable { var venue: Venue? }
+
+    var venues: Venues
+}
+
 struct VenueCoverResponse: Decodable, Sendable {
     struct Venues: Decodable, Sendable { var venue: VenueCover? }
 

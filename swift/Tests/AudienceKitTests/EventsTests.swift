@@ -37,7 +37,10 @@ private let eventJSON = #"""
    "location":{"id":"loc-1","point":"POINT (-115.1523 36.1318)","address":"3150 Paradise Rd"}}},
  "rsvp":{"mine":"ATTENDING","count":12},
  "people":{"hosts":{"nodes":[{"id":"p-1","name":"Dark Tangent","avatarUrl":null}]},"lineup":{"nodes":[]}},
- "tickets":{"url":"https://defcon.org/tickets"}}
+ "tickets":{"url":"https://defcon.org/tickets",
+   "offers":{"nodes":[{"price":{"cents":46000,"currency":"usd"},"url":"https://defcon.org/tickets",
+     "seller":{"key":"defcon","name":"DEF CON"}}]},
+   "cover":{"charge":null}}}
 """#
 
 /// An audience without the RSVP, People, Ticketing, Listings, Google Places or Friends modules: each type's fields
@@ -89,6 +92,12 @@ private func reducedSchema(_ request: RecordedRequest) -> StubResponse {
     #expect(event.hosts?.map(\.name) == ["Dark Tangent"])
     #expect(event.lineup == [])
     #expect(event.ticketURL == URL(string: "https://defcon.org/tickets"))
+    #expect(event.ticketOffers == [AdmissionOffer(price: Money(cents: 46000, currency: "usd"),
+                                                  url: "https://defcon.org/tickets",
+                                                  seller: .init(key: "defcon", name: "DEF CON"))])
+    #expect(event.coverCharge == nil)
+    #expect(request.query.contains("offers { nodes { price { cents currency } url seller { key name } } }"))
+    #expect(request.query.contains("cover { charge {"))
     #expect(event.tags?.first?.name == "Conference")
     #expect(try JSONDecoder().decode(Event.self, from: JSONEncoder().encode(event)) == event)
 }
@@ -214,6 +223,52 @@ private func reducedSchema(_ request: RecordedRequest) -> StubResponse {
     #expect(detail.chatOpen == true)
     #expect(detail.recentMessages?.first?.name == "Ada L.")
     #expect(detail.upcomingEvents?.first?.id == "e-1")
+    let request = try #require(stub.requests.first)
+    #expect(request.variables["recentMessages"] as? Int == 20)
+    #expect(request.query.contains("recentMessages(limit: $recentMessages)"))
+}
+
+@Test func venueOffersListEveryWayInForTheNight() async throws {
+    let stub = Stub { _ in
+        .json(status: 200, body: #"""
+        {"data":{"venues":{"venue":{"id":"v-1","tickets":{"offers":{"nodes":[
+          {"price":{"cents":1500,"currency":"usd"},"url":null,"seller":{"key":"audiencekit","name":"AudienceKit"}}]}}}}}}
+        """#)
+    }
+
+    let offers = try await eventsClient(stub).venueOffers(venueID: "v-1", night: "2026-11-07")
+
+    #expect(offers.map(\.seller.key) == ["audiencekit"])
+    #expect(offers.first?.price == Money(cents: 1500, currency: "usd"))
+    let request = try #require(stub.requests.first)
+    #expect(request.operationName == "VenueOffers")
+    #expect(request.variables["night"] as? String == "2026-11-07")
+}
+
+@Test func venueCoverAndOffersWithoutTicketingAskOnlyForTheVenue() async throws {
+    let stub = Stub { request in
+        switch request.operationName {
+        case "SchemaFields":
+            return reducedSchema(request)
+        case _ where request.query.contains("tickets"):
+            return .json(status: 200, body: #"""
+            {"errors":[{"message":"Field 'tickets' doesn't exist on type 'Venue'","extensions":{"code":"undefinedField"}}]}
+            """#)
+        default:
+            return .json(status: 200, body: #"{"data":{"venues":{"venue":{"id":"v-1","name":"801 Labs"}}}}"#)
+        }
+    }
+    let client = eventsClient(stub)
+
+    let cover = try #require(try await client.venueCover(venueID: "v-1"))
+    #expect(cover.name == "801 Labs")
+    #expect(cover.coverCharge == nil)
+    #expect(cover.viewerAdmission == nil)
+
+    let offers = try await client.venueOffers(venueID: "v-1")
+    #expect(offers == [])
+    #expect(stub.requests.map(\.operationName) == ["VenueCover", "SchemaFields", "VenueCover", "VenueOffers"])
+    #expect(!stub.requests[3].query.contains("$night"))
 }
 
 @Test func sendChatMessageNamesTheRoom() async throws {

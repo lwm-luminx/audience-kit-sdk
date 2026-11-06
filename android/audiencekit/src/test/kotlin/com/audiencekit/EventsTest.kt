@@ -48,7 +48,10 @@ private const val EVENT_JSON = """
  "venue":{"name":"LVCC","venue":{"id":"v-1","name":"LVCC","location":{"id":"loc-1","point":"POINT (-115.1523 36.1318)"}}},
  "rsvp":{"mine":"ATTENDING","count":12},
  "people":{"hosts":{"nodes":[{"id":"p-1","name":"Dark Tangent"}]},"lineup":{"nodes":[]}},
- "tickets":{"url":"https://defcon.org/tickets"}}
+ "tickets":{"url":"https://defcon.org/tickets",
+   "offers":{"nodes":[{"price":{"cents":46000,"currency":"usd"},"url":"https://defcon.org/tickets",
+     "seller":{"key":"defcon","name":"DEF CON"}}]},
+   "cover":{"charge":null}}}
 """
 
 class EventsTest {
@@ -67,6 +70,56 @@ class EventsTest {
         assertEquals(RSVPState.ATTENDING, event.rsvp?.mine)
         assertEquals(listOf("Dark Tangent"), event.hosts?.map { it.name })
         assertEquals("https://defcon.org/tickets", event.ticketUrl)
+        assertEquals(
+            listOf(AdmissionOffer(Money(46000, "usd"), "https://defcon.org/tickets", AdmissionOffer.Seller("defcon", "DEF CON"))),
+            event.ticketOffers,
+        )
+        assertNull(event.coverCharge)
+        val document = stub.requests.single().document()
+        assertTrue("offers { nodes { price { cents currency } url seller { key name } } }" in document)
+        assertTrue("cover { charge {" in document)
+    }
+
+    @Test
+    fun venueOffersListEveryWayInForTheNight() = runTest {
+        val stub = StubTransport {
+            StubTransport.json(
+                200,
+                """{"data":{"venues":{"venue":{"id":"v-1","tickets":{"offers":{"nodes":[""" +
+                    """{"price":{"cents":1500,"currency":"usd"},"url":null,"seller":{"key":"audiencekit","name":"AudienceKit"}}]}}}}}}""",
+            )
+        }
+
+        val offers = eventsClient(stub).venueOffers("v-1", night = "2026-11-07")
+
+        assertEquals(listOf("audiencekit"), offers.map { it.seller.key })
+        assertEquals(Money(1500, "usd"), offers.single().price)
+        val request = stub.requests.single()
+        assertEquals("VenueOffers", request.operation())
+        assertEquals("2026-11-07", (request.jsonBody()["variables"]!!.jsonObject["night"] as JsonPrimitive).content)
+    }
+
+    @Test
+    fun venueCoverAndOffersWithoutTicketingAskOnlyForTheVenue() = runTest {
+        val stub = StubTransport { request ->
+            when {
+                request.operation() == "SchemaFields" -> reducedSchema(request)
+                "tickets" in request.document() -> StubTransport.json(
+                    200,
+                    """{"errors":[{"message":"Field 'tickets' doesn't exist on type 'Venue'","extensions":{"code":"undefinedField"}}]}""",
+                )
+                else -> StubTransport.json(200, """{"data":{"venues":{"venue":{"id":"v-1","name":"801 Labs"}}}}""")
+            }
+        }
+        val client = eventsClient(stub)
+
+        val cover = client.venueCover("v-1")
+        assertEquals("801 Labs", cover?.name)
+        assertNull(cover?.coverCharge)
+
+        assertEquals(emptyList<AdmissionOffer>(), client.venueOffers("v-1"))
+        assertEquals(listOf("VenueCover", "SchemaFields", "VenueCover", "VenueOffers"), stub.requests.map { it.operation() })
+        assertFalse("\$night" in stub.requests[3].document())
     }
 
     @Test

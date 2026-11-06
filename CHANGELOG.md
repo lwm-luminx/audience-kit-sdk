@@ -3,6 +3,19 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.41.0 (2026-11-06)
+
+What Hack Different still queried itself after moving to 0.40, so the app can drop its last ticketing queries.
+Additive.
+
+- Events carry their offers: `Event.ticketOffers` (every way in on sale, whichever module sells it: tickets on partner
+  listings and the night's cover, as `AdmissionOffer` with price, URL and seller) and `Event.coverCharge` (the Cover
+  module's charge for that night). Both are nil where the audience doesn't have the module.
+- `venueOffers(venueID:night:)` lists every way into a venue on a night (tonight by default).
+- `venueCover(venueID:)` follows the audience's modules too: without Ticketing or Cover it returns the venue with no
+  charge instead of failing.
+- `venueDetail(id:recentMessages:)` takes how many chat messages to load (20 by default, the API's most).
+
 ## 0.40.0 (2026-11-06)
 
 Apps no longer write their own GraphQL for what every AudienceKit app shows (Rick, 2026-11-06: "apps should be easily

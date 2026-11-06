@@ -178,22 +178,22 @@ public object Queries {
     """.trimIndent()
 
     /** A venue's cover tonight and the signed-in user's pass for it. */
-    public val venueCover: String = """
-        query VenueCover(${'$'}id: ID!) {
-          venues {
-            venue(id: ${'$'}id) {
-              id name
-              tickets {
-                cover {
-                  charge { $COVER_CHARGE_FIELDS }
-                  viewerAdmission { $ADMISSION_FIELDS }
-                  viewerCoatCheck { $ADMISSION_FIELDS }
-                }
-              }
-            }
-          }
+    public val venueCover: String get() = venueCover(SchemaShape.EVERYTHING)
+
+    /** [venueCover], asking only for the venue where the audience doesn't have the Ticketing and Cover modules. */
+    public fun venueCover(shape: SchemaShape): String {
+        val cover = if (shape.has("Venue", "tickets") && shape.has("VenueTickets", "cover")) {
+            " tickets { cover { charge { $COVER_CHARGE_FIELDS } viewerAdmission { $ADMISSION_FIELDS } " +
+                "viewerCoatCheck { $ADMISSION_FIELDS } } }"
+        } else {
+            ""
         }
-    """.trimIndent()
+        return """
+            query VenueCover(${'$'}id: ID!) {
+              venues { venue(id: ${'$'}id) { id name$cover } }
+            }
+        """.trimIndent()
+    }
 
     public val buyCover: String = """
         mutation BuyCover(${'$'}venueId: ID!) {

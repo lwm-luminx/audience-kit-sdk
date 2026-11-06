@@ -152,16 +152,20 @@ public data class VenueDetail(
 public const val CHAT_MESSAGE_FIELDS: String = "id body message name userId avatarUrl photoUrl sentAt role kind title pinned"
 
 public fun Queries.venueDetail(shape: SchemaShape): String {
+    // A variable the document doesn't use is an error, so recentMessages goes with the chat field.
+    val recentMessages = if (shape.has("Venue", "chat")) ", \$recentMessages: Int" else ""
     val fields = buildString {
         append(venueFields(shape)).append(" description")
         if (shape.has("Venue", "profile")) {
             append(" profile { address phone website socialLinks { nodes { id handle provider url } } }")
         }
-        if (shape.has("Venue", "chat")) append(" chat { open recentMessages(limit: 20) { nodes { $CHAT_MESSAGE_FIELDS } } }")
+        if (shape.has("Venue", "chat")) {
+            append(" chat { open recentMessages(limit: \$recentMessages) { nodes { $CHAT_MESSAGE_FIELDS } } }")
+        }
         if (shape.has("Venue", "events")) append(" events { upcoming(first: 20) { nodes { ${eventFields(shape)} } } }")
     }
     return """
-        query VenueDetail(${'$'}id: ID!) {
+        query VenueDetail(${'$'}id: ID!$recentMessages) {
           venues { venue(id: ${'$'}id) { $fields } }
         }
     """.trimIndent()
@@ -238,9 +242,13 @@ internal data class RemoveChatMessageResponse(val removeMyChatMessage: Payload? 
     @Serializable internal data class Payload(val deletedId: String? = null)
 }
 
-/** A venue's page, or null when it doesn't exist or belongs to another audience. */
-public suspend fun AudienceKitClient.venueDetail(id: String): VenueDetail? {
-    val venue = graphQL(EVENT_TYPES, VenueDetailResponse.serializer(), graphQLVariables("id" to id), "VenueDetail") {
+/**
+ * A venue's page with its [recentMessages] latest chat messages (the API gives at most 20), or null when it doesn't
+ * exist or belongs to another audience.
+ */
+public suspend fun AudienceKitClient.venueDetail(id: String, recentMessages: Int = 20): VenueDetail? {
+    val variables = graphQLVariables("id" to id, "recentMessages" to recentMessages)
+    val venue = graphQL(EVENT_TYPES, VenueDetailResponse.serializer(), variables, "VenueDetail") {
         Queries.venueDetail(it)
     }.venues?.venue ?: return null
     val json = AudienceKitClient.json

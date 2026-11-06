@@ -18,6 +18,10 @@ on:
       - ".github/workflows/php.yml"
   workflow_dispatch:
 
+permissions:
+  # Read-only by default; jobs that tag releases ask for contents: write themselves.
+  contents: read
+
 concurrency:
   # A newer push to a pull request replaces its run; runs on main always finish (they tag releases).
   group: ${{ github.workflow }}-${{ github.ref }}

@@ -94,6 +94,9 @@ public class AudienceKitClient(
 
     @Volatile private var resolvedAudienceId: String? = null
 
+    /** The fields each type has in an audience's schema, by "audience|endpoint|type" ([schemaFields]). */
+    private val schemaFieldCache = java.util.concurrent.ConcurrentHashMap<String, Set<String>>()
+
     /** Makes ending a refused session check-and-forget, so concurrent 401s end it once. */
     private val sessionLock = Any()
 
@@ -321,6 +324,7 @@ public class AudienceKitClient(
     public fun signOut() {
         runCatching { tokenStore.deleteToken() }
         resolvedAudienceId = null
+        schemaFieldCache.clear()
         sessionChannel.trySend(SessionEvent.SIGNED_OUT)
     }
 
@@ -422,6 +426,73 @@ public class AudienceKitClient(
         return result.getOrThrow()
     }
 
+    /**
+     * The fields each of [types] has in the audience's schema (GraphQL introspection, `__type(name:) { fields }`), by
+     * type name; a type the schema doesn't have is left out. The API leaves a module's fields out of an audience that
+     * hasn't installed it, and asking for one fails the whole operation, so the SDK builds its documents from what
+     * this returns. Cached until sign-out, so each type is asked about once.
+     */
+    public suspend fun schemaFields(
+        types: List<String>,
+        endpoint: GraphQLEndpoint = GraphQLEndpoint.CONSUMER,
+    ): Map<String, Set<String>> {
+        val prefix = "${audienceId()}|${endpoint.segment}|"
+        val missing = types.filter { schemaFieldCache[prefix + it] == null }.distinct().sorted()
+        if (missing.isNotEmpty()) {
+            val selections = missing.mapIndexed { index, name ->
+                "t$index: __type(name: \"$name\") { fields(includeDeprecated: true) { name } }"
+            }
+            val result = graphQL(
+                "query SchemaFields { ${selections.joinToString(" ")} }",
+                kotlinx.serialization.json.JsonObject.serializer(),
+                operationName = "SchemaFields",
+                endpoint = endpoint,
+            )
+            missing.forEachIndexed { index, name ->
+                val fields = (result["t$index"] as? kotlinx.serialization.json.JsonObject)?.get("fields")
+                    as? kotlinx.serialization.json.JsonArray
+                schemaFieldCache[prefix + name] = fields.orEmpty().mapNotNull {
+                    ((it as? kotlinx.serialization.json.JsonObject)?.get("name") as? kotlinx.serialization.json.JsonPrimitive)?.content
+                }.toSet()
+            }
+        }
+        return types.mapNotNull { type -> schemaFieldCache[prefix + type]?.takeIf { it.isNotEmpty() }?.let { type to it } }
+            .toMap()
+    }
+
+    /** [schemaFields]' answer when the client already has it for every one of [types]; null otherwise. */
+    private fun cachedSchemaFields(types: List<String>, endpoint: GraphQLEndpoint): Map<String, Set<String>>? {
+        val audienceId = configuration.audienceId ?: resolvedAudienceId
+            ?: runCatching { tokenStore.loadAudienceId() }.getOrNull() ?: return null
+        val prefix = "$audienceId|${endpoint.segment}|"
+        if (types.any { schemaFieldCache[prefix + it] == null }) return null
+        return types.mapNotNull { type -> schemaFieldCache[prefix + type]?.takeIf { it.isNotEmpty() }?.let { type to it } }
+            .toMap()
+    }
+
+    /**
+     * Runs the operation [document] builds, first for an audience with every module; when the API refuses a field
+     * (`undefinedField`), it asks the schema which fields [types] have and runs it again with only those. The answer
+     * is cached, so later operations go straight to the right document.
+     */
+    internal suspend fun <T> graphQL(
+        types: List<String>,
+        deserializer: KSerializer<T>,
+        variables: Map<String, JsonElement>? = null,
+        operationName: String,
+        document: (SchemaShape) -> String,
+    ): T {
+        cachedSchemaFields(types, GraphQLEndpoint.CONSUMER)?.let { known ->
+            return graphQL(document(SchemaShape(known)), deserializer, variables, operationName)
+        }
+        return try {
+            graphQL(document(SchemaShape.EVERYTHING), deserializer, variables, operationName)
+        } catch (error: AudienceKitException.GraphQL) {
+            if (!error.isUndefinedField) throw error
+            graphQL(document(SchemaShape(schemaFields(types))), deserializer, variables, operationName)
+        }
+    }
+
     /** [graphQL] for a `@Serializable` type, e.g. `client.graphQL<MyResponse>(query)`. */
     public suspend inline fun <reified T> graphQL(
         query: String,
@@ -435,17 +506,20 @@ public class AudienceKitClient(
     public suspend fun audience(): Audience =
         graphQL(Queries.audience, Audience.serializer(), operationName = "Audience")
 
-    /** The audience's venues. */
+    /** The audience's venues; without their Facebook Pages or Google place IDs in an audience without those modules. */
     public suspend fun venues(): List<Venue> =
-        graphQL(Queries.venues, VenuesResponse.serializer(), operationName = "Venues").venues?.list?.nodes.orEmpty()
+        graphQL(Queries.LISTING_TYPES, VenuesResponse.serializer(), operationName = "Venues", document = { Queries.venues(it) })
+            .venues?.list?.nodes.orEmpty()
 
     /** The people the audience follows. */
     public suspend fun people(): List<Person> =
-        graphQL(Queries.people, PeopleResponse.serializer(), operationName = "People").people?.list?.nodes.orEmpty()
+        graphQL(Queries.LISTING_TYPES, PeopleResponse.serializer(), operationName = "People", document = { Queries.people(it) })
+            .people?.list?.nodes.orEmpty()
 
-    /** The audience's locales. */
+    /** The audience's locales; without their Google place IDs for an audience without Listings or Google Places. */
     public suspend fun locales(): List<AudienceLocale> =
-        graphQL(Queries.locales, LocalesResponse.serializer(), operationName = "Locales").locales
+        graphQL(Queries.LISTING_TYPES, LocalesResponse.serializer(), operationName = "Locales", document = { Queries.locales(it) })
+            .locales
 
     /** The signed-in user, or `null` when the API has no current user. */
     public suspend fun me(): SelfUser? = graphQL(Queries.me, MeResponse.serializer(), operationName = "Me").me?.self
@@ -457,10 +531,11 @@ public class AudienceKitClient(
     /** The audience's locale nearest a position, or `null` when it has none. */
     public suspend fun closestLocale(near: Coordinates): AudienceLocale? =
         graphQL(
-            Queries.closestLocale,
+            Queries.LISTING_TYPES,
             ClosestLocaleResponse.serializer(),
             mapOf("near" to near.toGraphQLValue()),
             "ClosestLocale",
+            { Queries.closestLocale(it) },
         ).closestLocale
 
     /**

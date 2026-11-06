@@ -3,6 +3,28 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.40.0 (2026-11-06)
+
+Apps no longer write their own GraphQL for what every AudienceKit app shows (Rick, 2026-11-06: "apps should be easily
+built with little custom code"). Hack Different's hand-written event queries decoded a venue's point as numbers rather
+than WKT and showed no events; these come from the SDK now, on Swift and Android. Additive.
+
+- Queries follow the audience's modules. The API leaves a module's fields out of an audience that hasn't installed it
+  (Facebook Pages, Google Places, Listings, RSVP, People, Ticketing, Friends), and asking for one failed the whole
+  query, so `venues()`, `locales()`, `people()` and `closestLocale()` came back as errors for Hack Different. When the
+  API refuses a field (`undefinedField`), the SDK asks the schema which fields the types it reads have
+  (`schemaFields(of:)`, introspection, cached for the session) and runs the query again with only those; later
+  queries go straight to the right document. An audience with every module still makes one call.
+- Events: `events(window:localeID:venueID:first:)`, `event(id:)` and `eventSeries(localeID:venueID:first:)`, with
+  `Event` (its venue with a decoded location, RSVP, hosts and lineup, ticket URL; nil without the module),
+  `EventSeries`, `EventVenue`, `EventPerson` and `EventWindow`. Android: `EventRSVPSummary` and `Connection<T>`.
+- Venue pages: `venueDetail(id:)` returns `VenueDetail` (description, address, phone, website, social links, whether
+  chat is open and its recent messages, upcoming events).
+- Chat: `ChatMessage`, `ChatRoom` (`.venue`/`.locale`), `sendChatMessage(_:in:promptID:)`, `removeChatMessage(id:)`,
+  and the room's subscription: `AudienceCable.chat(_:watch:audienceID:)` (Swift) and `CableConnection.chat(…)`
+  (Android) stream `ChatRoomEvent`s (joined with roster, history and pin; posted, updated, removed, pin changed,
+  cleared, presence, range, left).
+
 ## 0.39.0 (2026-11-04)
 
 Update prompts compare build numbers only within the branch that made them (Rick, 2026-11-04): main and next builds

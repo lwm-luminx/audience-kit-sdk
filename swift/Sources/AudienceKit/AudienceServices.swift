@@ -7,19 +7,22 @@ extension AudienceSession {
         try await graphQL(Queries.audience, operationName: "Audience", as: Audience.self)
     }
 
-    /// The audience's venues.
+    /// The audience's venues; without their Facebook Pages or Google place IDs in an audience without those modules.
     public func venues() async throws -> [Venue] {
-        try await graphQL(Queries.venues, operationName: "Venues", as: VenuesResponse.self).list
+        try await graphQL(types: Queries.listingTypes, operationName: "Venues", as: VenuesResponse.self,
+                          document: Queries.venues).list
     }
 
     /// The people the audience follows.
     public func people() async throws -> [Person] {
-        try await graphQL(Queries.people, operationName: "People", as: PeopleResponse.self).list
+        try await graphQL(types: Queries.listingTypes, operationName: "People", as: PeopleResponse.self,
+                          document: Queries.people).list
     }
 
-    /// The audience's locales.
+    /// The audience's locales; without their Google place IDs for an audience without Listings or Google Places.
     public func locales() async throws -> [AudienceLocale] {
-        try await graphQL(Queries.locales, operationName: "Locales", as: LocalesResponse.self).locales ?? []
+        try await graphQL(types: Queries.listingTypes, operationName: "Locales", as: LocalesResponse.self,
+                          document: Queries.locales).locales ?? []
     }
 
     /// The signed-in user's own profile (`me { self }`), or `nil` when the API has no current user.
@@ -36,9 +39,10 @@ extension AudienceSession {
     /// The audience's locale nearest a position, or `nil` when it has none. `beaconMajor` is the iBeacon the device
     /// is near, if any (its major value names a locale).
     public func closestLocale(near position: Coordinate, beaconMajor: Int? = nil) async throws -> AudienceLocale? {
-        try await graphQL(Queries.closestLocale,
+        try await graphQL(types: Queries.listingTypes,
                           variables: ["near": position.coordinatesInput(beaconMajor: beaconMajor)],
-                          operationName: "ClosestLocale", as: ClosestLocaleResponse.self).closestLocale
+                          operationName: "ClosestLocale", as: ClosestLocaleResponse.self,
+                          document: Queries.closestLocale).closestLocale
     }
 
     /// Sets the signed-in user's RSVP to an event in AudienceKit (it isn't sent to Facebook).

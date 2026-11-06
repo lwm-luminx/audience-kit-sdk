@@ -10,6 +10,29 @@ public object Queries {
     public const val PAGE_FIELDS: String = "id name photoUrl bannerUrl"
     public const val LOCALE_FIELDS: String = "id name label cityNames bannerUrl profile { places { placeId } }"
     public const val TAG_FIELDS: String = "id name color"
+
+    // Fragments with module fields take the audience's [SchemaShape]: the API leaves a module's fields out of an
+    // audience that hasn't installed it, and asking for one fails the whole operation.
+
+    /** The types whose fields the listing documents depend on. */
+    public val LISTING_TYPES: List<String> = listOf("Locale", "ListingProfile", "Venue", "Location", "Person", "Event")
+
+    /** A locale, with its Google place ID (Listings and Google Places). */
+    public fun localeFields(shape: SchemaShape): String =
+        "id name label cityNames bannerUrl" +
+            if (shape.has("Locale", "profile") && shape.has("ListingProfile", "places")) " profile { places { placeId } }" else ""
+
+    /** A venue in a list: its Facebook Page (Listings and Facebook) and its location's Google place ID. */
+    public fun venueFields(shape: SchemaShape): String {
+        val page = if (shape.has("Venue", "profile") && shape.has("ListingProfile", "facebook")) {
+            "profile { facebook { page { $PAGE_FIELDS } } }"
+        } else {
+            ""
+        }
+        val place = if (shape.has("Location", "places")) " places { placeId }" else ""
+        return "id name hidden order photoUrl bannerUrl $page locale { ${localeFields(shape)} } " +
+            "location { id point address$place } tags { $TAG_FIELDS }"
+    }
     public const val MONEY_FIELDS: String = "cents currency"
     public const val PROFILE_FIELDS: String = "id name avatarUrl"
     public const val COVER_CHARGE_FIELDS: String =
@@ -28,33 +51,37 @@ public object Queries {
         }
     """.trimIndent()
 
-    public val venues: String = """
+    public val venues: String get() = venues(SchemaShape.EVERYTHING)
+
+    /** [venues] with only the module fields [shape] has. */
+    public fun venues(shape: SchemaShape): String = """
         query Venues {
-          venues {
-            list {
-              nodes {
-                id name hidden order photoUrl bannerUrl
-                profile { facebook { page { $PAGE_FIELDS } } }
-                locale { $LOCALE_FIELDS }
-                location { id point address places { placeId } }
-                tags { $TAG_FIELDS }
+          venues { list { nodes { ${venueFields(shape)} } } }
+        }
+    """.trimIndent()
+
+    public val people: String get() = people(SchemaShape.EVERYTHING)
+
+    public fun people(shape: SchemaShape): String {
+        val page = if (shape.has("Person", "profile") && shape.has("ListingProfile", "facebook")) {
+            "profile { facebook { page { $PAGE_FIELDS } } }"
+        } else {
+            ""
+        }
+        return """
+            query People {
+              people {
+                list { nodes { id name order global likeRequired $page tags { $TAG_FIELDS } } }
               }
             }
-          }
-        }
-    """.trimIndent()
+        """.trimIndent()
+    }
 
-    public val people: String = """
-        query People {
-          people {
-            list { nodes { id name order global likeRequired profile { facebook { page { $PAGE_FIELDS } } } tags { $TAG_FIELDS } } }
-          }
-        }
-    """.trimIndent()
+    public val locales: String get() = locales(SchemaShape.EVERYTHING)
 
-    public val locales: String = """
+    public fun locales(shape: SchemaShape): String = """
         query Locales {
-          locales { $LOCALE_FIELDS }
+          locales { ${localeFields(shape)} }
         }
     """.trimIndent()
 
@@ -64,9 +91,11 @@ public object Queries {
         }
     """.trimIndent()
 
-    public val closestLocale: String = """
+    public val closestLocale: String get() = closestLocale(SchemaShape.EVERYTHING)
+
+    public fun closestLocale(shape: SchemaShape): String = """
         query ClosestLocale(${'$'}near: CoordinatesInput!) {
-          closestLocale(near: ${'$'}near) { $LOCALE_FIELDS }
+          closestLocale(near: ${'$'}near) { ${localeFields(shape)} }
         }
     """.trimIndent()
 

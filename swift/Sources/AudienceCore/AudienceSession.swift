@@ -75,6 +75,8 @@ public actor AudienceSession {
     private nonisolated let credentialStore: any CredentialStore
     private let session: URLSession
     private var resolvedAudienceID: String?
+    /// The fields each type has in an audience's schema, by audience ID, endpoint and type (``schemaFields(of:endpoint:)``).
+    private var schemaFieldCache: [String: Set<String>] = [:]
     /// The app's monitoring, told about every GraphQL operation (``GraphQLMonitor``).
     public nonisolated let monitor: (any GraphQLMonitor)?
 
@@ -224,6 +226,7 @@ public actor AudienceSession {
             throw AudienceKitError.storage(String(describing: error))
         }
         resolvedAudienceID = nil
+        schemaFieldCache = [:]
         events.yield(.signedIn)
     }
 
@@ -235,6 +238,7 @@ public actor AudienceSession {
         let credential = try? credentialStore.load()
         try? credentialStore.delete()
         resolvedAudienceID = nil
+        schemaFieldCache = [:]
         events.yield(.signedOut)
 
         guard let credential else { return }
@@ -348,6 +352,46 @@ public actor AudienceSession {
                                               transport: .http, endpoint: endpoint,
                                               duration: ContinuousClock.now - started,
                                               error: error.map { String(describing: $0) }))
+    }
+
+    // MARK: - Schema
+
+    /// The fields each of `types` has in the audience's schema (GraphQL introspection, `__type(name:) { fields }`),
+    /// by type name; a type the schema doesn't have is left out. The API leaves a module's fields out of an audience
+    /// that hasn't installed it, and asking for one fails the whole operation, so the SDK builds its documents from
+    /// what this returns. Cached for the session (until sign-in or sign-out), so each type is asked about once.
+    public func schemaFields(of types: [String], endpoint: GraphQLEndpoint = .consumer) async throws
+        -> [String: Set<String>]
+    {
+        let prefix = "\(try await audienceID())|\(endpoint.rawValue)|"
+        let missing = Array(Set(types.filter { schemaFieldCache[prefix + $0] == nil })).sorted()
+        if !missing.isEmpty {
+            let selections = missing.enumerated().map { index, name in
+                "t\(index): __type(name: \"\(name)\") { fields(includeDeprecated: true) { name } }"
+            }
+            let result = try await graphQL("query SchemaFields { \(selections.joined(separator: " ")) }",
+                                           operationName: "SchemaFields", endpoint: endpoint,
+                                           as: [String: SchemaTypeFields?].self)
+            for (index, name) in missing.enumerated() {
+                schemaFieldCache[prefix + name] = Set((result["t\(index)"] ?? nil)?.fields?.map(\.name) ?? [])
+            }
+        }
+        return Dictionary(uniqueKeysWithValues: types.compactMap { type in
+            schemaFieldCache[prefix + type].flatMap { $0.isEmpty ? nil : (type, $0) }
+        })
+    }
+
+    /// ``schemaFields(of:endpoint:)``'s answer when the session already has it for every one of `types`, without
+    /// asking the API; nil otherwise.
+    public func cachedSchemaFields(of types: [String], endpoint: GraphQLEndpoint = .consumer) async
+        -> [String: Set<String>]?
+    {
+        guard let audienceID = try? await audienceID() else { return nil }
+        let prefix = "\(audienceID)|\(endpoint.rawValue)|"
+        guard types.allSatisfy({ schemaFieldCache[prefix + $0] != nil }) else { return nil }
+        return Dictionary(uniqueKeysWithValues: types.compactMap { type in
+            schemaFieldCache[prefix + type].flatMap { $0.isEmpty ? nil : (type, $0) }
+        })
     }
 
     // MARK: - Realtime
@@ -724,4 +768,10 @@ private final class TaskBox: @unchecked Sendable {
         }
         task?.cancel()
     }
+}
+
+/// One type's fields, as `__type(name:) { fields { name } }` answers (``AudienceSession/schemaFields(of:endpoint:)``).
+struct SchemaTypeFields: Decodable, Sendable {
+    struct Field: Decodable, Sendable { var name: String }
+    var fields: [Field]?
 }

@@ -99,4 +99,5 @@ on PyPI for `lwm-luminx/audience-kit-sdk`, workflow `python-release.yml`). Or by
 
 ## License
 
-See [LICENSE](../LICENSE) at the root of the repository, which this package is distributed under.
+The [AudienceKit SDK License](../LICENSE) at the root of the repository: use it freely, with the AudienceKit service
+Love Wins Media operates only.

@@ -171,7 +171,7 @@ public struct VenueDetail: Sendable, Hashable {
     /// Whether its chat room is open, and its latest messages (Chat).
     public let chatOpen: Bool?
     public let recentMessages: [ChatMessage]?
-    /// Its upcoming events, soonest first (Events).
+    /// Its next five events, soonest first (Events).
     public let upcomingEvents: [Event]?
 }
 
@@ -205,7 +205,8 @@ extension Queries {
             fields += " chat { open recentMessages(limit: $recentMessages) { nodes { \(chatMessageFields) } } }"
         }
         if shape.has("Venue", "events") {
-            fields += " events { upcoming(first: 20) { nodes { \(eventFields(shape)) } } }"
+            // Each event costs about 75 of the API's 1000 complexity budget, so the page shows the next few.
+            fields += " events { upcoming(first: 5) { nodes { \(eventFields(shape)) } } }"
         }
         return """
         query VenueDetail($id: ID!\(shape.has("Venue", "chat") ? ", $recentMessages: Int" : "")) {

@@ -26,6 +26,16 @@ up from 81.7% and 82.3%, and CI now fails under 85% on either (`scripts/swift-co
 - The promo view recorder reports one promo seen in two layouts in each of them (the second overwrote the first).
 - Android: `venueDetail` reports a venue that doesn't decode as `AudienceKitException.Decoding`, like every other call.
 
+## 0.41.1 (2026-11-06)
+
+Hack Different's events came back empty: `events()` and `eventSeries()` asked for `first: 100`, and the API costs a
+page as `first` times an event (about 75 with every module), far over its 1000 complexity budget, so the query was
+refused. Fixed.
+
+- `events(window:localeID:venueID:first:)` and `eventSeries(localeID:venueID:first:)` take `first` as optional and
+  leave it out by default, so the API returns every upcoming event at the cost of one.
+- `venueDetail` shows the venue's next five events (was twenty, also over budget with the chat history).
+
 ## 0.41.0 (2026-11-06)
 
 What Hack Different still queried itself after moving to 0.40, so the app can drop its last ticketing queries.

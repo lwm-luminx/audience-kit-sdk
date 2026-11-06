@@ -124,7 +124,8 @@ jobs:
       - name: GraphQL documents match the API schema
         run: |
           php bin/graphql-documents build/graphql
-          npm install --silent --no-save --no-package-lock graphql@16
+          # The checker imports graphql from where it lives, so the package goes at the repository root.
+          (cd .. && npm install --silent --no-save --no-package-lock graphql@16)
           node ../scripts/graphql/check.mjs --schema ../graphql/schema.graphql --endpoint consumer build/graphql
       - name: Tag the release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.php == '8.3'

@@ -80,7 +80,7 @@ cd php
 composer install
 composer test                 # PHPUnit
 composer coverage             # with the 85% line-coverage floor CI enforces (needs Xdebug or PCOV)
-composer graphql-documents    # writes every document to build/graphql for the schema check:
+composer graphql-documents    # writes every document to build/graphql for the schema check (graphql@16 installed at the repo root):
 node ../scripts/graphql/check.mjs --schema ../graphql/schema.graphql --endpoint consumer build/graphql
 ```
 

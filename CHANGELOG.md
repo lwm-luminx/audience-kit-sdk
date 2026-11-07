@@ -9,6 +9,17 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   is as broad, with one condition: the SDK and works derived from it may only be used with the AudienceKit service
   Love Wins Media operates. Releases through 0.42.0 stay MIT. The Ruby gem (`ruby/`) carries the same license.
 
+## 0.45.0 (2026-11-07)
+
+Report and block in the SDK (Rick, 2026-11-07, for Hack Different's Google Play and App Store review: Play's
+user-generated content policy and App Store guideline 1.2), so apps stop hand-writing them as Hot Mess did.
+
+- `reportContent` (Swift `reportContent(_:id:reason:block:)`, Kotlin `reportContent(targetType, targetId, reason,
+  block)`) with `ReportTarget` and `ReportResult`: files a report with the audience's admins, and can block the person
+  behind it in the same call.
+- `blockUser` / `unblockUser` for a member's user id.
+- `ReportCopy` (Swift and Kotlin): the same report and block wording, and report reasons, on both platforms.
+
 ## 0.44.0 (2026-11-07)
 
 Delete account in the SDK (Rick, 2026-11-07, for Hack Different's App Store review: guideline 5.1.1(v) and Google

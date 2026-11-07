@@ -75,12 +75,22 @@ publish() {
 if [[ "$all" == yes ]]; then
     git fetch --quiet origin main
     seen=" "
+    missed=""
     for commit in $(git log --first-parent --reverse --format=%H origin/main -- VERSION); do
         version="$(git show "$commit:VERSION" | tr -d '[:space:]')"
         case "$seen" in *" $version "*) continue ;; esac
         seen="$seen$version "
-        publish "$version" "$commit"
+        # An earlier version is best effort: GitHub refuses the Actions token a tag on a commit whose workflow files
+        # differ from the default branch's ("without `workflows` permission"), as at 0.41.1-0.43.0, which still had
+        # ci.yml. Those wait for someone to push them by hand; they mustn't keep HEAD's version from being tagged.
+        publish "$version" "$commit" || missed="$missed $version:$(git rev-parse --short "$commit")"
     done
+    if [[ -n "$missed" ]]; then
+        echo "::warning::Couldn't tag these earlier versions with this token; push them with your own credentials:"
+        for entry in $missed; do
+            echo "  git push origin ${entry#*:}:refs/tags/${entry%%:*}"
+        done
+    fi
 fi
 
 publish "$(tr -d '[:space:]' < VERSION)" HEAD

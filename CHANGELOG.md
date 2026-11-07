@@ -18,7 +18,7 @@ user-generated content policy and App Store guideline 1.2), so apps stop hand-wr
   block)`) with `ReportTarget` and `ReportResult`: files a report with the audience's admins, and can block the person
   behind it in the same call.
 - `blockUser` / `unblockUser` for a member's user id.
-- `ReportCopy` (Swift and Kotlin): the same report and block wording, and report reasons, on both platforms.
+- `ReportCopy` (Swift and Kotlin): the same report and block wording, and report reasons (including "Child safety", for Play's child safety standards), on both platforms.
 
 ## 0.44.0 (2026-11-07)
 

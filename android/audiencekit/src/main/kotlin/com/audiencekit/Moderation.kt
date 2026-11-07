@@ -76,7 +76,7 @@ public object ReportCopy {
     public const val BLOCK_DETAIL: String = "You'll stop seeing each other's messages. You can unblock them later."
     public const val REPORTED: String = "Thanks. The admins will look at it."
     public const val BLOCKED: String = "Blocked."
-    public val REASONS: List<String> = listOf("Spam", "Harassment or hate", "Sexual content", "Scam or fraud", "Other")
+    public val REASONS: List<String> = listOf("Spam", "Harassment or hate", "Sexual content", "Child safety", "Scam or fraud", "Other")
 }
 
 @Serializable

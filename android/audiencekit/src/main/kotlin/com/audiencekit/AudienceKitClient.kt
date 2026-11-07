@@ -328,6 +328,23 @@ public class AudienceKitClient(
         sessionChannel.trySend(SessionEvent.SIGNED_OUT)
     }
 
+    /**
+     * Deletes the signed-in person's account for good (Google Play's account deletion rule, App Store 5.1.1(v)):
+     * `deleteAccount(input: { confirm: true })`. The API erases their data and signs them out everywhere, so this
+     * forgets the session on this device too and sends [SessionEvent.SIGNED_OUT]. It can't be undone: ask first, with
+     * [DeleteAccountCopy]. Returns whether the account is gone; when it isn't, or the call fails, they stay signed in.
+     */
+    public suspend fun deleteAccount(): Boolean {
+        val deleted = graphQL(
+            "mutation DeleteAccount(\$confirm: Boolean!) { deleteAccount(input: { confirm: \$confirm }) { deleted } }",
+            DeleteAccountResponse.serializer(),
+            graphQLVariables("confirm" to true),
+            "DeleteAccount",
+        ).deleteAccount?.deleted == true
+        if (deleted) signOut()
+        return deleted
+    }
+
     // endregion
 
     // region Branding
@@ -865,3 +882,17 @@ internal data class GraphQLResponse<T>(
     val data: T? = null,
     val errors: List<GraphQLError>? = null,
 )
+
+@Serializable
+private data class DeleteAccountResponse(val deleteAccount: Payload? = null) {
+    @Serializable
+    data class Payload(val deleted: Boolean = false)
+}
+
+/** The words around account deletion, the same as the Swift SDK's, so both apps say the same thing. */
+public object DeleteAccountCopy {
+    public const val TITLE: String = "Delete your account?"
+    public const val WARNING: String = "This deletes your profile, messages, RSVPs and passes, and signs you out on " +
+        "every device. It can't be undone."
+    public const val NOT_DELETED: String = "Your account is still here. Try again, or email hello@audiencekit.com."
+}

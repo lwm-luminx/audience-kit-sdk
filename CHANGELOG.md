@@ -9,6 +9,16 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   is as broad, with one condition: the SDK and works derived from it may only be used with the AudienceKit service
   Love Wins Media operates. Releases through 0.42.0 stay MIT. The Ruby gem (`ruby/`) carries the same license.
 
+## 0.44.0 (2026-11-07)
+
+Delete account in the SDK (Rick, 2026-11-07, for Hack Different's App Store review: guideline 5.1.1(v) and Google
+Play's account deletion rule), so apps stop hand-writing it as Hot Mess did.
+
+- `deleteAccount()` on the client (Swift and Kotlin): `deleteAccount(input: { confirm: true })`. When the API says the
+  account is gone, the session is forgotten on this device and `signedOut` is sent; otherwise they stay signed in.
+- SwiftUI: `DeleteAccountButton(client:appName:onDeleted:)` asks first, shows progress and errors.
+- `DeleteAccountCopy` (Swift and Kotlin): the same confirmation and failure wording on both platforms.
+
 ## 0.43.0 (2026-11-06)
 
 Calendar sync in the SDK (Rick, 2026-11-06: "sync one venue to my calendar like 801labs" in Hack Different), so apps

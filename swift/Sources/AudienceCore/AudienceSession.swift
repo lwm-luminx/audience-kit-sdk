@@ -9,7 +9,7 @@ public enum SessionEvent: Sendable, Equatable {
     /// ``AudienceSession/signIn(facebookAccessToken:device:)`` (or another sign-in, ``AudienceSession/adopt(credential:)``
     /// or ``AudienceSession/switchAudience(to:)``) stored a new credential.
     case signedIn
-    /// ``AudienceSession/signOut()`` was called.
+    /// ``AudienceSession/signOut()`` was called, or ``AudienceSession/deleteAccount()`` deleted the account.
     case signedOut
     /// The API rejected the stored session (HTTP 401, or ``AudienceSession/sessionRejected(token:)`` for a socket or
     /// stream), e.g. after the person removed the app from Facebook or the token was issued for another endpoint. The
@@ -250,6 +250,29 @@ public actor AudienceSession {
         default:
             throw Self.error(forStatus: response.statusCode, data: data)
         }
+    }
+
+    /// Deletes the signed-in person's account for good (App Store guideline 5.1.1(v), Google Play's account deletion
+    /// rule): `deleteAccount(input: { confirm: true })`. The API erases their data and signs them out everywhere, so
+    /// this forgets the credential on this device too and yields ``SessionEvent/signedOut``. It can't be undone: ask
+    /// first (`AudienceKitUI`'s `DeleteAccountButton` does). Returns whether the account is gone; when the API says
+    /// it isn't, or the call fails, the person stays signed in. (The Facebook session belongs to the app.)
+    @discardableResult
+    public func deleteAccount() async throws -> Bool {
+        struct Response: Decodable, Sendable {
+            struct Payload: Decodable, Sendable { let deleted: Bool }
+            let deleteAccount: Payload?
+        }
+        let response = try await graphQL(
+            "mutation DeleteAccount($confirm: Boolean!) { deleteAccount(input: { confirm: $confirm }) { deleted } }",
+            variables: ["confirm": .bool(true)], operationName: "DeleteAccount", as: Response.self)
+        guard response.deleteAccount?.deleted == true else { return false }
+
+        try? credentialStore.delete()
+        resolvedAudienceID = nil
+        schemaFieldCache = [:]
+        events.yield(.signedOut)
+        return true
     }
 
     // MARK: - Branding

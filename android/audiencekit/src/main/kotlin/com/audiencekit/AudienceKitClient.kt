@@ -892,7 +892,8 @@ private data class DeleteAccountResponse(val deleteAccount: Payload? = null) {
 /** The words around account deletion, the same as the Swift SDK's, so both apps say the same thing. */
 public object DeleteAccountCopy {
     public const val TITLE: String = "Delete your account?"
-    public const val WARNING: String = "This deletes your profile, messages, RSVPs and passes, and signs you out on " +
-        "every device. It can't be undone."
+    public const val WARNING: String = "This deletes your account in every app built on AudienceKit, including " +
+        "Hot Mess and Hack Different, along with any staff or admin roles you have. Your profile, messages, RSVPs " +
+        "and passes go too, and you're signed out on every device. It can't be undone."
     public const val NOT_DELETED: String = "Your account is still here. Try again, or email hello@audiencekit.com."
 }

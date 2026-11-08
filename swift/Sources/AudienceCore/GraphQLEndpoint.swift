@@ -7,8 +7,8 @@ import Foundation
 public struct GraphQLEndpoint: RawRepresentable, Hashable, Sendable {
     /// The path segment, `graphql` for the consumer view.
     public let rawValue: String
-    /// Whether it's under `/v1/` itself, with no audience in its path: StaffKit's `/v1/selfql`, where Velvet and
-    /// Backstage work on a listing of one's own in no audience or any number of them. Calls to it need no audience.
+    /// Whether it's under `/v1/` itself, with no audience in its path: StaffKit's audience-less `/v1/staffql`, one
+    /// staff sign-in's audiences and the listings it manages, in no audience or any number of them. Calls to it need no audience.
     public let isAudienceless: Bool
 
     public init(rawValue: String) {

@@ -20,6 +20,11 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   `SEE LICENSE IN LICENSE` in the npm package (which now ships the file, as the Python release does), and a POM
   `<licenses>` entry on every Maven publication.
 
+## 0.46.2 (2026-11-08)
+
+- The audience-less endpoint's docs and tests name the API's `/v1/staffql`: selfQL (`/v1/selfql`) is gone (Rick,
+  2026-11-08). The pathed `/v1/audience/<id>/staffql` stays the same sign-in scoped to one audience. No code change.
+
 ## 0.46.1 (2026-11-08)
 
 - `DeleteAccountCopy` warning (Swift and Kotlin) now says deleting removes the account in this app only, with any
@@ -31,8 +36,8 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
 
 - `GraphQLEndpoint` can be audience-less (`GraphQLEndpoint(rawValue:audienceless:)` in Swift, `audienceless = true`
   in Kotlin): its path is `/v1/<segment>` and calls to it need no audience. StaffKit uses it for the API's
-  `/v1/selfql`, where Backstage and Velvet work on a listing of one's own in no audience or any number of them
-  (Rick, 2026-11-08). `path(audienceID:)` takes an optional ID.
+  audience-less `/v1/staffql`: one staff sign-in's audiences and the listings it manages, in no audience or any
+  number of them (Rick, 2026-11-08); `/v1/audience/<id>/staffql` stays the same sign-in scoped to one audience. `path(audienceID:)` takes an optional ID.
 
 ## 0.45.1 (2026-11-07)
 

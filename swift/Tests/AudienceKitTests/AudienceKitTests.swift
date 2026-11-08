@@ -416,12 +416,12 @@ private func makeClient(
         struct Me: Decodable, Sendable { let me: [String: String?] }
         let stub = Stub { _ in .json(status: 200, body: #"{"data":{"me":{"id":"u1"}}}"#) }
         let (client, _) = makeClient(stub)
-        let selfQL = GraphQLEndpoint(rawValue: "selfql", audienceless: true)
+        let audiencelessStaff = GraphQLEndpoint(rawValue: "staffql", audienceless: true)
 
-        _ = try await client.graphQL("{ me { id } }", endpoint: selfQL, as: Me.self)
+        _ = try await client.graphQL("{ me { id } }", endpoint: audiencelessStaff, as: Me.self)
 
-        #expect(stub.requests.map(\.path) == ["/v1/selfql"])
-        #expect(selfQL.path(audienceID: "a") == "/v1/selfql")
+        #expect(stub.requests.map(\.path) == ["/v1/staffql"])
+        #expect(audiencelessStaff.path(audienceID: "a") == "/v1/staffql")
         #expect(!GraphQLEndpoint.consumer.isAudienceless)
     }
 

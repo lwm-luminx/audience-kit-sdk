@@ -412,6 +412,19 @@ private func makeClient(
         #expect(GraphQLEndpoint.consumer.path(audienceID: "a") == "/v1/audience/a/graphql")
     }
 
+    @Test func sendsAnAudiencelessEndpointUnderV1WithoutAnAudience() async throws {
+        struct Me: Decodable, Sendable { let me: [String: String?] }
+        let stub = Stub { _ in .json(status: 200, body: #"{"data":{"me":{"id":"u1"}}}"#) }
+        let (client, _) = makeClient(stub)
+        let selfQL = GraphQLEndpoint(rawValue: "selfql", audienceless: true)
+
+        _ = try await client.graphQL("{ me { id } }", endpoint: selfQL, as: Me.self)
+
+        #expect(stub.requests.map(\.path) == ["/v1/selfql"])
+        #expect(selfQL.path(audienceID: "a") == "/v1/selfql")
+        #expect(!GraphQLEndpoint.consumer.isAudienceless)
+    }
+
     @Test func labelsEachOperationAndTellsTheMonitor() async throws {
         final class Recorder: GraphQLMonitor, @unchecked Sendable {
             private let lock = NSLock()

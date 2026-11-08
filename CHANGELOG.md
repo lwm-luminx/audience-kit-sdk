@@ -15,6 +15,11 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   `SEE LICENSE IN LICENSE` in the npm package (which now ships the file, as the Python release does), and a POM
   `<licenses>` entry on every Maven publication.
 
+## 0.46.2 (2026-11-08)
+
+- The audience-less endpoint's docs and tests name the API's `/v1/staffql`: selfQL (`/v1/selfql`) is gone (Rick,
+  2026-11-08). The pathed `/v1/audience/<id>/staffql` stays the same sign-in scoped to one audience. No code change.
+
 ## 0.46.0 (2026-11-08)
 
 - `GraphQLEndpoint` can be audience-less (`GraphQLEndpoint(rawValue:audienceless:)` in Swift, `audienceless = true`

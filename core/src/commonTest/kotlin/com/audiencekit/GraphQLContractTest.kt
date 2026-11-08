@@ -92,4 +92,11 @@ class GraphQLContractTest {
         assertEquals("/v1/audience/a-1/otherql", GraphQLEndpoint("otherql").path("a-1"))
         assertEquals(GraphQLEndpoint.CONSUMER, GraphQLEndpoint("graphql"))
     }
+
+    @Test
+    fun routesAnAudiencelessEndpointUnderV1() {
+        val selfQL = GraphQLEndpoint("selfql", audienceless = true)
+        assertEquals("/v1/selfql", selfQL.path("a-1"))
+        assertEquals("/v1/selfql", selfQL.path(null))
+    }
 }

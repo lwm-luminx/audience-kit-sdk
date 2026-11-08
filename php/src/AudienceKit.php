@@ -13,7 +13,7 @@ namespace AudienceKit;
 final class AudienceKit
 {
     /** The PHP SDK's semantic version. It is versioned on its own, apart from the Swift and Kotlin SDKs' VERSION. */
-    public const VERSION = '0.1.0';
+    public const VERSION = '0.1.1';
 
     /**
      * The API contract this SDK speaks, the date it was last broken: sent as X-AudienceKit-API-Version on every

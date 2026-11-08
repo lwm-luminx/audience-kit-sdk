@@ -349,7 +349,7 @@ public actor AudienceSession {
         operation: (type: String, name: String?), endpoint: GraphQLEndpoint, decoder: JSONDecoder
     ) async throws -> Response {
         let credential = try? credentialStore.load()
-        let audienceID = try await audienceID()
+        let audienceID = endpoint.isAudienceless ? nil : try await audienceID()
         let body = try JSONEncoder().encode(
             GraphQLRequest(query: query, variables: variables, operationName: operationName)
         )
@@ -386,7 +386,7 @@ public actor AudienceSession {
     public func schemaFields(of types: [String], endpoint: GraphQLEndpoint = .consumer) async throws
         -> [String: Set<String>]
     {
-        let prefix = "\(try await audienceID())|\(endpoint.rawValue)|"
+        let prefix = "\(endpoint.isAudienceless ? "-" : try await audienceID())|\(endpoint.rawValue)|"
         let missing = Array(Set(types.filter { schemaFieldCache[prefix + $0] == nil })).sorted()
         if !missing.isEmpty {
             let selections = missing.enumerated().map { index, name in
@@ -409,8 +409,9 @@ public actor AudienceSession {
     public func cachedSchemaFields(of types: [String], endpoint: GraphQLEndpoint = .consumer) async
         -> [String: Set<String>]?
     {
-        guard let audienceID = try? await audienceID() else { return nil }
-        let prefix = "\(audienceID)|\(endpoint.rawValue)|"
+        let scope = endpoint.isAudienceless ? "-" : try? await audienceID()
+        guard let scope else { return nil }
+        let prefix = "\(scope)|\(endpoint.rawValue)|"
         guard types.allSatisfy({ schemaFieldCache[prefix + $0] != nil }) else { return nil }
         return Dictionary(uniqueKeysWithValues: types.compactMap { type in
             schemaFieldCache[prefix + type].flatMap { $0.isEmpty ? nil : (type, $0) }

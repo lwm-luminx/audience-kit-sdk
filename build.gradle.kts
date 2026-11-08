@@ -48,3 +48,24 @@ allprojects {
     group = "com.audiencekit"
     version = sdkVersion
 }
+
+// Every Maven publication names the AudienceKit SDK License in its POM: source-available, for use only with
+// AudienceKit as hosted by Love Wins Media, Inc. (LICENSE beside this file).
+subprojects {
+    plugins.withId("maven-publish") {
+        extensions.configure<PublishingExtension> {
+            publications.withType<MavenPublication>().configureEach {
+                pom {
+                    licenses {
+                        license {
+                            name.set("AudienceKit SDK License 1.1 (LicenseRef-AudienceKit-SDK-1.1)")
+                            url.set("https://github.com/lwm-luminx/audience-kit-sdk/blob/main/LICENSE")
+                            distribution.set("repo")
+                            comments.set("Source-available, not open source: use only with AudienceKit as hosted by Love Wins Media, Inc.")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

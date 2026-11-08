@@ -66,3 +66,5 @@ unchanged need no fork or notice.
 Copies released under the MIT License stay MIT for those copies: the Swift package tags through 0.41.0, the source
 through 0.42.0, and the `audience-kit` Ruby gem 0.1.0 and 0.1.1. Releases 0.41.1 through 0.45.1 carry version 1.0
 of this license, and later releases up to this change carry version 1.1.
+
+**Copying is prohibited.** Copying this work beyond what [LICENSE](LICENSE) allows is copyright infringement, and willful copying can be a federal crime (17 U.S.C. §§ 501, 506). Removing, altering or faking copyright or attribution notices is unlawful under 17 U.S.C. § 1202, and a federal crime under § 1204 when done willfully for commercial advantage or private financial gain. Publishing an app built from it without a license also breaks [App Store Review Guideline 5.2.1](https://developer.apple.com/app-store/review/guidelines/#intellectual-property) (Intellectual Property) and [Google Play's Intellectual Property policy](https://support.google.com/googleplay/android-developer/answer/9888072). See [NOTICE.md](NOTICE.md) for the details.

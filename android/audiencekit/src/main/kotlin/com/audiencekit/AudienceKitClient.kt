@@ -403,7 +403,7 @@ public class AudienceKitClient(
         json: Json = decodeJson,
         endpoint: GraphQLEndpoint = GraphQLEndpoint.CONSUMER,
     ): T {
-        val audienceId = audienceId()
+        val audienceId = if (endpoint.audienceless) null else audienceId()
         val body = encodeJson.encodeToString(
             GraphQLRequest.serializer(),
             GraphQLRequest(query = query, variables = variables, operationName = operationName),
@@ -453,7 +453,7 @@ public class AudienceKitClient(
         types: List<String>,
         endpoint: GraphQLEndpoint = GraphQLEndpoint.CONSUMER,
     ): Map<String, Set<String>> {
-        val prefix = "${audienceId()}|${endpoint.segment}|"
+        val prefix = "${if (endpoint.audienceless) "-" else audienceId()}|${endpoint.segment}|"
         val missing = types.filter { schemaFieldCache[prefix + it] == null }.distinct().sorted()
         if (missing.isNotEmpty()) {
             val selections = missing.mapIndexed { index, name ->
@@ -479,7 +479,7 @@ public class AudienceKitClient(
 
     /** [schemaFields]' answer when the client already has it for every one of [types]; null otherwise. */
     private fun cachedSchemaFields(types: List<String>, endpoint: GraphQLEndpoint): Map<String, Set<String>>? {
-        val audienceId = configuration.audienceId ?: resolvedAudienceId
+        val audienceId = if (endpoint.audienceless) "-" else configuration.audienceId ?: resolvedAudienceId
             ?: runCatching { tokenStore.loadAudienceId() }.getOrNull() ?: return null
         val prefix = "$audienceId|${endpoint.segment}|"
         if (types.any { schemaFieldCache[prefix + it] == null }) return null

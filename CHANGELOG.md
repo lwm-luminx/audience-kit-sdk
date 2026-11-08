@@ -5,11 +5,14 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
 
 ## Unreleased
 
-- `DeleteAccountCopy` warning (Swift and Kotlin) now says deleting removes the account in every AudienceKit app,
-  including Hot Mess and Hack Different, and any staff or admin roles, since accounts are shared across apps.
 - License: the SDK moves from the MIT License to the [AudienceKit SDK License](LICENSE) (Rick, 2026-11-06). The grant
   is as broad, with one condition: the SDK and works derived from it may only be used with the AudienceKit service
   Love Wins Media operates. Releases through 0.42.0 stay MIT. The Ruby gem (`ruby/`) carries the same license.
+
+## 0.45.1 (2026-11-07)
+
+- `DeleteAccountCopy` warning (Swift and Kotlin) now says deleting removes the account in every AudienceKit app,
+  including Hot Mess and Hack Different, and any staff or admin roles, since accounts are shared across apps.
 
 ## 0.45.0 (2026-11-07)
 

@@ -7,13 +7,14 @@ name = "audiencekit"
 dynamic = ["version"]
 description = "AudienceKit SDK for Python: an audience's venues, people, locales and events over its GraphQL API"
 readme = "README.md"
-license = { text = "LicenseRef-AudienceKit-SDK-1.0; see LICENSE at the root of the audience-kit-sdk repository" }
+license = { text = "LicenseRef-AudienceKit-SDK-1.1: source-available, for use only with AudienceKit as hosted by Love Wins Media, Inc.; see LICENSE" }
 authors = [{ name = "Love Wins Media, Inc." }]
 requires-python = ">=3.10"
 keywords = ["audiencekit", "graphql", "nightlife", "events"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
+  "License :: Other/Proprietary License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",

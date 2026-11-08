@@ -52,3 +52,10 @@ and UI remain in their existing SDKs. Next steps are a Swift adapter with parity
 tests, XCFramework packaging, and then selecting another shared API slice.
 Publishing the JVM SDK now also requires publishing `audiencekit-core` and its
 JVM variant; Gradle's multiplatform publishing tasks create those publications.
+
+## License
+
+Source-available under the [AudienceKit SDK License](../LICENSE) 1.1 (`LicenseRef-AudienceKit-SDK-1.1`), © Love Wins
+Media, Inc.: use it only in apps that connect to AudienceKit as hosted by Love Wins Media. Every other use is
+prohibited without Love Wins Media's written permission and an audience ID or token issued for that use. See the
+[root README](../README.md#license) for details.

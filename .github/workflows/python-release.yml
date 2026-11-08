@@ -30,6 +30,8 @@ jobs:
           [[ "${GITHUB_REF_NAME#python-}" == "$version" ]] || { echo "Tag $GITHUB_REF_NAME, but the package is $version." >&2; exit 1; }
       - run: pip install -e ".[dev]" build
       - run: pytest --cov
+      - name: Ship the repository LICENSE in the sdist and wheel
+        run: cp ../LICENSE LICENSE
       - run: python -m build
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:

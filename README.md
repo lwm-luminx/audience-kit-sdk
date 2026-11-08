@@ -1,6 +1,6 @@
 # AudienceKit SDK
 
-Open-source client SDKs for the [AudienceKit](https://audiencekit.com) API, for an audience's own apps (like
+Source-available client SDKs for the [AudienceKit](https://audiencekit.com) API, for an audience's own apps (like
 [Hot Mess](https://hotmess.social)): sign people in, then read the audience's venues, people, locales, events,
 lineups and chat. One repository and one version for every platform.
 
@@ -47,8 +47,15 @@ documents against the schema), keeps the repository's 85% line-coverage floor, a
 
 ## License
 
-[AudienceKit SDK License](LICENSE), © Love Wins Media, Inc. You may use, change and redistribute the SDK and build
-it into your apps, on one condition: the SDK and anything derived from it may only be used with the AudienceKit
-service that Love Wins Media operates (audiencekit.com, the audiences' own domains, and the development instances it
-provides). Using it with another implementation of the API, self-hosted or otherwise, isn't allowed. Versions released
-under the MIT License before this license was adopted (through 0.42.0) stay MIT.
+Source-available, not open source. The SDK is published under the [AudienceKit SDK License](LICENSE) 1.1,
+© Love Wins Media, Inc. You may read, use, change and redistribute it, and build it into your apps, **only** in
+applications that connect to AudienceKit as hosted by Love Wins Media (audiencekit.com, the audiences' own domains,
+and the development instances it provides). Every other use is prohibited, including using the SDK, or anything
+derived from it, with another implementation of the API, self-hosted or otherwise. Any other use needs Love Wins
+Media, Inc.'s express permission in a written agreement signed by an officer, and an audience ID or token Love Wins
+Media issues for that use, kept configured so the use can be checked for compliance. Because of that restriction the
+license is not OSI-approved; package registries list it as `LicenseRef-AudienceKit-SDK-1.1`.
+
+Copies released under the MIT License stay MIT for those copies: the Swift package tags through 0.41.0, the source
+through 0.42.0, and the `audience-kit` Ruby gem 0.1.0 and 0.1.1. Releases 0.41.1 through 0.45.1 carry version 1.0
+of this license.

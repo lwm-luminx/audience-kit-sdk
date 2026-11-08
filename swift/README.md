@@ -417,4 +417,7 @@ Tests stub HTTP with a `URLProtocol`, so they run offline.
 
 ## License
 
-[AudienceKit SDK License](../LICENSE): use it freely, with the AudienceKit service Love Wins Media operates only.
+Source-available under the [AudienceKit SDK License](../LICENSE) 1.1 (`LicenseRef-AudienceKit-SDK-1.1`), © Love Wins
+Media, Inc.: use it only in apps that connect to AudienceKit as hosted by Love Wins Media. Every other use is
+prohibited without Love Wins Media's written permission and an audience ID or token issued for that use. See the
+[root README](../README.md#license) for details.

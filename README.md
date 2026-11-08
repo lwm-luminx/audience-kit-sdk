@@ -47,15 +47,22 @@ documents against the schema), keeps the repository's 85% line-coverage floor, a
 
 ## License
 
-Source-available, not open source. The SDK is published under the [AudienceKit SDK License](LICENSE) 1.1,
+Source-available, not open source. The SDK is published under the [AudienceKit SDK License](LICENSE) 1.2,
 © Love Wins Media, Inc. You may read, use, change and redistribute it, and build it into your apps, **only** in
 applications that connect to AudienceKit as hosted by Love Wins Media (audiencekit.com, the audiences' own domains,
 and the development instances it provides). Every other use is prohibited, including using the SDK, or anything
 derived from it, with another implementation of the API, self-hosted or otherwise. Any other use needs Love Wins
 Media, Inc.'s express permission in a written agreement signed by an officer, and an audience ID or token Love Wins
 Media issues for that use, kept configured so the use can be checked for compliance. Because of that restriction the
-license is not OSI-approved; package registries list it as `LicenseRef-AudienceKit-SDK-1.1`.
+license is not OSI-approved; package registries list it as `LicenseRef-AudienceKit-SDK-1.2`.
+
+No other license of any kind is granted: no implied, patent (beyond the license's own patent grant) or trademark
+rights. Misrepresenting the SDK or Love Wins Media's work, by claiming authorship or origin, stripping notices,
+passing a changed version off as the original or implying endorsement, is expressly prohibited and a breach of the
+license. Changed versions may be made only in a GitHub fork of this repository, after written notice to Love Wins
+Media: open an issue titled "Derived work notice" here, naming yourself and the fork. Apps that only use the SDK
+unchanged need no fork or notice.
 
 Copies released under the MIT License stay MIT for those copies: the Swift package tags through 0.41.0, the source
 through 0.42.0, and the `audience-kit` Ruby gem 0.1.0 and 0.1.1. Releases 0.41.1 through 0.45.1 carry version 1.0
-of this license.
+of this license, and later releases up to this change carry version 1.1.

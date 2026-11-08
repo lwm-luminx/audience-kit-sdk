@@ -13,7 +13,7 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
 
 - `GraphQLEndpoint` can be audience-less (`GraphQLEndpoint(rawValue:audienceless:)` in Swift, `audienceless = true`
   in Kotlin): its path is `/v1/<segment>` and calls to it need no audience. StaffKit uses it for the API's
-  `/v1/staffql`, where Backstage and Velvet work on a listing of one's own in no audience or any number of them
+  `/v1/selfql`, where Backstage and Velvet work on a listing of one's own in no audience or any number of them
   (Rick, 2026-11-08). `path(audienceID:)` takes an optional ID.
 
 ## 0.45.1 (2026-11-07)

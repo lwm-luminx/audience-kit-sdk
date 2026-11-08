@@ -2,7 +2,7 @@
     "name": "audiencekit/audiencekit",
     "description": "PHP client for the AudienceKit GraphQL API: sign in, then read an audience's venues, people, locales, events, chat and cover charges.",
     "type": "library",
-    "license": "LicenseRef-AudienceKit-SDK-1.1",
+    "license": "LicenseRef-AudienceKit-SDK-1.2",
     "keywords": ["audiencekit", "graphql", "sdk"],
     "homepage": "https://github.com/lwm-luminx/audience-kit-sdk",
     "support": {

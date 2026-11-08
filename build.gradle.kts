@@ -58,7 +58,7 @@ subprojects {
                 pom {
                     licenses {
                         license {
-                            name.set("AudienceKit SDK License 1.1 (LicenseRef-AudienceKit-SDK-1.1)")
+                            name.set("AudienceKit SDK License 1.2 (LicenseRef-AudienceKit-SDK-1.2)")
                             url.set("https://github.com/lwm-luminx/audience-kit-sdk/blob/main/LICENSE")
                             distribution.set("repo")
                             comments.set("Source-available, not open source: use only with AudienceKit as hosted by Love Wins Media, Inc.")

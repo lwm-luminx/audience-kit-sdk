@@ -99,7 +99,9 @@ on PyPI for `lwm-luminx/audience-kit-sdk`, workflow `python-release.yml`). Or by
 
 ## License
 
-Source-available under the [AudienceKit SDK License](../LICENSE) 1.1 (`LicenseRef-AudienceKit-SDK-1.1`), © Love Wins
+Source-available under the [AudienceKit SDK License](../LICENSE) 1.2 (`LicenseRef-AudienceKit-SDK-1.2`), © Love Wins
 Media, Inc.: use it only in apps that connect to AudienceKit as hosted by Love Wins Media. Every other use is
-prohibited without Love Wins Media's written permission and an audience ID or token issued for that use. See the
+prohibited without Love Wins Media's written permission and an audience ID or token issued for that use. No other
+license is granted, misrepresenting the work is prohibited, and changed versions may be made only in a fork after
+written notice. See the
 [root README](../README.md#license) for details.

@@ -3,6 +3,11 @@
 The PHP SDK (`php/`) keeps its own version, in `src/AudienceKit.php` (`AudienceKit::VERSION`), apart from the Swift
 and Kotlin SDKs' `VERSION` and the Ruby gem's. Releases are tagged `php/<version>`.
 
+## 0.1.2 (2026-11-08)
+
+- License: `composer.json` names `LicenseRef-AudienceKit-SDK-1.2`, the [AudienceKit SDK License](../LICENSE) 1.2. No
+  code changes.
+
 ## 0.1.1 (2026-11-08)
 
 - License: `composer.json` now names the license, `LicenseRef-AudienceKit-SDK-1.1`. The SDK is source-available under

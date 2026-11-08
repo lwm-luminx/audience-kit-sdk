@@ -5,9 +5,15 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
 
 ## Unreleased
 
-- License: the SDK moves from the MIT License to the [AudienceKit SDK License](LICENSE) (Rick, 2026-11-06). The grant
-  is as broad, with one condition: the SDK and works derived from it may only be used with the AudienceKit service
-  Love Wins Media operates. Releases through 0.42.0 stay MIT. The Ruby gem (`ruby/`) carries the same license.
+- License: the SDK moves from the MIT License to the [AudienceKit SDK License](LICENSE) (Rick, 2026-11-06), now
+  version 1.1 (Rick, 2026-11-08). The SDK is source-available, not open source: it may be used only in apps that
+  connect to AudienceKit as hosted by Love Wins Media, and every other use is prohibited unless Love Wins Media, Inc.
+  permits it in a signed written agreement and issues an audience ID or token for that use. 1.1 also adds patent
+  terms and a 30-day cure on notice, and lists exactly which releases stay MIT (Swift tags through 0.41.0, source
+  through 0.42.0, the `audience-kit` gem 0.1.0 and 0.1.1). Package metadata now says so: `LicenseRef-AudienceKit-SDK-1.1`
+  in the gemspec, `composer.json` and `pyproject.toml` (with the `License :: Other/Proprietary License` classifier),
+  `SEE LICENSE IN LICENSE` in the npm package (which now ships the file, as the Python release does), and a POM
+  `<licenses>` entry on every Maven publication.
 
 ## 0.45.1 (2026-11-07)
 

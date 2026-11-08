@@ -2,7 +2,7 @@
   "name": "audience-kit",
   "version": "0.1.0",
   "description": "Node.js and TypeScript client for the AudienceKit API: sign people in, then read an audience's venues, people, locales, events, cover and chat over GraphQL.",
-  "license": "SEE LICENSE IN https://github.com/lwm-luminx/audience-kit-sdk/blob/main/LICENSE",
+  "license": "SEE LICENSE IN LICENSE",
   "author": "Love Wins Media, Inc.",
   "homepage": "https://github.com/lwm-luminx/audience-kit-sdk/tree/main/node#readme",
   "repository": {
@@ -47,7 +47,7 @@
     "test": "vitest run",
     "coverage": "vitest run --coverage",
     "check": "npm run typecheck && npm run coverage && npm run build",
-    "prepack": "npm run build"
+    "prepack": "cp ../LICENSE LICENSE && npm run build"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

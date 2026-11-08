@@ -12,3 +12,6 @@ build/
 local.properties
 .kotlin/
 .graphql-check/
+# Copied from the root LICENSE when the npm and Python packages are built.
+/node/LICENSE
+/python/LICENSE

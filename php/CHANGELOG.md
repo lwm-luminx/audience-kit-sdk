@@ -3,6 +3,13 @@
 The PHP SDK (`php/`) keeps its own version, in `src/AudienceKit.php` (`AudienceKit::VERSION`), apart from the Swift
 and Kotlin SDKs' `VERSION` and the Ruby gem's. Releases are tagged `php/<version>`.
 
+## 0.1.1 (2026-11-08)
+
+- License: `composer.json` now names the license, `LicenseRef-AudienceKit-SDK-1.1`. The SDK is source-available under
+  the [AudienceKit SDK License](../LICENSE) 1.1: use only in apps that connect to AudienceKit as hosted by Love Wins
+  Media, Inc.; any other use needs Love Wins Media's signed written permission and an audience ID or token issued for
+  it. No code changes.
+
 ## 0.1.0 (2026-11-06)
 
 First release: a PHP 8.1+ client for the AudienceKit consumer GraphQL API, with the same calls the Swift and Kotlin

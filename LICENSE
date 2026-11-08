@@ -1,25 +1,34 @@
 AudienceKit SDK License
-Version 1.0, November 2026
+Version 1.1, November 2026
 
 Copyright (c) 2022-2026 Love Wins Media, Inc.
 
-This license lets you use, change and redistribute this software freely, on one
-condition: it, and anything made from it, may only be used with the AudienceKit
-service that Love Wins Media, Inc. operates.
+Summary (not part of the license): you may read, use, change and redistribute
+this SDK, but only in applications that connect to AudienceKit as hosted by
+Love Wins Media, Inc. Every other use is prohibited unless Love Wins Media, Inc.
+permits it in writing and issues an audience ID or token for it. This is a
+source-available license. It is not an open source license as the Open Source
+Initiative defines the term.
 
-1. Definitions
+The structure of this license follows the PolyForm licenses
+(https://polyformproject.org), with the purpose limitation of a platform SDK
+license: the software may be used only with the Licensor's hosted service.
+
+1. Acceptance
+
+   In order to get any license under these terms, You must agree to them as
+   both strict obligations and conditions to all Your licenses.
+
+2. Definitions
 
    "Licensor" is Love Wins Media, Inc.
 
    "Software" is the source code, object code, documentation and other files
    distributed with this license, in the form the Licensor distributes them.
 
-   "Modification" is any work that is based on the Software or any part of it:
-   a changed, translated, ported or otherwise altered version, and any work
-   that includes or reproduces the Software or a substantial part of it, in
-   source or binary form. An application that only calls, links or depends on
-   the Software, without changing it, is not a Modification, but Section 3
-   applies to its use of the Software.
+   "You" is the individual or entity exercising rights under this license,
+   together with every organization that controls, is controlled by, or is
+   under common control with it ("Your company").
 
    "Hosted Service" is the AudienceKit platform (its API, endpoints and
    services) when operated by the Licensor or on the Licensor's behalf,
@@ -27,74 +36,141 @@ service that Love Wins Media, Inc. operates.
    audiences it serves, and in any development, staging or test instance the
    Licensor provides for building against it.
 
-   "You" is any person or organization exercising rights under this license.
+   "Permitted Application" is an application, website, service, script or
+   tool that uses the Software, or a Modification, only to connect to the
+   Hosted Service.
 
-2. Grant
+   "Modification" is any work that is based on the Software or any part of it:
+   a changed, translated, ported or otherwise altered version, and any work
+   that includes or reproduces the Software or a substantial part of it, in
+   source or binary form. An application that only calls, links or depends on
+   the Software, without changing it, is not a Modification, but Sections 4,
+   5 and 6 apply to its use of the Software.
 
-   Subject to this license, the Licensor grants You a worldwide, royalty-free,
-   non-exclusive license to use, reproduce, prepare Modifications of, publicly
-   display, distribute and sublicense the Software and Your Modifications, in
-   source or binary form, including as part of applications You build.
+   "Audience Credential" is an audience ID, API key, access token, client ID
+   or similar credential that the Licensor issues.
 
-3. Condition: use with the Hosted Service only
+3. Copyright license
 
-   The Software and every Modification may be used only to access, interoperate
-   with or build applications for the Hosted Service. You may not use the
-   Software or a Modification, in whole or in part, with any other
-   implementation, instance or deployment of the AudienceKit API or of a
-   compatible API, including one that You or a third party host, and You may not
-   use them to build, test or operate such an implementation.
+   The Licensor grants You a worldwide, royalty-free, non-exclusive copyright
+   license to use, copy, modify, publicly display and distribute the Software,
+   and to make, use and distribute Modifications and Permitted Applications,
+   in each case only for the Permitted Purpose in Section 4, or for a use the
+   Licensor permits under Section 6, and subject to this license.
 
-   Building and testing an application that is intended for the Hosted Service,
-   against a development or test instance the Licensor provides, is use with
-   the Hosted Service.
+4. Permitted Purpose
 
-4. Conditions on redistribution
+   The only purpose this license permits is use with the Hosted Service:
+   developing, building, testing, distributing and running Permitted
+   Applications. Building and testing a Permitted Application against a
+   development or test instance the Licensor provides, or against test
+   doubles in Your own tests while developing it, is use with the Hosted
+   Service.
 
-   When You distribute the Software or a Modification, in source or binary
-   form, You must:
+5. Prohibited uses
 
-   a. include a copy of this license, or a notice that says where to find it,
-      and keep the copyright notices above;
-   b. license the Modification under this license, so that Section 3 applies
-      to it as it applies to the Software; and
-   c. not misrepresent the origin of the Software, and mark a Modification as
-      changed from the Software.
+   Any use of the Software or a Modification that Section 4 does not permit,
+   and that the Licensor has not permitted under Section 6, is prohibited.
+   That includes, without limitation:
 
-   An application that includes the Software or a Modification may carry its
-   own license for the rest of its code, so long as the Software and the
-   Modification within it stay under this license and Section 3 applies to the
-   application's use of them.
+   a. using the Software or a Modification, in whole or in part, with any
+      other implementation, instance or deployment of the AudienceKit API or
+      of a compatible API, whether You, the Licensor's customer or any third
+      party hosts it, or with a proxy, emulator or service that stands in for
+      the Hosted Service;
+   b. using the Software or a Modification to build, test, benchmark or
+      operate such an implementation, or a product or service that replaces or
+      competes with the Hosted Service;
+   c. porting, extracting or adapting the Software, or substantial parts of
+      it, for use with any other service; and
+   d. removing, disabling, falsifying or circumventing how the Software
+      identifies an application or audience to the Hosted Service, including
+      any Audience Credential.
 
-5. Trademarks
+6. Other uses: written permission and an Audience Credential
 
-   This license does not grant any right to use the names, logos or trademarks
-   of the Licensor, of AudienceKit or of any audience, except to describe the
-   origin of the Software as required by Section 4.
+   A use that Section 4 does not permit is licensed only if, before that use
+   begins, You have both:
 
-6. Termination
+   a. the Licensor's express permission for that use, in a written agreement
+      signed by an authorized officer of Love Wins Media, Inc. that describes
+      the use; and
+   b. an Audience Credential that the Licensor issued for that use, which You
+      must use only for that use and keep configured in the Software or
+      Modification You use, so that the use can be identified and its
+      compliance verified.
 
-   Your rights under this license end automatically if You breach it. They are
-   restored if You cure the breach within 30 days of becoming aware of it,
-   unless the Licensor tells You otherwise, and the Licensor may also restore
-   them expressly. Sections 1, 5, 7 and 8 survive termination.
+   The Licensor may grant, refuse or set conditions on such permission at its
+   sole discretion. Permission is never implied from conduct, delay, access
+   to the source code, or the issue of an Audience Credential alone. It ends
+   when the written agreement ends or the Licensor revokes the Audience
+   Credential, and the written agreement controls where it differs from this
+   license.
 
-7. Disclaimer of warranty
+7. Distribution and notices
 
-   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+   You may distribute copies of the Software and Modifications, in source or
+   binary form, on their own or as part of Permitted Applications, if You:
 
-8. Limitation of liability
+   a. include a copy of this license, or a notice that says where to find it
+      (https://github.com/lwm-luminx/audience-kit-sdk/blob/main/LICENSE), and
+      keep the copyright notices above;
+   b. license every Modification under this license, so that Sections 4, 5
+      and 6 apply to it as they apply to the Software, and mark it as changed
+      from the Software; and
+   c. not misrepresent the origin of the Software.
 
-   IN NO EVENT SHALL THE LICENSOR OR THE COPYRIGHT HOLDERS BE LIABLE FOR ANY
-   CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-   USE OR OTHER DEALINGS IN THE SOFTWARE.
+   A Permitted Application that includes the Software or a Modification may
+   carry its own license for the rest of its code, so long as the Software
+   and the Modification within it stay under this license and Sections 4, 5
+   and 6 apply to the application's use of them.
 
-9. Earlier versions
+8. Patent license and patent defense
 
-   Versions of the Software the Licensor released under the MIT License before
-   this license was adopted (through 0.42.0) remain available under the MIT
-   License. This
-   license applies to the Software from the version that first carries it.
+   The Licensor grants You a patent license for the Software that covers
+   patent claims the Licensor can license, or becomes able to license, that
+   You would infringe by using the Software as this license permits. If You
+   or Your company make any written claim that the Software infringes or
+   contributes to infringement of any patent, Your patent license for the
+   Software ends immediately.
+
+9. No other rights
+
+   This license does not imply any other licenses. It does not grant access
+   to the Hosted Service, which is governed by the Licensor's terms of
+   service, and does not grant any right to use the names, logos or
+   trademarks of the Licensor, of AudienceKit, or of any audience or
+   application, except to describe the origin of the Software as Section 7
+   requires.
+
+10. Violations
+
+   The first time You are notified in writing that You have violated any of
+   these terms, or done anything with the Software that this license does not
+   permit, Your licenses can continue if You come into full compliance, and
+   stop the violating use, within 30 days of the notice. Otherwise all Your
+   licenses end immediately. The Licensor may also revoke any Audience
+   Credential used in a violation. Use of the Software after Your licenses end
+   is unlicensed. Sections 1, 2, 5, 9, 11 and 12 survive the end of Your
+   licenses.
+
+11. Disclaimer of warranty and limitation of liability
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OR CONDITION OF ANY
+   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. AS
+   FAR AS THE LAW ALLOWS, IN NO EVENT SHALL THE LICENSOR OR THE COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+   ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+   CONNECTION WITH THESE TERMS, THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+   THE SOFTWARE.
+
+12. Earlier versions
+
+   Copies of the Software that the Licensor released under the MIT License
+   remain available to their recipients under the MIT License: the Swift
+   package tags through 0.41.0, the source through version 0.42.0 before this
+   license was adopted, and the audience-kit Ruby gem 0.1.0 and 0.1.1. Copies
+   released under version 1.0 of this license (0.41.1 through 0.45.1) remain
+   under version 1.0. This version applies to the Software from the first
+   release that carries it.

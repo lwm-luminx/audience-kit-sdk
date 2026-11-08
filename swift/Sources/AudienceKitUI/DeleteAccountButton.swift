@@ -69,9 +69,9 @@ public struct DeleteAccountButton: View {
 
 /// The words around account deletion, shared with Android so both apps say the same thing.
 public enum DeleteAccountCopy {
-    public static let warning = "This deletes your account in every app built on AudienceKit, including Hot Mess "
-        + "and Hack Different, along with any staff or admin roles you have. Your profile, messages, RSVPs and passes "
-        + "go too, and you're signed out on every device. It can't be undone."
+    public static let warning = "This deletes your account in this app, along with any staff or admin role you "
+        + "have here, and your messages and RSVPs in it. You're signed out of this app on every device. Accounts you "
+        + "have in other apps built on AudienceKit aren't affected. It can't be undone."
     public static let notDeleted = "Your account is still here. Try again, or email hello@audiencekit.com."
 }
 #endif

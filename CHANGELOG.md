@@ -15,6 +15,13 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   `SEE LICENSE IN LICENSE` in the npm package (which now ships the file, as the Python release does), and a POM
   `<licenses>` entry on every Maven publication.
 
+## 0.46.1 (2026-11-08)
+
+- `DeleteAccountCopy` warning (Swift and Kotlin) now says deleting removes the account in this app only, with any
+  staff or admin role in it, and leaves the person's accounts in other AudienceKit apps alone. Account deletion is per
+  audience (Rick, 2026-11-08): an app built on AudienceKit can't wipe what someone did in another app. Needs
+  audience_kit_api's per-audience `deleteAccount`; this replaces 0.45.1's "every app" wording.
+
 ## 0.46.0 (2026-11-08)
 
 - `GraphQLEndpoint` can be audience-less (`GraphQLEndpoint(rawValue:audienceless:)` in Swift, `audienceless = true`

@@ -5,6 +5,11 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
 
 ## Unreleased
 
+- License 1.2 (Rick, 2026-11-08): no license of any kind is granted beyond the express grant (no implied, estoppel or
+  trademark rights); misrepresenting the SDK or Love Wins Media's work (authorship, origin, notices, endorsement) is
+  expressly prohibited and a material breach; Modifications may be made only in a fork of the repository, after
+  written notice to Love Wins Media (a "Derived work notice" issue). The Earlier versions section now points to the
+  README's list, so the same text can be used in StaffKit. Package metadata says `LicenseRef-AudienceKit-SDK-1.2`.
 - License: the SDK moves from the MIT License to the [AudienceKit SDK License](LICENSE) (Rick, 2026-11-06), now
   version 1.1 (Rick, 2026-11-08). The SDK is source-available, not open source: it may be used only in apps that
   connect to AudienceKit as hosted by Love Wins Media, and every other use is prohibited unless Love Wins Media, Inc.
@@ -19,6 +24,13 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
 
 - The audience-less endpoint's docs and tests name the API's `/v1/staffql`: selfQL (`/v1/selfql`) is gone (Rick,
   2026-11-08). The pathed `/v1/audience/<id>/staffql` stays the same sign-in scoped to one audience. No code change.
+
+## 0.46.1 (2026-11-08)
+
+- `DeleteAccountCopy` warning (Swift and Kotlin) now says deleting removes the account in this app only, with any
+  staff or admin role in it, and leaves the person's accounts in other AudienceKit apps alone. Account deletion is per
+  audience (Rick, 2026-11-08): an app built on AudienceKit can't wipe what someone did in another app. Needs
+  audience_kit_api's per-audience `deleteAccount`; this replaces 0.45.1's "every app" wording.
 
 ## 0.46.0 (2026-11-08)
 

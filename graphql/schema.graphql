@@ -112,7 +112,7 @@ type AccountDeletePayload {
   clientMutationId: String
 
   """
-  Whether the account is gone.
+  Whether the account is gone from this audience.
   """
   deleted: Boolean!
 }
@@ -12603,8 +12603,10 @@ type Mutation {
   ): PostCommentCreatePayload @requires(permissions: ["posts:write:self"])
 
   """
-  Deletes the signed-in user's account and everything recorded about them (see
-  UserDataEraser), and signs them out everywhere. It can't be undone.
+  Deletes the signed-in user's account in this audience: their membership and
+  everything they did here (see AudienceMemberEraser), and signs them out of
+  this audience's apps. Their accounts in other audiences stay; when this was
+  their last one, the whole account goes (UserDataEraser). It can't be undone.
   """
   deleteAccount(
     """
@@ -16918,6 +16920,12 @@ type SelfUser implements HasTimestamps & HasTribes & IUser {
   currentVenue: Venue
 
   """
+  The Discord account connected to theirs (signed in with, or connected from the
+  app), as of the last time; null without one.
+  """
+  discordUsername: String
+
+  """
   The email address supplied by the user.
   """
   emailAddress: String
@@ -16993,6 +17001,11 @@ type SelfUser implements HasTimestamps & HasTribes & IUser {
   Whether they can sign in with Apple.
   """
   signedInWithApple: Boolean!
+
+  """
+  Whether a Discord account is connected, so they can sign in with it and the Discord bridge knows them.
+  """
+  signedInWithDiscord: Boolean!
 
   """
   Whether they can sign in with Google.
@@ -17298,6 +17311,58 @@ type SocialLinkEdge {
   The item at the end of the edge.
   """
   node: SocialLink
+}
+
+"""
+What a handle a social profile proposal found looks like on its network
+(Instagram for now), so a reviewer can tell two accounts apart. Read in the
+background: PENDING until then.
+"""
+type SocialProfilePreview {
+  """
+  Its bio.
+  """
+  biography: String
+
+  """
+  Why it could not be read (FAILED, UNAVAILABLE).
+  """
+  error: String
+
+  """
+  How many follow it.
+  """
+  followersCount: Int
+
+  """
+  Its latest post images, newest first (up to 6).
+  """
+  imageUrls: [String!]!
+
+  """
+  Its display name.
+  """
+  name: String
+
+  """
+  Its profile picture.
+  """
+  pictureUrl: String
+
+  """
+  How many posts it has.
+  """
+  postsCount: Int
+
+  """
+  pending, ready, failed or unavailable (no reader set up).
+  """
+  status: String!
+
+  """
+  The handle.
+  """
+  username: String!
 }
 
 """
@@ -17921,6 +17986,11 @@ type Submission {
   What the submitter wrote. Admins only, since it may say who they are.
   """
   body: String @requires(permissions: ["audience:moderate:*"])
+
+  """
+  For an Instagram SOCIAL_LINK: what each choice looks like, in choice order, read in the background. Admins only.
+  """
+  choiceProfiles: [SocialProfilePreview!]! @requires(permissions: ["audience:moderate:*"])
 
   """
   For SOCIAL_LINK: the handles it found, the proposed one first. A reviewer
@@ -18761,13 +18831,15 @@ type Tip implements ICharge & Node {
   status: TipStatus!
 
   """
-  The fan, for the performer and the console. Null when the account that tipped is gone.
+  The fan who tipped, for themselves and for the console (tipping:read:* across
+  the audience). Performers and their listing managers get null: they see
+  tipperFirstName, or Anonymous. Null too when the account that tipped is gone.
   """
   tipper: Profile
 
   """
-  The fan's first name, when they asked to show it with an App Clip tip
-  (showFirstName) and have claimed it since. Null otherwise.
+  The fan's first name, when they chose to show it (showFirstName on startTip or
+  an App Clip tip). Null otherwise: show them as Anonymous.
   """
   tipperFirstName: String
 
@@ -18995,6 +19067,11 @@ input TipStartInput {
   The performer.
   """
   personId: ID!
+
+  """
+  Show the performer their first name (tipperFirstName). Otherwise they see the tip as Anonymous.
+  """
+  showFirstName: Boolean = false
 }
 
 """

@@ -20,6 +20,17 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   `SEE LICENSE IN LICENSE` in the npm package (which now ships the file, as the Python release does), and a POM
   `<licenses>` entry on every Maven publication.
 
+## 0.47.0 (2026-11-09)
+
+- Connect Discord (Swift and Kotlin): someone who signed in another way (Sign in with Apple, say) connects their
+  Discord account so the audience's Discord bridge knows them as the same person. `DiscordConnection` makes the
+  verifier and the API's authorize URL and reads the `audiencekit-discord://callback` hand-back;
+  `connectDiscord(...)` posts it with `connect: true` and stores the session the API returns; `connectedDiscord()`
+  reads `me { self { signedInWithDiscord discordUsername } }` (nil on an API older than those fields). iOS also gets
+  `AudienceKitUI`'s `ConnectDiscordButton` (iOS 16.4+, ASWebAuthenticationSession); Android apps declare an intent
+  filter for scheme `audiencekit-discord`, host `callback`. `ConnectDiscordCopy` keeps both apps' words the same.
+  Needs audience_kit_api #427.
+
 ## 0.46.2 (2026-11-08)
 
 - The audience-less endpoint's docs and tests name the API's `/v1/staffql`: selfQL (`/v1/selfql`) is gone (Rick,

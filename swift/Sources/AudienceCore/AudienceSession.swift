@@ -175,7 +175,7 @@ public actor AudienceSession {
         try await signIn(path: "/v1/token", body: try JSONEncoder().encode(body), authenticated: false)
     }
 
-    private func signIn(path: String, body: Data, authenticated: Bool) async throws -> SignInResult {
+    func signIn(path: String, body: Data, authenticated: Bool) async throws -> SignInResult {
         let request = APIRequest(method: "POST", path: path, body: body, authenticated: authenticated)
 
         let (data, response) = try await perform(request)

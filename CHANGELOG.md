@@ -20,6 +20,18 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   `SEE LICENSE IN LICENSE` in the npm package (which now ships the file, as the Python release does), and a POM
   `<licenses>` entry on every Maven publication.
 
+## 0.48.0 (2026-11-09)
+
+- Soapbox (Swift and Kotlin): articles from the audience's publications (a newspaper such as QSaltLake, a candidate)
+  and op-eds readers send them. `articles(localeID:publicationID:first:)` is a locale's or a publication's news,
+  `article(id:)` reads one with its Markdown body and what it's about, `articles(about:)` (Kotlin `articlesAbout`)
+  lists a venue's, event's, person's or locale's "In the news", `publications()` / `publication(id:)` back a
+  publication page, `myOpEds()` shows where the signed-in person's op-eds stand, and `submitOpEd(...)` sends one.
+  Articles carry the publication's `disclosure` (show it above the article) and `teaser` (link to `canonicalUrl`
+  instead of a body). Audiences without the Soapbox module get empty lists and nil, never an error. `SoapboxCopy`
+  keeps the apps' words the same. Needs audience_kit_api #436 (on next).
+- `graphql/schema.graphql` is the API's consumer schema as of next, with Soapbox.
+
 ## 0.47.0 (2026-11-09)
 
 - Connect Discord (Swift and Kotlin): someone who signed in another way (Sign in with Apple, say) connects their

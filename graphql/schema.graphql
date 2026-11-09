@@ -3062,6 +3062,17 @@ type ChatJoined {
   pinnedMessage: ChatMessagePosted
 
   """
+  Whether the room mirrors a provider's channel (connectChat readOnly): read and
+  report here, reply on the provider (replyUrl). Sending fails.
+  """
+  readOnly: Boolean!
+
+  """
+  With readOnly: the channel's page on the provider, to reply there, e.g. a Discord channel link.
+  """
+  replyUrl: String
+
+  """
   Who is in the room now, and who's your friend.
   """
   roster: ChatRoster!

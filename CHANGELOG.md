@@ -3,7 +3,7 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
-## Unreleased
+## 0.47.0 (2026-11-09)
 
 - Swift: read-only chat rooms. A room that mirrors a provider's channel (the API's read-only Discord bridge) sends
   `ChatRoomEvent.readOnly(replyURL:)` right after `.joined`: signed-in people read and report its messages, sending

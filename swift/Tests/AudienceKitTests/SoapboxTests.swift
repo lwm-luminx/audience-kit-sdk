@@ -65,7 +65,7 @@ private func withoutSoapbox(_ request: RecordedRequest) -> StubResponse {
 
 @Test func anArticleReadsItsBodyAndSubjects() async throws {
     let json = "{" + articleFieldsJSON
-        + #","body":"# Pride","venues":[{"id":"v-1","name":"Club Try-Angles"}],"events":[],"people":[],"locales":[]}"#
+        + ##","body":"# Pride","venues":[{"id":"v-1","name":"Club Try-Angles"}],"events":[],"people":[],"locales":[]}"##
     let stub = Stub { _ in .json(status: 200, body: #"{"data":{"soapbox":{"article":"# + json + "}}}") }
 
     let article = try await soapboxClient(stub).article(id: "a-1")

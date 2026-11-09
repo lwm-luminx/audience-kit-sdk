@@ -5,15 +5,6 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
 
 ## Unreleased
 
-- Connect Discord (Swift and Kotlin): someone who signed in another way (Sign in with Apple, say) connects their
-  Discord account so the audience's Discord bridge knows them as the same person. `DiscordConnection` makes the
-  verifier and the API's authorize URL and reads the `audiencekit-discord://callback` hand-back;
-  `connectDiscord(...)` posts it with `connect: true` and stores the session the API returns; `connectedDiscord()`
-  reads `me { self { signedInWithDiscord discordUsername } }` (nil on an API older than those fields). iOS also gets
-  `AudienceKitUI`'s `ConnectDiscordButton` (iOS 16.4+, ASWebAuthenticationSession); Android apps declare an intent
-  filter for scheme `audiencekit-discord`, host `callback`. `ConnectDiscordCopy` keeps both apps' words the same.
-  Needs audience_kit_api #427.
-
 - License 1.2 (Rick, 2026-11-08): no license of any kind is granted beyond the express grant (no implied, estoppel or
   trademark rights); misrepresenting the SDK or Love Wins Media's work (authorship, origin, notices, endorsement) is
   expressly prohibited and a material breach; Modifications may be made only in a fork of the repository, after
@@ -28,6 +19,17 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   in the gemspec, `composer.json` and `pyproject.toml` (with the `License :: Other/Proprietary License` classifier),
   `SEE LICENSE IN LICENSE` in the npm package (which now ships the file, as the Python release does), and a POM
   `<licenses>` entry on every Maven publication.
+
+## 0.47.0 (2026-11-09)
+
+- Connect Discord (Swift and Kotlin): someone who signed in another way (Sign in with Apple, say) connects their
+  Discord account so the audience's Discord bridge knows them as the same person. `DiscordConnection` makes the
+  verifier and the API's authorize URL and reads the `audiencekit-discord://callback` hand-back;
+  `connectDiscord(...)` posts it with `connect: true` and stores the session the API returns; `connectedDiscord()`
+  reads `me { self { signedInWithDiscord discordUsername } }` (nil on an API older than those fields). iOS also gets
+  `AudienceKitUI`'s `ConnectDiscordButton` (iOS 16.4+, ASWebAuthenticationSession); Android apps declare an intent
+  filter for scheme `audiencekit-discord`, host `callback`. `ConnectDiscordCopy` keeps both apps' words the same.
+  Needs audience_kit_api #427.
 
 ## 0.46.2 (2026-11-08)
 

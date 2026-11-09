@@ -292,8 +292,8 @@ private func reducedSchema(_ request: RecordedRequest) -> StubResponse {
 
 @Test func chatRoomEventsDecode() throws {
     func decode(_ json: String) -> ChatRoomEvent? {
-        guard case let .success(event)? = ChatRoomEvent.decode(result: Data(json.utf8)) else { return nil }
-        return event
+        guard case let .success(events)? = ChatRoomEvent.decode(result: Data(json.utf8)) else { return nil }
+        return events.first
     }
     let line = #"{"id":"m-1","body":"hi","message":"hi","name":"Ada L.","userId":"u-2","kind":"TEXT","pinned":false}"#
 
@@ -308,6 +308,15 @@ private func reducedSchema(_ request: RecordedRequest) -> StubResponse {
     #expect(decode(#"{"data":{"room":{"__typename":"ChatMessageRemoved","messageId":"m-1"}}}"#)
         == .removed(messageID: "m-1"))
     #expect(decode(#"{"data":{"room":{"__typename":"ChatLeft","reason":"BANNED"}}}"#) == .left(reason: "BANNED"))
+
+    let mirror = #"{"data":{"room":{"__typename":"ChatJoined","outOfRange":false,"readOnly":true,"#
+        + #""replyUrl":"https://discord.com/channels/1/2","roster":{"people":[]},"history":[],"pinnedMessage":null}}}"#
+    guard case let .success(events)? = ChatRoomEvent.decode(result: Data(mirror.utf8)) else {
+        Issue.record("not decoded")
+        return
+    }
+    #expect(events.last == .readOnly(replyURL: URL(string: "https://discord.com/channels/1/2")))
+    #expect(events.count == 2)
     #expect(decode(#"{"data":{"room":{"__typename":"ChatSomethingNew"}}}"#) == .unknown("ChatSomethingNew"))
     #expect(ChatRoomEvent.decode(result: Data(#"{"data":null}"#.utf8)) == nil)
 

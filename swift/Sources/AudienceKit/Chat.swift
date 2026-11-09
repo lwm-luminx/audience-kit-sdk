@@ -141,6 +141,10 @@ public enum ChatRoomEvent: Sendable, Hashable {
     case cleared(at: Date?, expired: Bool)
     case presenceChanged(userID: String, name: String?, avatarUrl: String?, presence: String)
     case rangeChanged(outOfRange: Bool)
+    /// Sent right after ``joined(people:history:pinned:outOfRange:)`` when the room mirrors a provider's channel (a
+    /// read-only Discord bridge, say): signed-in people read and report its messages here, but sending fails. Hide
+    /// the composer and offer `replyURL`, the channel on the provider, to reply there.
+    case readOnly(replyURL: URL?)
     /// The server took the user out of the room: the API's `ChatLeftReason` (`AWAY`, `BANNED`, `MOVED`, `REMOVED`).
     case left(reason: String)
     /// An event this SDK doesn't know yet, by its `__typename`.
@@ -235,6 +239,8 @@ extension Queries {
             __typename
             ... on ChatJoined {
               outOfRange
+              readOnly
+              replyUrl
               roster { people { userId name avatarUrl friend } }
               history { message { ...Line } }
               pinnedMessage { message { ...Line } }
@@ -353,7 +359,7 @@ extension AudienceCable {
                         continuation.yield(.subscribed)
                     case let .result(data):
                         switch ChatRoomEvent.decode(result: data) {
-                        case let .success(event)?: continuation.yield(.event(event))
+                        case let .success(events)?: events.forEach { continuation.yield(.event($0)) }
                         case let .failure(errors)?:
                             continuation.yield(.refused(errors))
                             continuation.finish()
@@ -377,7 +383,8 @@ extension AudienceCable {
 
 extension ChatRoomEvent {
     enum Decoded {
-        case success(ChatRoomEvent)
+        /// The event, and any the API folds into it (``ChatRoomEvent/readOnly(replyURL:)`` after a join).
+        case success([ChatRoomEvent])
         case failure([GraphQLError])
     }
 
@@ -385,7 +392,7 @@ extension ChatRoomEvent {
     /// and no data), or nil when it carries neither (the subscription's empty first result).
     static func decode(result data: Data) -> Decoded? {
         guard let envelope = try? JSONDecoder.audienceKit.decode(ChatRoomResult.self, from: data) else { return nil }
-        if let wire = envelope.data?.room { return .success(wire.event) }
+        if let wire = envelope.data?.room { return .success(wire.events) }
         if let errors = envelope.errors, !errors.isEmpty { return .failure(errors) }
         return nil
     }
@@ -397,6 +404,8 @@ extension ChatRoomEvent {
 
         var __typename: String
         var outOfRange: Bool?
+        var readOnly: Bool?
+        var replyUrl: String?
         var roster: Roster?
         /// Lenient: one message that doesn't decode (a bad date, say) is left out rather than losing the whole join.
         var history: [Lenient<Posted>]?
@@ -412,6 +421,12 @@ extension ChatRoomEvent {
         var avatarUrl: String?
         var presence: String?
         var reason: String?
+
+        /// The event, then `.readOnly` when a join says the room only mirrors its provider.
+        var events: [ChatRoomEvent] {
+            guard __typename == "ChatJoined", readOnly == true else { return [event] }
+            return [event, .readOnly(replyURL: replyUrl.flatMap(URL.init(string:)))]
+        }
 
         var event: ChatRoomEvent {
             switch __typename {

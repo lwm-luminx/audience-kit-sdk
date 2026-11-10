@@ -1043,6 +1043,11 @@ type ArbiterPrompt {
   body: String!
 
   """
+  Whether the audience's admins wrote it (deletable).
+  """
+  custom: Boolean!
+
+  """
   The repo's default (config/arbiter/prompts).
   """
   defaultBody: String!
@@ -1081,6 +1086,11 @@ type ArbiterPrompt {
   The default's version, with the audience's change time when overridden.
   """
   version: String!
+
+  """
+  The AI worker it belongs to: glam, moderation or research.
+  """
+  worker: String
 }
 
 """
@@ -1245,7 +1255,9 @@ type Article implements HasTimestamps {
   summary: String
 
   """
-  A blurb linking to the piece on the publication's site (canonicalUrl).
+  A headline and blurb linking to the piece on the publication's site
+  (canonicalUrl): open that rather than a reader. Every article of a publication
+  that links out (Publication.linksOut) is one.
   """
   teaser: Boolean!
 
@@ -1417,6 +1429,11 @@ type Audience implements IRelay & Node {
   appReview: AudienceAppReview!
 
   """
+  Uploaded branding configs it can start its look from: platform-wide ones and its own, by name. Admins only.
+  """
+  brandingConfigs: [BrandingConfig!]! @requires(permissions: ["audience:write:*"])
+
+  """
   The published categories of promoted card, for "Cards you see". What a viewer
   turns off stays on their device and is never sent here.
   """
@@ -1438,9 +1455,25 @@ type Audience implements IRelay & Node {
   ): Locale @endpoint(in: [AUDIENCE, STAFF])
 
   """
+  Whether sign-ins from its apps must pass device attestation (App Attest, Play
+  Integrity): OFF, REPORT (recorded only) or ENFORCE.
+  """
+  deviceAttestationMode: DeviceAttestationMode!
+
+  """
+  Ways to donate its apps don't offer (Donations), such as Venmo and Cash App. Empty (the default) offers them all.
+  """
+  disabledDonationProviders: [DonationProvider!]!
+
+  """
   Plugins marked disabled in the admin console. Configuration and runtime behavior are preserved.
   """
   disabledPluginKeys: [String!]!
+
+  """
+  Ways to tip its apps don't offer (Tipping). Empty (the default) offers them all.
+  """
+  disabledTipProviders: [TipProvider!]!
 
   """
   Domains connected to this audience. They change on /v1/tenants/graphql only.
@@ -1559,9 +1592,30 @@ type Audience implements IRelay & Node {
   ): Locale @endpoint(in: [AUDIENCE, STAFF])
 
   """
-  Locales belonging to this audience.
+  Locales belonging to this audience: all of them, or those the arguments pick (doc/LOCALE_HIERARCHY.md).
   """
-  locales: [Locale!]!
+  locales(
+    """
+    Only locales whose area takes in this point (by their exact outline where
+    known): the state, districts and precinct someone is in. Outermost first.
+    """
+    at: CoordinatesInput
+
+    """
+    Only locales of this kind.
+    """
+    kind: LocaleKind
+
+    """
+    Only the locales directly within this one.
+    """
+    parentId: ID
+
+    """
+    Only top-level locales (those within no other).
+    """
+    roots: Boolean = false
+  ): [Locale!]!
 
   """
   Its locale envelopes and venue envelopes and points, as a GeoJSON FeatureCollection. Admins only; empty for everyone else.
@@ -1641,6 +1695,28 @@ type Audience implements IRelay & Node {
     """
     ids: [ID!]!
   ): [Node]! @endpoint(in: [AUDIENCE, STAFF])
+
+  """
+  Someone's candidates and representatives: the offices on the locales at a
+  position or within a locale, and on every locale above them, most local first
+  (doc/plans/CIVIC_ORGANIZING_PLAN.md). Empty without either argument.
+  """
+  offices(
+    """
+    A position: the districts it lies in, and above.
+    """
+    at: CoordinatesInput
+
+    """
+    A locale: its offices and those above it.
+    """
+    localeId: ID
+
+    """
+    Only these; incumbents and candidates by default.
+    """
+    status: [OfficeStatus!]
+  ): [PersonOffice!]!
 
   """
   The instance's IAudiencePayments mixin, when available to the viewer.
@@ -2727,9 +2803,19 @@ type AudienceTheme {
   dark: [ThemeToken!]!
 
   """
+  Fonts for headings and body text.
+  """
+  fonts: ThemeFonts!
+
+  """
   Token overrides for light mode.
   """
   light: [ThemeToken!]!
+
+  """
+  Logo images.
+  """
+  logos: ThemeLogos!
 
   """
   Design system preset, e.g. default or hot_mess.
@@ -3024,6 +3110,87 @@ type BotSender implements Sender {
 }
 
 """
+A named branding config uploaded as JSON: a starting point for an audience's
+look, next to the built-in presets (doc/BRANDING_CONFIGS.md).
+"""
+type BrandingConfig {
+  """
+  When it was first uploaded.
+  """
+  createdAt: ISO8601DateTime!
+
+  """
+  Token overrides for dark mode.
+  """
+  dark: [ThemeToken!]!
+
+  """
+  What it is for.
+  """
+  description: String
+
+  """
+  Fonts for headings and body text.
+  """
+  fonts: ThemeFonts!
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  Top-level keys in the upload that are kept but not applied to a theme yet, e.g. fonts or logos.
+  """
+  ignoredKeys: [String!]!
+
+  """
+  Its slug, unique among the configs in the same place.
+  """
+  key: String!
+
+  """
+  Token overrides for light mode.
+  """
+  light: [ThemeToken!]!
+
+  """
+  Logo images.
+  """
+  logos: ThemeLogos!
+
+  """
+  Its name, shown with the built-in presets.
+  """
+  name: String!
+
+  """
+  Whether every audience can start from it (no audience of its own).
+  """
+  platformWide: Boolean!
+
+  """
+  The built-in preset it builds on, e.g. default or hot_mess.
+  """
+  preset: String!
+
+  """
+  The uploaded JSON, as sent.
+  """
+  source: String!
+
+  """
+  The tagline it sets; null keeps the audience's own.
+  """
+  tagline: String
+
+  """
+  When it was last uploaded.
+  """
+  updatedAt: ISO8601DateTime!
+}
+
+"""
 The viewer's calendar subscription here (doc/CALENDAR_SYNC.md): a private link
 calendar apps poll for the events they are going to (and maybe going to), the
 lineup slots and events of the talent they manage, and their shifts, from a
@@ -3232,6 +3399,18 @@ type ChatAccount {
   audiencekitBot: Boolean!
 
   """
+  A link that adds its bot to its server with the permissions it needs there, to
+  copy or send to the server's owner. Null for a pasted token.
+  """
+  botInstallUrl: String
+
+  """
+  The servers the audience's own bot is in, to pick from. Empty for
+  AudienceKit's bot, which is in other audiences' servers too.
+  """
+  botServers: [DiscordPlace!]!
+
+  """
   Whether an admin turned the bridge on (connectChat bridge).
   """
   bridge: Boolean!
@@ -3278,6 +3457,21 @@ type ChatAccount {
   lastVerifiedAt: ISO8601DateTime
 
   """
+  How many people (not bots) were in its servers when last saved.
+  """
+  memberCount: Int!
+
+  """
+  A link that adds its bot to the server it migrated from, to read: View Channels and Read Message History.
+  """
+  migratedBotInstallUrl: String
+
+  """
+  The server the community is moving from, which the bot reads too.
+  """
+  migratedFrom: String
+
+  """
   The community's name on the provider.
   """
   name: String
@@ -3292,6 +3486,26 @@ type ChatAccount {
   come in for signed-in people to read and report, nothing goes out.
   """
   readOnly: Boolean!
+
+  """
+  A server's text channels, to pick from: the community's, the one it migrated from, or one the audience's own bot is in.
+  """
+  serverChannels(
+    """
+    The server ID.
+    """
+    server: String!
+  ): [DiscordPlace!]!
+
+  """
+  Why the last save of its servers' channels or members fell short.
+  """
+  syncError: String
+
+  """
+  When its servers' channels and members were last saved.
+  """
+  syncedAt: ISO8601DateTime
 
   """
   The venue whose own community it is; null for the audience's.
@@ -3367,6 +3581,11 @@ type ChatChannel {
   The locale whose room it is, or null for a venue.
   """
   localeId: ID
+
+  """
+  The room's channel in the server the community migrated from, whose messages come in too.
+  """
+  migratedChannelId: String
 
   """
   Where the apps send people to the room.
@@ -5470,6 +5689,28 @@ type CustomUrlAccount implements IKaraokeAccount {
 }
 
 """
+Whether sign-ins from its apps must prove they come from its genuine app on a
+genuine device (App Attest on iOS, Play Integrity on Android). See
+doc/DEVICE_ATTESTATION.md.
+"""
+enum DeviceAttestationMode {
+  """
+  App sign-ins that fail or skip attestation are refused.
+  """
+  ENFORCE
+
+  """
+  Not checked.
+  """
+  OFF
+
+  """
+  Checked and recorded on each session; nobody is refused.
+  """
+  REPORT
+}
+
+"""
 Autogenerated input type of DeviceRegister
 """
 input DeviceRegisterInput {
@@ -5526,6 +5767,11 @@ type DiscordApp {
   configured: Boolean!
 
   """
+  Webhooks > Endpoint URL: where Discord sends the application's events, signed with its public key.
+  """
+  eventWebhooksUrl: String!
+
+  """
   Whether a bot token is stored.
   """
   hasBotToken: Boolean!
@@ -5536,9 +5782,112 @@ type DiscordApp {
   hasClientSecret: Boolean!
 
   """
+  A link that adds the audience's bot (its own, or AudienceKit's) to any server,
+  to read; connect the server afterwards. Null without a bot.
+  """
+  installUrl: String
+
+  """
+  General Information > Interactions Endpoint URL: where Discord sends slash commands and other interactions.
+  """
+  interactionsEndpointUrl: String!
+
+  """
+  General Information > Linked Roles Verification URL: where members verify for a linked role.
+  """
+  linkedRolesVerificationUrl: String!
+
+  """
+  General Information > Public Key, which Discord signs the application's interactions and events with. Not secret.
+  """
+  publicKey: String
+
+  """
   The address to add to the application's OAuth2 redirects, where Discord comes back after "Add bot".
   """
   redirectUri: String!
+}
+
+"""
+A Discord server or channel the bot can see, to pick instead of pasting its ID.
+"""
+type DiscordPlace {
+  """
+  Discord's ID for it.
+  """
+  id: String!
+
+  """
+  Its name on Discord.
+  """
+  name: String
+}
+
+"""
+Where a Donate button sends someone: the recipient's own page with a provider (DonationTarget).
+"""
+enum DonationProvider {
+  """
+  An ActBlue donation page.
+  """
+  ACTBLUE
+
+  """
+  Cash App; never for a political committee.
+  """
+  CASHAPP
+
+  """
+  A PayPal donate page (or PayPal.Me, for a nonprofit).
+  """
+  PAYPAL
+
+  """
+  Venmo; never for a political committee.
+  """
+  VENMO
+
+  """
+  A donation page on the recipient's own site.
+  """
+  WEBSITE
+}
+
+"""
+Where a Donate button goes: a link out to the recipient's own donation page (an
+ActBlue page, a PayPal donate page or their site). AudienceKit never takes,
+holds or forwards the money, so apps open it in the browser and show the disclaimer.
+"""
+type DonationTarget {
+  """
+  The "Paid for by" line to show with the button.
+  """
+  disclaimer: String
+
+  """
+  Unique identifier.
+  """
+  id: ID!
+
+  """
+  Whether it goes to a political committee.
+  """
+  political: Boolean!
+
+  """
+  Whose page it is.
+  """
+  provider: DonationProvider!
+
+  """
+  Who the money goes to, e.g. the campaign committee.
+  """
+  recipientName: String
+
+  """
+  The donation page, to open in the browser.
+  """
+  url: String!
 }
 
 """
@@ -9638,7 +9987,7 @@ closing and re-entry, as its state and cities set them.
 """
 interface ILocaleLiquor @mixin(extensionKey: "liquor", field: "liquor", null: false, on: ["Locale"]) {
   """
-  The states and cities whose rules apply, most general first.
+  The states and cities whose rules apply, most general first: those of the locales it lies within, then its own.
   """
   jurisdictions: [String!]!
 
@@ -12148,6 +12497,11 @@ enum ListingImportKind {
   CALENDAR
 
   """
+  Official divisions (a country, its states and districts) as nested locales (DivisionsImport).
+  """
+  DIVISIONS
+
+  """
   Researched locales and their bars (ResearchedLocalesImport).
   """
   LOCALES
@@ -12300,6 +12654,12 @@ A geographic area containing venues and featured people.
 """
 type Locale implements HasBanner & HasTimestamps & Node {
   """
+  The locales it lies within, outermost first (a congressional district's: its
+  country, then its state). Empty for a top-level locale.
+  """
+  ancestors: [Locale!]!
+
+  """
   The instance's IArticles mixin. Left out of the schema where its module isn't installed.
   """
   articles: IArticles!
@@ -12325,6 +12685,16 @@ type Locale implements HasBanner & HasTimestamps & Node {
   chatRetentionMinutes: Int!
 
   """
+  The locales directly within it (a state's districts), by name.
+  """
+  children(
+    """
+    Only children of this kind.
+    """
+    kind: LocaleKind
+  ): [Locale!]!
+
+  """
   Cities and neighborhoods it covers.
   """
   cityNames: [String!]!
@@ -12333,6 +12703,11 @@ type Locale implements HasBanner & HasTimestamps & Node {
   When the record was created.
   """
   createdAt: ISO8601DateTime!
+
+  """
+  Its Open Civic Data division ID, e.g. ocd-division/country:us/state:ut/cd:3, for districts and other official divisions.
+  """
+  divisionId: String
 
   """
   The geographic boundary of this place.
@@ -12350,9 +12725,20 @@ type Locale implements HasBanner & HasTimestamps & Node {
   friends: ILocaleFriends!
 
   """
+  Whether its exact outline (a district map) is known; where it is, what lies in
+  it is decided by the outline, not the envelope.
+  """
+  hasBoundary: Boolean!
+
+  """
   Unique identifier.
   """
   id: ID!
+
+  """
+  What sort of place it is: METRO (a city and its suburbs) unless set.
+  """
+  kind: LocaleKind!
 
   """
   Short label for the locale.
@@ -12373,6 +12759,28 @@ type Locale implements HasBanner & HasTimestamps & Node {
   Display name.
   """
   name: String
+
+  """
+  Who represents it and who is running for it: the offices on it, most local
+  first, the holder before those running. Former officeholders are left out.
+  """
+  offices(
+    """
+    Also the offices on every locale it lies within, so a district gives its
+    representative, its senators and statewide offices.
+    """
+    above: Boolean = false
+
+    """
+    Only these; incumbents and candidates by default.
+    """
+    status: [OfficeStatus!]
+  ): [PersonOffice!]!
+
+  """
+  The locale it lies within; null for a top-level one.
+  """
+  parent: Locale
 
   """
   The instance's ILocalePeople mixin. Left out of the schema where its module isn't installed.
@@ -12527,11 +12935,76 @@ type LocaleFriendsView implements ILocaleFriends {
 }
 
 """
+What sort of place a locale is (doc/LOCALE_HIERARCHY.md). A locale with no kind is a metro area.
+"""
+enum LocaleKind {
+  """
+  A city or town.
+  """
+  CITY
+
+  """
+  A U.S. House district (or a state's at-large seat).
+  """
+  CONGRESSIONAL_DISTRICT
+
+  """
+  A country.
+  """
+  COUNTRY
+
+  """
+  A county (or parish, or borough).
+  """
+  COUNTY
+
+  """
+  A metro area: a city and its suburbs, as Hot Mess lists them.
+  """
+  METRO
+
+  """
+  A neighborhood within a city.
+  """
+  NEIGHBORHOOD
+
+  """
+  A voting precinct.
+  """
+  PRECINCT
+
+  """
+  A state (or province).
+  """
+  STATE
+
+  """
+  A district of the lower house of a state legislature.
+  """
+  STATE_HOUSE_DISTRICT
+
+  """
+  A district of the upper house of a state legislature.
+  """
+  STATE_SENATE_DISTRICT
+
+  """
+  A territory or federal district, e.g. Puerto Rico or DC.
+  """
+  TERRITORY
+
+  """
+  A city council ward or district.
+  """
+  WARD
+}
+
+"""
 The local Liquor implementation of a locale's liquor rules.
 """
 type LocaleLiquorView implements ILocaleLiquor {
   """
-  The states and cities whose rules apply, most general first.
+  The states and cities whose rules apply, most general first: those of the locales it lies within, then its own.
   """
   jurisdictions: [String!]!
 
@@ -13326,6 +13799,17 @@ type Mutation {
   ): PostAuthorMutePayload @requires(permissions: ["posts:write:self"])
 
   """
+  Turns a publication's locale pushes off for the signed-in reader, or back on.
+  Its articles still show in their locale news and on its page.
+  """
+  mutePublicationPushes(
+    """
+    Parameters for PublicationPushesMute
+    """
+    input: PublicationPushesMuteInput!
+  ): PublicationPushesMutePayload @requires(permissions: ["soapbox:write:self"])
+
+  """
   Pays a Square venue's cover with a payment token from Square's In-App Payments
   SDK (a card, Apple Pay or Google Pay), after buyCover. The pass works as soon
   as this returns it paid.
@@ -13852,6 +14336,116 @@ type NodeChanged {
   The record as it is now, as you may read it; null when deleted.
   """
   node: Node
+}
+
+"""
+Which office a person holds or is running for (PersonOffice::OFFICES). The title says how it reads.
+"""
+enum OfficeKind {
+  """
+  Attorney general, on the state.
+  """
+  ATTORNEY_GENERAL
+
+  """
+  A city council seat.
+  """
+  CITY_COUNCIL
+
+  """
+  A county council or board seat.
+  """
+  COUNTY_BOARD
+
+  """
+  A county executive or mayor.
+  """
+  COUNTY_EXECUTIVE
+
+  """
+  Governor, on the state.
+  """
+  GOVERNOR
+
+  """
+  Lieutenant governor, on the state.
+  """
+  LIEUTENANT_GOVERNOR
+
+  """
+  A mayor.
+  """
+  MAYOR
+
+  """
+  Any other office.
+  """
+  OTHER
+
+  """
+  A party office, such as state party chair.
+  """
+  PARTY_OFFICE
+
+  """
+  A school board seat.
+  """
+  SCHOOL_BOARD
+
+  """
+  Secretary of state, on the state.
+  """
+  SECRETARY_OF_STATE
+
+  """
+  Another statewide office, such as treasurer.
+  """
+  STATEWIDE
+
+  """
+  A seat in the lower house of a state legislature.
+  """
+  STATE_HOUSE
+
+  """
+  A seat in the upper house of a state legislature.
+  """
+  STATE_SENATE
+
+  """
+  A U.S. House seat, on the district (a Delegate or Resident Commissioner too).
+  """
+  US_HOUSE
+
+  """
+  President of the United States.
+  """
+  US_PRESIDENT
+
+  """
+  A U.S. Senate seat, on the state.
+  """
+  US_SENATE
+}
+
+"""
+Where a person stands with an office.
+"""
+enum OfficeStatus {
+  """
+  They're running for it.
+  """
+  CANDIDATE
+
+  """
+  They held it before.
+  """
+  FORMER
+
+  """
+  They hold it.
+  """
+  INCUMBENT
 }
 
 """
@@ -14697,6 +15291,12 @@ type Person implements HasBanner & HasTags & HasTaskTemplates & Node {
   chat: IPersonChat!
 
   """
+  Where their Donate button goes: their first link out to their own donation
+  page that the audience offers, or null for none. Never pushed.
+  """
+  donateTarget: DonationTarget
+
+  """
   The instance's IPersonEvents mixin. Left out of the schema where its module isn't installed.
   """
   events: IPersonEvents!
@@ -14754,6 +15354,16 @@ type Person implements HasBanner & HasTags & HasTaskTemplates & Node {
   name: String
 
   """
+  Offices they hold or are running for, most local first: "U.S. Representative, UT-3".
+  """
+  offices(
+    """
+    Only these; incumbents and candidates by default.
+    """
+    status: [OfficeStatus!]
+  ): [PersonOffice!]!
+
+  """
   Display ordering value.
   """
   order: Int!
@@ -14767,6 +15377,13 @@ type Person implements HasBanner & HasTags & HasTaskTemplates & Node {
   The instance's IListingProfile mixin. Left out of the schema where its module isn't installed.
   """
   profile: IListingProfile!
+
+  """
+  Their tags that are tribes you identify with too: in the DNC app, a
+  candidate's issues you share, to highlight (never to filter). Only you see
+  which you picked; empty when signed out.
+  """
+  sharedTribes: [Tag!]!
 
   """
   Its audience tags, including tags connected to module facets, by name.
@@ -14989,6 +15606,12 @@ What a listing is (doc/ORGANIZERS.md).
 """
 enum PersonKind {
   """
+  A political committee members can give to, like a PAC or a party committee: on
+  People, always Public, and can present events like an organization.
+  """
+  COMMITTEE
+
+  """
   An organization that presents events, like a pride center: on its events as
   'Presented by' (Event.people.organizers), not on People, and always Public.
   """
@@ -15053,6 +15676,72 @@ type PersonMusicView implements IPersonMusic {
     """
     last: Int
   ): TrackConnection!
+}
+
+"""
+An office a person holds, held or is running for, on the locale it serves (the
+district, or the state for a statewide office): "U.S. Representative, UT-3".
+"""
+type PersonOffice implements Node {
+  """
+  The party they caucus with, where it differs from their own.
+  """
+  caucus: String
+
+  """
+  The election a candidate is in.
+  """
+  electionDate: ISO8601Date
+
+  """
+  Unique identifier.
+  """
+  id: ID!
+
+  """
+  How it reads on a page: "U.S. Representative, UT-3".
+  """
+  label: String!
+
+  """
+  The place it serves.
+  """
+  locale: Locale!
+
+  """
+  Which office it is.
+  """
+  office: OfficeKind!
+
+  """
+  Their party, e.g. Democrat.
+  """
+  party: String
+
+  """
+  Who holds it or is running for it.
+  """
+  person: Person!
+
+  """
+  Whether they hold it, run for it or held it.
+  """
+  status: OfficeStatus!
+
+  """
+  When the current or last term ends.
+  """
+  termEnd: ISO8601Date
+
+  """
+  When the current or last term began.
+  """
+  termStart: ISO8601Date
+
+  """
+  The office as it reads, e.g. U.S. Senator or Delegate.
+  """
+  title: String!
 }
 
 """
@@ -16500,9 +17189,30 @@ type Publication implements HasTimestamps {
   editorialEmail: String
 
   """
+  When its feed was last read: its managers and the audience's admins.
+  """
+  feedCheckedAt: ISO8601DateTime @requires(permissions: ["soapbox:read:mine", "soapbox:read:*"])
+
+  """
+  Why its feed could not be read last time: its managers and the audience's admins.
+  """
+  feedError: String @requires(permissions: ["soapbox:read:mine", "soapbox:read:*"])
+
+  """
+  Its RSS or Atom feed, read hourly into articles that link out to its site: its managers and the audience's admins.
+  """
+  feedUrl: String @requires(permissions: ["soapbox:read:mine", "soapbox:read:*"])
+
+  """
   Its UUID.
   """
   id: ID!
+
+  """
+  Whether its articles are read on its own site (each a teaser linking to
+  canonicalUrl), because its publisher does not run it here yet.
+  """
+  linksOut: Boolean!
 
   """
   The locale it covers.
@@ -16518,6 +17228,11 @@ type Publication implements HasTimestamps {
   The name it publishes under: its masthead, else its person's.
   """
   name: String!
+
+  """
+  Whether its publisher (someone who manages its person) runs it here.
+  """
+  onboarded: Boolean!
 
   """
   What it asks of op-ed writers.
@@ -16565,9 +17280,49 @@ type Publication implements HasTimestamps {
   viewerCanPublish: Boolean!
 
   """
+  Whether the signed-in reader turned its locale pushes off (mutePublicationPushes). False when signed out.
+  """
+  viewerMutedPushes: Boolean!
+
+  """
   Its website.
   """
   websiteUrl: String
+}
+
+"""
+Autogenerated input type of PublicationPushesMute
+"""
+input PublicationPushesMuteInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  Turn its pushes off (default) or back on.
+  """
+  muted: Boolean = true
+
+  """
+  The publication.
+  """
+  publicationId: ID!
+}
+
+"""
+Autogenerated return type of PublicationPushesMute.
+"""
+type PublicationPushesMutePayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The publication, after the change.
+  """
+  publication: Publication!
 }
 
 """
@@ -17789,6 +18544,11 @@ type SelfUser implements HasTimestamps & HasTribes & IUser {
   firstName: String
 
   """
+  The GitHub login connected to theirs, as of their last GitHub sign-in; null without one.
+  """
+  githubUsername: String
+
+  """
   Whether Facebook is connected, which friends and Pages need.
   """
   hasFacebook: Boolean!
@@ -17848,6 +18608,11 @@ type SelfUser implements HasTimestamps & HasTribes & IUser {
   Whether a Discord account is connected, so they can sign in with it and the Discord bridge knows them.
   """
   signedInWithDiscord: Boolean!
+
+  """
+  Whether a GitHub account is connected, so they can sign in with it.
+  """
+  signedInWithGithub: Boolean!
 
   """
   Whether they can sign in with Google.
@@ -18060,14 +18825,20 @@ enum SignInMethod {
   FACEBOOK
 
   """
+  Sign in with GitHub.
+  """
+  GITHUB
+
+  """
   Sign in with Google.
   """
   GOOGLE
 
   """
-  The App Review code, which also needs App Review on.
+  The App Review code. Not a switch: it is listed while App Review is on and a
+  code is live, and ignored when saving sign-in methods.
   """
-  REVIEW_CODE
+  REVIEW_CODE @deprecated(reason: "The App Review code works whenever App Review is on and a code is live.")
 }
 
 """
@@ -19460,6 +20231,51 @@ type TermsAcceptPayload {
   When they first agreed.
   """
   termsAcceptedAt: ISO8601DateTime!
+}
+
+"""
+A font an audience uses instead of the design system's.
+"""
+type ThemeFont {
+  """
+  Font family name, e.g. Fraunces.
+  """
+  family: String!
+
+  """
+  https link to its stylesheet (e.g. Google Fonts) or font file; null for a font the device already has.
+  """
+  url: String
+}
+
+"""
+The fonts an audience uses; null ones keep the design system's (Figtree).
+"""
+type ThemeFonts {
+  """
+  Font for body text and controls.
+  """
+  body: ThemeFont
+
+  """
+  Font for titles and headings.
+  """
+  heading: ThemeFont
+}
+
+"""
+An audience's logo images, as https links; null ones fall back to its initial mark and name.
+"""
+type ThemeLogos {
+  """
+  Square logo, shown where its initial disc would be.
+  """
+  mark: String
+
+  """
+  Its name set as a logo, for headers and sign-in.
+  """
+  wordmark: String
 }
 
 """

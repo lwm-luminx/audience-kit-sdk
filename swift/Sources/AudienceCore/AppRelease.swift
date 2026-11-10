@@ -190,6 +190,13 @@ public enum InstallSource: String, Codable, Sendable, Hashable, CaseIterable {
     /// Whether this install can be offered updates: TestFlight and App Store installs.
     public var isUpdatable: Bool { self == .testFlight || self == .appStore }
 
+    /// Whether this install may offer App Review sign-in ("Have an App Review code?"): everything but an App Store
+    /// install. App Review runs the build in StoreKit's sandbox, like TestFlight, so reviewers still see it; people
+    /// who installed from the App Store never do. An ``unknown`` source still offers it, so App Review is never locked
+    /// out when StoreKit can't answer; the API refuses the code itself when the AppTransaction proves an App Store
+    /// install (`403`, reason `store_install`).
+    public var offersReviewCode: Bool { self != .appStore }
+
     /// This install's source, read once from `AppTransaction.shared` and kept for the rest of the run. A transaction
     /// that throws or doesn't verify is ``unknown``; there is no receipt fallback.
     public static var current: InstallSource {
@@ -197,6 +204,13 @@ public enum InstallSource: String, Codable, Sendable, Hashable, CaseIterable {
     }
 
     private static let currentTask = Task<InstallSource, Never> { await InstallSourceReader.read() }
+
+    /// This install's AppTransaction as Apple signed it (`jwsRepresentation`), for the API to check where the app
+    /// came from; `nil` when StoreKit has none (another platform, or it threw). Sent with App Review sign-ins as
+    /// `app_transaction`.
+    public static var signedAppTransaction: String? {
+        get async { await InstallSourceReader.signedAppTransaction() }
+    }
 }
 
 /// What a stored or fetched ``AppRelease`` says, kept between runs so the prompts work offline: the release, when it
@@ -331,10 +345,17 @@ enum InstallSourceReader {
             return .unknown
         }
     }
+
+    static func signedAppTransaction() async -> String? {
+        // Verified or not, it goes as Apple signed it: the API checks the signature itself.
+        guard let result = try? await AppTransaction.shared else { return nil }
+        return result.jwsRepresentation
+    }
 }
 #else
 enum InstallSourceReader {
     static func read() async -> InstallSource { .unknown }
+    static func signedAppTransaction() async -> String? { nil }
 }
 #endif
 

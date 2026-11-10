@@ -20,6 +20,15 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   `SEE LICENSE IN LICENSE` in the npm package (which now ships the file, as the Python release does), and a POM
   `<licenses>` entry on every Maven publication.
 
+## 0.51.0 (2026-11-10)
+
+- App Review sign-in is never offered in an App Store install (Rick, 2026-11-10). Swift: `InstallSource.offersReviewCode`
+  (false only for `.appStore`; App Review runs builds in StoreKit's sandbox like TestFlight, so reviewers still see it),
+  `InstallSource.signedAppTransaction` (the AppTransaction JWS), `AudienceSession.reviewCodeAvailable()` (install source
+  plus `GET /v1/token/review`) and `signIn(reviewCode:device:)`, which sends the AppTransaction as `app_transaction` so
+  the API refuses the code for an App Store install (403, reason `store_install`). Android is unchanged: Play can't tell
+  a reviewer's install from anyone else's, so the code stays gated by App Review mode there.
+
 ## 0.50.0 (2026-11-10)
 
 - Device attestation at sign-in (Rick, 2026-11-10; the API's doc/DEVICE_ATTESTATION.md, audience_kit_api #459). Every

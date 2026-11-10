@@ -310,7 +310,9 @@ private final class Calls: @unchecked Sendable {
         let (recorder, calls) = recorder()
 
         await recorder.appeared("p-1", layoutID: "home")
-        try await Task.sleep(for: .milliseconds(100))
+        // Wait for the home view to be reported rather than a fixed time: a loaded simulator can take longer than
+        // any sleep to run the on-screen timer, and then disappearing cancels it.
+        try await eventually { calls.all.count == 1 }
         await recorder.disappeared("p-1")
         await recorder.appeared("p-1", layoutID: "venue")
         try await eventually { calls.all.count == 2 }

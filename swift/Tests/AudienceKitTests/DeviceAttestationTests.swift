@@ -137,7 +137,8 @@ private func client(_ stub: Stub, attestor: (any DeviceAttestor)?) -> AudienceKi
         #expect(stub.requests.map(\.path) == ["/v1/token/apple"])
         let proof = try #require(try stub.requests[0].jsonBody()["attestation"] as? [String: Any])
         #expect(proof["unsupported"] as? Bool == true)
-        #expect(proof["reason"] as? String == "unsupported")
+        // `simulator` when the tests run in one (Xcode Cloud), `unsupported` elsewhere.
+        #expect(["unsupported", "simulator"].contains(proof["reason"] as? String))
     }
 
     @Test func skipsTheWorkWhenTheAudienceHasItOffOrTheAPIIsOlder() async throws {

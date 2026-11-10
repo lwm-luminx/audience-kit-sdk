@@ -5,12 +5,6 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
 
 ## Unreleased
 
-- App Review sign-in is never offered in an App Store install (Rick, 2026-11-10). Swift: `InstallSource.offersReviewCode`
-  (false only for `.appStore`; App Review runs builds in StoreKit's sandbox like TestFlight, so reviewers still see it),
-  `InstallSource.signedAppTransaction` (the AppTransaction JWS), `AudienceSession.reviewCodeAvailable()` (install source
-  plus `GET /v1/token/review`) and `signIn(reviewCode:device:)`, which sends the AppTransaction as `app_transaction` so
-  the API refuses the code for an App Store install (403, reason `store_install`). Android is unchanged: Play can't tell
-  a reviewer's install from anyone else's, so the code stays gated by App Review mode there.
 - License 1.2 (Rick, 2026-11-08): no license of any kind is granted beyond the express grant (no implied, estoppel or
   trademark rights); misrepresenting the SDK or Love Wins Media's work (authorship, origin, notices, endorsement) is
   expressly prohibited and a material breach; Modifications may be made only in a fork of the repository, after
@@ -25,6 +19,15 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   in the gemspec, `composer.json` and `pyproject.toml` (with the `License :: Other/Proprietary License` classifier),
   `SEE LICENSE IN LICENSE` in the npm package (which now ships the file, as the Python release does), and a POM
   `<licenses>` entry on every Maven publication.
+
+## 0.51.0 (2026-11-10)
+
+- App Review sign-in is never offered in an App Store install (Rick, 2026-11-10). Swift: `InstallSource.offersReviewCode`
+  (false only for `.appStore`; App Review runs builds in StoreKit's sandbox like TestFlight, so reviewers still see it),
+  `InstallSource.signedAppTransaction` (the AppTransaction JWS), `AudienceSession.reviewCodeAvailable()` (install source
+  plus `GET /v1/token/review`) and `signIn(reviewCode:device:)`, which sends the AppTransaction as `app_transaction` so
+  the API refuses the code for an App Store install (403, reason `store_install`). Android is unchanged: Play can't tell
+  a reviewer's install from anyone else's, so the code stays gated by App Review mode there.
 
 ## 0.50.0 (2026-11-10)
 

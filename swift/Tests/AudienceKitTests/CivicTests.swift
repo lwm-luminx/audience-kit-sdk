@@ -29,8 +29,7 @@ private let officeJSON = #"""
 {"id":"o-1","office":"US_HOUSE","title":"U.S. Representative","label":"U.S. Representative, UT-3","status":"INCUMBENT",
 "party":"Democratic","caucus":null,"electionDate":"2026-11-03","termStart":"2025-01-03","termEnd":"2027-01-03",
 "locale":{"id":"l-ut3","name":"Utah's 3rd","label":"UT-3","kind":"CONGRESSIONAL_DISTRICT",
-"divisionId":"ocd-division/country:us/state:ut/cd:3"},
-"person":{"id":"p-1","name":"Pat Example","avatarUrl":"/photos/p-1.jpg",
+"divisionId":"ocd-division/country:us/state:ut/cd:3"},"person":{"id":"p-1","name":"Pat Example","avatarUrl":"/photos/p-1.jpg",
 "donateTarget":{"id":"d-1","provider":"ACTBLUE","url":"https://secure.actblue.com/donate/pat","recipientName":"Pat for Utah",
 "disclaimer":"Paid for by Pat for Utah","political":true}}}
 """#

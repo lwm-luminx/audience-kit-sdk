@@ -12,26 +12,59 @@ public enum OfficeKind: Sendable, Hashable, RawRepresentable, Codable {
     case stateSenate, stateHouse, countyExecutive, countyBoard, mayor, cityCouncil, schoolBoard, partyOffice, other
     case unknown(String)
 
-    private static let raw: [(OfficeKind, String)] = [
-        (.usPresident, "US_PRESIDENT"), (.usSenate, "US_SENATE"), (.usHouse, "US_HOUSE"), (.governor, "GOVERNOR"),
-        (.lieutenantGovernor, "LIEUTENANT_GOVERNOR"), (.attorneyGeneral, "ATTORNEY_GENERAL"),
-        (.secretaryOfState, "SECRETARY_OF_STATE"), (.statewide, "STATEWIDE"), (.stateSenate, "STATE_SENATE"),
-        (.stateHouse, "STATE_HOUSE"), (.countyExecutive, "COUNTY_EXECUTIVE"), (.countyBoard, "COUNTY_BOARD"),
-        (.mayor, "MAYOR"), (.cityCouncil, "CITY_COUNCIL"), (.schoolBoard, "SCHOOL_BOARD"),
-        (.partyOffice, "PARTY_OFFICE"), (.other, "OTHER"),
-    ]
-
     public init(rawValue: String) {
-        self = Self.raw.first { $0.1 == rawValue }?.0 ?? .unknown(rawValue)
+        switch rawValue {
+        case "US_PRESIDENT": self = .usPresident
+        case "US_SENATE": self = .usSenate
+        case "US_HOUSE": self = .usHouse
+        case "GOVERNOR": self = .governor
+        case "LIEUTENANT_GOVERNOR": self = .lieutenantGovernor
+        case "ATTORNEY_GENERAL": self = .attorneyGeneral
+        case "SECRETARY_OF_STATE": self = .secretaryOfState
+        case "STATEWIDE": self = .statewide
+        case "STATE_SENATE": self = .stateSenate
+        case "STATE_HOUSE": self = .stateHouse
+        case "COUNTY_EXECUTIVE": self = .countyExecutive
+        case "COUNTY_BOARD": self = .countyBoard
+        case "MAYOR": self = .mayor
+        case "CITY_COUNCIL": self = .cityCouncil
+        case "SCHOOL_BOARD": self = .schoolBoard
+        case "PARTY_OFFICE": self = .partyOffice
+        case "OTHER": self = .other
+        default: self = .unknown(rawValue)
+        }
     }
 
     public var rawValue: String {
-        if case let .unknown(value) = self { return value }
-        return Self.raw.first { $0.0 == self }!.1
+        switch self {
+        case .usPresident: "US_PRESIDENT"
+        case .usSenate: "US_SENATE"
+        case .usHouse: "US_HOUSE"
+        case .governor: "GOVERNOR"
+        case .lieutenantGovernor: "LIEUTENANT_GOVERNOR"
+        case .attorneyGeneral: "ATTORNEY_GENERAL"
+        case .secretaryOfState: "SECRETARY_OF_STATE"
+        case .statewide: "STATEWIDE"
+        case .stateSenate: "STATE_SENATE"
+        case .stateHouse: "STATE_HOUSE"
+        case .countyExecutive: "COUNTY_EXECUTIVE"
+        case .countyBoard: "COUNTY_BOARD"
+        case .mayor: "MAYOR"
+        case .cityCouncil: "CITY_COUNCIL"
+        case .schoolBoard: "SCHOOL_BOARD"
+        case .partyOffice: "PARTY_OFFICE"
+        case .other: "OTHER"
+        case let .unknown(value): value
+        }
     }
 
     /// Whether it's a federal office (President, Senate, House).
-    public var isFederal: Bool { [.usPresident, .usSenate, .usHouse].contains(self) }
+    public var isFederal: Bool {
+        switch self {
+        case .usPresident, .usSenate, .usHouse: true
+        default: false
+        }
+    }
 
     public init(from decoder: any Decoder) throws {
         self.init(rawValue: try decoder.singleValueContainer().decode(String.self))

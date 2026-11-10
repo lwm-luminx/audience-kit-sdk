@@ -91,6 +91,12 @@ public object Queries {
         }
     """.trimIndent()
 
+    public val connectedDiscord: String = """
+        query ConnectedDiscord {
+          me { self { signedInWithDiscord discordUsername } }
+        }
+    """.trimIndent()
+
     public val closestLocale: String get() = closestLocale(SchemaShape.EVERYTHING)
 
     public fun closestLocale(shape: SchemaShape): String = """
@@ -258,6 +264,11 @@ internal data class PeopleResponse(val people: People? = null) {
 @Serializable
 internal data class MeResponse(val me: Me? = null) {
     @Serializable internal data class Me(val self: SelfUser)
+}
+@Serializable
+internal data class ConnectedDiscordResponse(val me: Me? = null) {
+    @Serializable internal data class Me(val self: Self? = null)
+    @Serializable internal data class Self(val signedInWithDiscord: Boolean? = null, val discordUsername: String? = null)
 }
 @Serializable internal data class NodeResponse(val node: Node? = null)
 @Serializable internal data class ClosestLocaleResponse(val closestLocale: AudienceLocale? = null)

@@ -112,7 +112,7 @@ type AccountDeletePayload {
   clientMutationId: String
 
   """
-  Whether the account is gone.
+  Whether the account is gone from this audience.
   """
   deleted: Boolean!
 }
@@ -1124,6 +1124,290 @@ type ArbiterRule {
 }
 
 """
+A Soapbox publication's article, in Markdown (doc/SOAPBOX.md): its own, or an
+op-ed a reader sent it. Readers see it once it is published; the publication,
+the writer and the audience's admins see it before.
+"""
+type Article implements HasTimestamps {
+  """
+  What it says, in Markdown.
+  """
+  body: String!
+
+  """
+  Who it shows as written by: its byline, else the publication's name.
+  """
+  byline: String!
+
+  """
+  Where the publication also publishes it.
+  """
+  canonicalUrl: String
+
+  """
+  When it was started.
+  """
+  createdAt: ISO8601DateTime!
+
+  """
+  Ties the publication declared to what it covers (its own gala, a sponsor), shown to readers above the article.
+  """
+  disclosure: String
+
+  """
+  Whether it changed after it was published.
+  """
+  edited: Boolean!
+
+  """
+  Events it's about.
+  """
+  events: [Event!]!
+
+  """
+  Its photo, described for screen readers.
+  """
+  heroAltText: String
+
+  """
+  Its photo, shown above it.
+  """
+  heroPhotoUrl: PhotoURL
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  The publication's own, or a reader's op-ed.
+  """
+  kind: ArticleKind!
+
+  """
+  Locales it's about.
+  """
+  locales: [Locale!]!
+
+  """
+  People it's about.
+  """
+  people: [Person!]!
+
+  """
+  Whether it's pinned above the publication's others.
+  """
+  pinned: Boolean!
+
+  """
+  Who publishes it.
+  """
+  publication: Publication!
+
+  """
+  When it went (or, scheduled, goes) live.
+  """
+  publishedAt: ISO8601DateTime
+
+  """
+  When its locale push went out (ArticlePush).
+  """
+  pushedAt: ISO8601DateTime @requires(permissions: ["soapbox:read:mine", "soapbox:read:*"])
+
+  """
+  Why it was sent back, or why an op-ed was declined.
+  """
+  reviewNote: String @requires(permissions: ["soapbox:read:mine", "soapbox:read:*", "soapbox:read:self"])
+
+  """
+  Whether it is published but not live yet.
+  """
+  scheduled: Boolean!
+
+  """
+  Its name in links, unique in its publication.
+  """
+  slug: String!
+
+  """
+  Where it is between writing and readers: the publication, the writer and the audience's admins.
+  """
+  status: ArticleStatus @requires(permissions: ["soapbox:read:mine", "soapbox:read:*", "soapbox:read:self"])
+
+  """
+  When it was last sent in.
+  """
+  submittedAt: ISO8601DateTime @requires(permissions: ["soapbox:read:mine", "soapbox:read:*", "soapbox:read:self"])
+
+  """
+  A line or two under its title.
+  """
+  summary: String
+
+  """
+  A blurb linking to the piece on the publication's site (canonicalUrl).
+  """
+  teaser: Boolean!
+
+  """
+  Its headline.
+  """
+  title: String!
+
+  """
+  When it last changed.
+  """
+  updatedAt: ISO8601DateTime!
+
+  """
+  Venues it's about.
+  """
+  venues: [Venue!]!
+
+  """
+  Whether the signed-in user may edit it: its publication's managers and the audience's admins.
+  """
+  viewerCanManage: Boolean!
+
+  """
+  Who can read it once published.
+  """
+  visibility: ArticleVisibility!
+}
+
+"""
+The connection type for Article.
+"""
+type ArticleConnection {
+  """
+  A list of edges.
+  """
+  edges: [ArticleEdge]
+
+  """
+  A list of nodes.
+  """
+  nodes: [Article]
+
+  """
+  Information to aid in pagination.
+  """
+  pageInfo: PageInfo!
+}
+
+"""
+An edge in a connection.
+"""
+type ArticleEdge {
+  """
+  A cursor for use in pagination.
+  """
+  cursor: String!
+
+  """
+  The item at the end of the edge.
+  """
+  node: Article
+}
+
+"""
+Who wrote a Soapbox article: the publication, or a reader (an op-ed).
+"""
+enum ArticleKind {
+  """
+  Written by the publication.
+  """
+  ARTICLE
+
+  """
+  Sent to the publication by a reader from the apps.
+  """
+  OP_ED
+}
+
+"""
+Where a Soapbox article is between writing and readers (doc/SOAPBOX.md).
+"""
+enum ArticleStatus {
+  """
+  An op-ed the publication won't run.
+  """
+  DECLINED
+
+  """
+  Being written; only the publication sees it.
+  """
+  DRAFT
+
+  """
+  Waiting for the audience's admins to approve it.
+  """
+  IN_REVIEW
+
+  """
+  Live from publishedAt on (scheduled while that is still to come).
+  """
+  PUBLISHED
+
+  """
+  An op-ed a reader sent, waiting for the publication.
+  """
+  SUBMITTED
+
+  """
+  Taken down by the publication; it can publish it again.
+  """
+  UNPUBLISHED
+}
+
+"""
+Who can read a published Soapbox article.
+"""
+enum ArticleVisibility {
+  """
+  Anyone signed in to the apps. The default.
+  """
+  COMMUNITY
+
+  """
+  The web too, once the audience's site shows articles.
+  """
+  PUBLIC
+}
+
+"""
+The local Soapbox implementation of a venue, event, person or locale's articles.
+"""
+type ArticlesView implements IArticles {
+  """
+  Live articles about it, newest first; a locale's news: about it or anything in
+  it, or by a publication covering it, from the last 30 days (pinned ones
+  whatever their age).
+  """
+  list(
+    """
+    Returns the elements in the list that come after the specified cursor.
+    """
+    after: String
+
+    """
+    Returns the elements in the list that come before the specified cursor.
+    """
+    before: String
+
+    """
+    Returns the first _n_ elements from the list.
+    """
+    first: Int
+
+    """
+    Returns the last _n_ elements from the list.
+    """
+    last: Int
+  ): ArticleConnection!
+}
+
+"""
 An audience: its listings, members and configuration. On an audience's endpoints it is the query root.
 """
 type Audience implements IRelay & Node {
@@ -1420,6 +1704,11 @@ type Audience implements IRelay & Node {
   signInWarnings: [SignInWarning!]!
 
   """
+  The instance's IAudienceSoapbox mixin. Left out of the schema where its module isn't installed.
+  """
+  soapbox: IAudienceSoapbox! @endpoint(in: [AUDIENCE, STAFF])
+
+  """
   The unique audience subdomain.
   """
   subdomain: String!
@@ -1535,6 +1824,11 @@ type AudienceChatView implements IAudienceChat {
   Null on AudienceKit, and for anyone but its admins.
   """
   account: ChatAccount @requires(permissions: ["chat:write:*"])
+
+  """
+  Its own Discord application, whose bot "Add bot" adds (setDiscordApp). Admins only.
+  """
+  discordApp: DiscordApp @requires(permissions: ["chat:write:*"])
 
   """
   The chat moderators audiences can use, and what each reads and can do.
@@ -2339,6 +2633,91 @@ type AudiencePush implements IAudiencePush {
 }
 
 """
+The local Soapbox implementation of the soapbox module's root lookups.
+"""
+type AudienceSoapboxView implements IAudienceSoapbox {
+  """
+  An article by its UUID: a live one, or one the viewer may see before it is (their publication's, or their own op-ed).
+  """
+  article(
+    """
+    Its UUID.
+    """
+    id: ID!
+  ): Article
+
+  """
+  Live articles in the audience, pinned first, then newest.
+  """
+  articles(
+    """
+    Returns the elements in the list that come after the specified cursor.
+    """
+    after: String
+
+    """
+    Returns the elements in the list that come before the specified cursor.
+    """
+    before: String
+
+    """
+    Returns the first _n_ elements from the list.
+    """
+    first: Int
+
+    """
+    Returns the last _n_ elements from the list.
+    """
+    last: Int
+
+    """
+    Only a locale's news (Locale.articles).
+    """
+    localeId: ID
+
+    """
+    Only this publication's.
+    """
+    publicationId: ID
+  ): ArticleConnection!
+
+  """
+  Op-eds the signed-in user sent, newest first, with where each stands.
+  """
+  myOpEds: [Article!] @requires(permissions: ["soapbox:read:self"])
+
+  """
+  Publications the signed-in user runs (manages their person); every one for admins.
+  """
+  myPublications: [Publication!] @requires(permissions: ["soapbox:read:mine", "soapbox:read:*"])
+
+  """
+  A publication by its UUID.
+  """
+  publication(
+    """
+    Its UUID.
+    """
+    id: ID!
+  ): Publication
+
+  """
+  Publications readers can follow: trusted ones, by name. Admins can ask for others by trust.
+  """
+  publications(
+    """
+    Admins only: these trusts instead (the audience's pending requests, its suspended ones).
+    """
+    trust: [PublicationTrust!]
+  ): [Publication!]!
+
+  """
+  Articles waiting for the audience's admins to approve them, oldest first.
+  """
+  reviewQueue: [Article!] @requires(permissions: ["soapbox:moderate:*"])
+}
+
+"""
 An audience's customization of the AudienceKit design system.
 """
 type AudienceTheme {
@@ -2843,6 +3222,11 @@ Discord server. Its bot token is stored encrypted and never returned.
 """
 type ChatAccount {
   """
+  Whether its bot is the audience's own Discord application's (setDiscordApp), added through Discord's OAuth.
+  """
+  audienceBot: Boolean!
+
+  """
   Whether its bot is AudienceKit's own, added through Discord's OAuth (startDiscordBotInstall), rather than a pasted token.
   """
   audiencekitBot: Boolean!
@@ -2854,7 +3238,7 @@ type ChatAccount {
 
   """
   Whether the bot bridges the rooms now: the bridge is on and there's a bot
-  token. The apps keep their rooms and the lines go both ways.
+  token. The apps keep their rooms; the lines go both ways, or only come in (readOnly).
   """
   bridged: Boolean!
 
@@ -2902,6 +3286,12 @@ type ChatAccount {
   The provider.
   """
   provider: ChatProvider!
+
+  """
+  Whether the bridge only reads (connectChat readOnly): the provider's messages
+  come in for signed-in people to read and report, nothing goes out.
+  """
+  readOnly: Boolean!
 
   """
   The venue whose own community it is; null for the audience's.
@@ -5120,6 +5510,38 @@ type DeviceRegisterPayload {
 }
 
 """
+The audience's own Discord application (setDiscordApp), whose bot
+startDiscordBotInstall adds to its servers so people see the audience's brand.
+Its client secret and bot token are stored encrypted and never returned.
+"""
+type DiscordApp {
+  """
+  The application's ID (its OAuth2 client ID).
+  """
+  clientId: String
+
+  """
+  Whether it has a client ID, client secret and bot token, so "Add bot" uses it instead of AudienceKit's application.
+  """
+  configured: Boolean!
+
+  """
+  Whether a bot token is stored.
+  """
+  hasBotToken: Boolean!
+
+  """
+  Whether a client secret is stored.
+  """
+  hasClientSecret: Boolean!
+
+  """
+  The address to add to the application's OAuth2 redirects, where Discord comes back after "Add bot".
+  """
+  redirectUri: String!
+}
+
+"""
 A venue's door for one night: who paid cover and who has been scanned in.
 """
 type DoorNight {
@@ -5283,6 +5705,11 @@ type EquipmentTrack {
 An event hosted at a venue or awaiting a venue.
 """
 type Event implements HasBanner & HasTags & HasTaskTemplates & Node {
+  """
+  The instance's IArticles mixin. Left out of the schema where its module isn't installed.
+  """
+  articles: IArticles!
+
   """
   Identifier of the event's banner photo.
   """
@@ -7633,6 +8060,38 @@ type IAdmissionOfferEdge {
 }
 
 """
+Soapbox articles about a venue, event, person or locale; a locale's are its news (doc/SOAPBOX.md).
+"""
+interface IArticles @mixin(extensionKey: "soapbox", field: "articles", null: false, on: ["Venue", "Event", "Person", "Locale"]) {
+  """
+  Live articles about it, newest first; a locale's news: about it or anything in
+  it, or by a publication covering it, from the last 30 days (pinned ones
+  whatever their age).
+  """
+  list(
+    """
+    Returns the elements in the list that come after the specified cursor.
+    """
+    after: String
+
+    """
+    Returns the elements in the list that come before the specified cursor.
+    """
+    before: String
+
+    """
+    Returns the first _n_ elements from the list.
+    """
+    first: Int
+
+    """
+    Returns the last _n_ elements from the list.
+    """
+    last: Int
+  ): ArticleConnection!
+}
+
+"""
 The chat module's root lookups: the audience's rooms, a room's transcript and bans, and the moderators an audience can use.
 """
 interface IAudienceChat @mixin(extensionKey: "chat", field: "chat", null: false, on: ["Audience"]) @endpoint(in: [AUDIENCE, STAFF]) {
@@ -7641,6 +8100,11 @@ interface IAudienceChat @mixin(extensionKey: "chat", field: "chat", null: false,
   Null on AudienceKit, and for anyone but its admins.
   """
   account: ChatAccount @requires(permissions: ["chat:write:*"])
+
+  """
+  Its own Discord application, whose bot "Add bot" adds (setDiscordApp). Admins only.
+  """
+  discordApp: DiscordApp @requires(permissions: ["chat:write:*"])
 
   """
   The chat moderators audiences can use, and what each reads and can do.
@@ -8129,6 +8593,93 @@ interface IAudiencePush @mixin(extensionKey: "push", field: "push", on: ["Audien
   The service account's Firebase project.
   """
   firebaseProjectId: String
+}
+
+"""
+The soapbox module's root lookups: publications and their articles
+(doc/SOAPBOX.md). What an article is about shows it too
+(Venue/Event/Person/Locale.articles).
+"""
+interface IAudienceSoapbox @mixin(extensionKey: "soapbox", field: "soapbox", null: false, on: ["Audience"]) @endpoint(in: [AUDIENCE, STAFF]) {
+  """
+  An article by its UUID: a live one, or one the viewer may see before it is (their publication's, or their own op-ed).
+  """
+  article(
+    """
+    Its UUID.
+    """
+    id: ID!
+  ): Article
+
+  """
+  Live articles in the audience, pinned first, then newest.
+  """
+  articles(
+    """
+    Returns the elements in the list that come after the specified cursor.
+    """
+    after: String
+
+    """
+    Returns the elements in the list that come before the specified cursor.
+    """
+    before: String
+
+    """
+    Returns the first _n_ elements from the list.
+    """
+    first: Int
+
+    """
+    Returns the last _n_ elements from the list.
+    """
+    last: Int
+
+    """
+    Only a locale's news (Locale.articles).
+    """
+    localeId: ID
+
+    """
+    Only this publication's.
+    """
+    publicationId: ID
+  ): ArticleConnection!
+
+  """
+  Op-eds the signed-in user sent, newest first, with where each stands.
+  """
+  myOpEds: [Article!] @requires(permissions: ["soapbox:read:self"])
+
+  """
+  Publications the signed-in user runs (manages their person); every one for admins.
+  """
+  myPublications: [Publication!] @requires(permissions: ["soapbox:read:mine", "soapbox:read:*"])
+
+  """
+  A publication by its UUID.
+  """
+  publication(
+    """
+    Its UUID.
+    """
+    id: ID!
+  ): Publication
+
+  """
+  Publications readers can follow: trusted ones, by name. Admins can ask for others by trust.
+  """
+  publications(
+    """
+    Admins only: these trusts instead (the audience's pending requests, its suspended ones).
+    """
+    trust: [PublicationTrust!]
+  ): [Publication!]!
+
+  """
+  Articles waiting for the audience's admins to approve them, oldest first.
+  """
+  reviewQueue: [Article!] @requires(permissions: ["soapbox:moderate:*"])
 }
 
 """
@@ -8946,6 +9497,13 @@ interface ILocaleChat @mixin(extensionKey: "chat", field: "chat", null: false, o
   provider: ChatProvider!
 
   """
+  Whether the room is a read-only mirror of its provider's channel (a Discord
+  bridge in read mode): anyone signed in reads and reports it from anywhere,
+  nobody posts in it from the apps, and replyUrl is where to reply.
+  """
+  readOnly: Boolean!
+
+  """
   Its last few lines, oldest first. Empty unless the signed-in user is in the
   locale (or is an admin), as the room is. Only the last 24 hours, except for admins.
   """
@@ -8975,6 +9533,11 @@ interface ILocaleChat @mixin(extensionKey: "chat", field: "chat", null: false, o
     """
     limit: Int = 5
   ): LocaleMessageConnection!
+
+  """
+  Where to reply to a read-only room (readOnly), e.g. its Discord channel. Null otherwise.
+  """
+  replyUrl: String
 
   """
   Where the apps send people to the room when its provider doesn't run it in the
@@ -9987,6 +10550,13 @@ interface IVenueChat @mixin(extensionKey: "chat", field: "chat", null: false, on
   provider: ChatProvider!
 
   """
+  Whether the room is a read-only mirror of its provider's channel (a Discord
+  bridge in read mode): anyone signed in reads and reports it from anywhere,
+  nobody posts in it from the apps, and replyUrl is where to reply.
+  """
+  readOnly: Boolean!
+
+  """
   Its last few lines, oldest first. Empty unless the signed-in user is at the
   venue (or is an admin), as the room is. Only the last 24 hours, except for admins.
   """
@@ -10016,6 +10586,11 @@ interface IVenueChat @mixin(extensionKey: "chat", field: "chat", null: false, on
     """
     limit: Int = 5
   ): VenueMessageConnection!
+
+  """
+  Where to reply to a read-only room (readOnly), e.g. its Discord channel. Null otherwise.
+  """
+  replyUrl: String
 
   """
   Where the apps send people to the room when its provider doesn't run it in the
@@ -11725,6 +12300,11 @@ A geographic area containing venues and featured people.
 """
 type Locale implements HasBanner & HasTimestamps & Node {
   """
+  The instance's IArticles mixin. Left out of the schema where its module isn't installed.
+  """
+  articles: IArticles!
+
+  """
   A photo of the place, for the top of its screens.
   """
   bannerUrl: PhotoURL
@@ -11841,6 +12421,13 @@ type LocaleChatView implements ILocaleChat {
   provider: ChatProvider!
 
   """
+  Whether the room is a read-only mirror of its provider's channel (a Discord
+  bridge in read mode): anyone signed in reads and reports it from anywhere,
+  nobody posts in it from the apps, and replyUrl is where to reply.
+  """
+  readOnly: Boolean!
+
+  """
   Its last few lines, oldest first. Empty unless the signed-in user is in the
   locale (or is an admin), as the room is. Only the last 24 hours, except for admins.
   """
@@ -11870,6 +12457,11 @@ type LocaleChatView implements ILocaleChat {
     """
     limit: Int = 5
   ): LocaleMessageConnection!
+
+  """
+  Where to reply to a read-only room (readOnly), e.g. its Discord channel. Null otherwise.
+  """
+  replyUrl: String
 
   """
   Where the apps send people to the room when its provider doesn't run it in the
@@ -12614,8 +13206,10 @@ type Mutation {
   ): PostCommentCreatePayload @requires(permissions: ["posts:write:self"])
 
   """
-  Deletes the signed-in user's account and everything recorded about them (see
-  UserDataEraser), and signs them out everywhere. It can't be undone.
+  Deletes the signed-in user's account in this audience: their membership and
+  everything they did here (see AudienceMemberEraser), and signs them out of
+  this audience's apps. Their accounts in other audiences stay; when this was
+  their last one, the whole account goes (UserDataEraser). It can't be undone.
   """
   deleteAccount(
     """
@@ -13132,6 +13726,19 @@ type Mutation {
   ): ContributionSubmitPayload @requires(permissions: ["users:write:self"])
 
   """
+  Sends a publication an op-ed from the apps, under the signed-in reader's name.
+  The publication takes it (then edits and publishes it, bylined to the writer)
+  or declines it with a note; Audience.soapbox.myOpEds shows where each stands
+  (doc/SOAPBOX.md).
+  """
+  submitOpEd(
+    """
+    Parameters for OpEdSubmit
+    """
+    input: OpEdSubmitInput!
+  ): OpEdSubmitPayload @requires(permissions: ["soapbox:write:self"])
+
+  """
   Unblocks someone the signed-in user blocked.
   """
   unblockUser(
@@ -13245,6 +13852,56 @@ type NodeChanged {
   The record as it is now, as you may read it; null when deleted.
   """
   node: Node
+}
+
+"""
+Autogenerated input type of OpEdSubmit
+"""
+input OpEdSubmitInput {
+  """
+  What it says, in Markdown.
+  """
+  body: String!
+
+  """
+  The name to run it under. Default: their short name ("First L.").
+  """
+  byline: String
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The publication.
+  """
+  publicationId: ID!
+
+  """
+  A line or two under its title.
+  """
+  summary: String
+
+  """
+  Its headline.
+  """
+  title: String!
+}
+
+"""
+Autogenerated return type of OpEdSubmit.
+"""
+type OpEdSubmitPayload {
+  """
+  The op-ed, waiting for the publication.
+  """
+  article: Article
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
 }
 
 """
@@ -14014,6 +14671,11 @@ type PeopleCard implements ICard {
 A performer, host or group featured in an audience.
 """
 type Person implements HasBanner & HasTags & HasTaskTemplates & Node {
+  """
+  The instance's IArticles mixin. Left out of the schema where its module isn't installed.
+  """
+  articles: IArticles!
+
   """
   The audience this record belongs to.
   """
@@ -15758,6 +16420,177 @@ type ProviderPhotographer implements IPhotographer {
 }
 
 """
+A person listing that publishes articles in the audience's apps with Soapbox,
+e.g. QSaltLake (doc/SOAPBOX.md). Its name, picture, page and socials are its person's.
+"""
+type Publication implements HasTimestamps {
+  """
+  What it covers.
+  """
+  about: String
+
+  """
+  Whether readers can send it op-eds (submitOpEd).
+  """
+  acceptsOpEds: Boolean!
+
+  """
+  Every article it has, drafts and op-eds included, newest first: its managers and the audience's admins.
+  """
+  allArticles(
+    """
+    Returns the elements in the list that come after the specified cursor.
+    """
+    after: String
+
+    """
+    Returns the elements in the list that come before the specified cursor.
+    """
+    before: String
+
+    """
+    Returns the first _n_ elements from the list.
+    """
+    first: Int
+
+    """
+    Returns the last _n_ elements from the list.
+    """
+    last: Int
+
+    """
+    Only these statuses.
+    """
+    statuses: [ArticleStatus!]
+  ): ArticleConnection @requires(permissions: ["soapbox:read:mine", "soapbox:read:*"])
+
+  """
+  Its live articles, pinned first, then newest.
+  """
+  articles(
+    """
+    Returns the elements in the list that come after the specified cursor.
+    """
+    after: String
+
+    """
+    Returns the elements in the list that come before the specified cursor.
+    """
+    before: String
+
+    """
+    Returns the first _n_ elements from the list.
+    """
+    first: Int
+
+    """
+    Returns the last _n_ elements from the list.
+    """
+    last: Int
+  ): ArticleConnection!
+
+  """
+  When it started publishing here.
+  """
+  createdAt: ISO8601DateTime!
+
+  """
+  Where readers send tips and corrections.
+  """
+  editorialEmail: String
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  The locale it covers.
+  """
+  locale: Locale
+
+  """
+  Its name as a publication, when not its person's.
+  """
+  masthead: String
+
+  """
+  The name it publishes under: its masthead, else its person's.
+  """
+  name: String!
+
+  """
+  What it asks of op-ed writers.
+  """
+  opEdGuidelines: String
+
+  """
+  The listing it publishes as.
+  """
+  person: Person
+
+  """
+  Its person's picture.
+  """
+  photoUrl: PhotoURL
+
+  """
+  How far the audience trusts it: its managers and the audience's admins.
+  """
+  trust: PublicationTrust @requires(permissions: ["soapbox:read:mine", "soapbox:read:*"])
+
+  """
+  Why the audience trusted or suspended it.
+  """
+  trustNote: String @requires(permissions: ["soapbox:read:mine", "soapbox:read:*"])
+
+  """
+  Whether its articles go out without the audience approving each.
+  """
+  trusted: Boolean!
+
+  """
+  When it last changed.
+  """
+  updatedAt: ISO8601DateTime!
+
+  """
+  Whether the signed-in user runs it (manages its person) or is the audience's admin.
+  """
+  viewerCanManage: Boolean!
+
+  """
+  Whether the signed-in user may publish its articles without approval: a trusted publication's managers, or admins.
+  """
+  viewerCanPublish: Boolean!
+
+  """
+  Its website.
+  """
+  websiteUrl: String
+}
+
+"""
+How far the audience trusts a Soapbox publication (doc/SOAPBOX.md).
+"""
+enum PublicationTrust {
+  """
+  Asked to publish: each article waits for the audience's admins.
+  """
+  PENDING
+
+  """
+  Nothing new goes out, and its published articles are hidden.
+  """
+  SUSPENDED
+
+  """
+  Its managers publish directly.
+  """
+  TRUSTED
+}
+
+"""
 A notification for you, while the app is open (Subscription.myNotifications):
 the same one that's sent to your devices' push service, so show it in the app
 and skip the system copy with the same `notificationId`.
@@ -16929,6 +17762,12 @@ type SelfUser implements HasTimestamps & HasTribes & IUser {
   currentVenue: Venue
 
   """
+  The Discord account connected to theirs (signed in with, or connected from the
+  app), as of the last time; null without one.
+  """
+  discordUsername: String
+
+  """
   The email address supplied by the user.
   """
   emailAddress: String
@@ -17004,6 +17843,11 @@ type SelfUser implements HasTimestamps & HasTribes & IUser {
   Whether they can sign in with Apple.
   """
   signedInWithApple: Boolean!
+
+  """
+  Whether a Discord account is connected, so they can sign in with it and the Discord bridge knows them.
+  """
+  signedInWithDiscord: Boolean!
 
   """
   Whether they can sign in with Google.
@@ -17309,6 +18153,58 @@ type SocialLinkEdge {
   The item at the end of the edge.
   """
   node: SocialLink
+}
+
+"""
+What a handle a social profile proposal found looks like on its network
+(Instagram for now), so a reviewer can tell two accounts apart. Read in the
+background: PENDING until then.
+"""
+type SocialProfilePreview {
+  """
+  Its bio.
+  """
+  biography: String
+
+  """
+  Why it could not be read (FAILED, UNAVAILABLE).
+  """
+  error: String
+
+  """
+  How many follow it.
+  """
+  followersCount: Int
+
+  """
+  Its latest post images, newest first (up to 6).
+  """
+  imageUrls: [String!]!
+
+  """
+  Its display name.
+  """
+  name: String
+
+  """
+  Its profile picture.
+  """
+  pictureUrl: String
+
+  """
+  How many posts it has.
+  """
+  postsCount: Int
+
+  """
+  pending, ready, failed or unavailable (no reader set up).
+  """
+  status: String!
+
+  """
+  The handle.
+  """
+  username: String!
 }
 
 """
@@ -17932,6 +18828,11 @@ type Submission {
   What the submitter wrote. Admins only, since it may say who they are.
   """
   body: String @requires(permissions: ["audience:moderate:*"])
+
+  """
+  For an Instagram SOCIAL_LINK: what each choice looks like, in choice order, read in the background. Admins only.
+  """
+  choiceProfiles: [SocialProfilePreview!]! @requires(permissions: ["audience:moderate:*"])
 
   """
   For SOCIAL_LINK: the handles it found, the proposed one first. A reviewer
@@ -18772,13 +19673,15 @@ type Tip implements ICharge & Node {
   status: TipStatus!
 
   """
-  The fan, for the performer and the console. Null when the account that tipped is gone.
+  The fan who tipped, for themselves and for the console (tipping:read:* across
+  the audience). Performers and their listing managers get null: they see
+  tipperFirstName, or Anonymous. Null too when the account that tipped is gone.
   """
   tipper: Profile
 
   """
-  The fan's first name, when they asked to show it with an App Clip tip
-  (showFirstName) and have claimed it since. Null otherwise.
+  The fan's first name, when they chose to show it (showFirstName on startTip or
+  an App Clip tip). Null otherwise: show them as Anonymous.
   """
   tipperFirstName: String
 
@@ -19006,6 +19909,11 @@ input TipStartInput {
   The performer.
   """
   personId: ID!
+
+  """
+  Show the performer their first name (tipperFirstName). Otherwise they see the tip as Anonymous.
+  """
+  showFirstName: Boolean = false
 }
 
 """
@@ -19904,6 +20812,11 @@ type Venue implements HasBanner & HasPhoto & HasTags & HasTaskTemplates & HasTim
   archived: Boolean!
 
   """
+  The instance's IArticles mixin. Left out of the schema where its module isn't installed.
+  """
+  articles: IArticles!
+
+  """
   Its banner images, in the order the apps rotate through.
   """
   bannerPhotos: [BannerPhoto!]!
@@ -20173,6 +21086,13 @@ type VenueChatView implements IVenueChat {
   provider: ChatProvider!
 
   """
+  Whether the room is a read-only mirror of its provider's channel (a Discord
+  bridge in read mode): anyone signed in reads and reports it from anywhere,
+  nobody posts in it from the apps, and replyUrl is where to reply.
+  """
+  readOnly: Boolean!
+
+  """
   Its last few lines, oldest first. Empty unless the signed-in user is at the
   venue (or is an admin), as the room is. Only the last 24 hours, except for admins.
   """
@@ -20202,6 +21122,11 @@ type VenueChatView implements IVenueChat {
     """
     limit: Int = 5
   ): VenueMessageConnection!
+
+  """
+  Where to reply to a read-only room (readOnly), e.g. its Discord channel. Null otherwise.
+  """
+  replyUrl: String
 
   """
   Where the apps send people to the room when its provider doesn't run it in the

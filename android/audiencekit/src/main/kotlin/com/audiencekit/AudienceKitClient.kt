@@ -191,6 +191,49 @@ public class AudienceKitClient(
         )
     }
 
+    /**
+     * Connects the Discord account in [result] (from [DiscordConnection.result]) to the signed-in account and stores the
+     * session the API returns (`POST /v1/token/discord` with `connect`). When the Discord bridge had already made an
+     * account for that Discord user, the two become one, so the session can name a different user ID.
+     *
+     * Returns null when they cancelled. Refusals (the account already has another Discord, say) and failures on
+     * Discord's page throw [AudienceKitException.SignInFailed] and keep the current session.
+     */
+    public suspend fun connectDiscord(
+        result: DiscordConnection.Result,
+        connection: DiscordConnection,
+        device: DeviceDescription,
+    ): SignInResult? = when (result) {
+        is DiscordConnection.Result.Ticket -> connectDiscord(result.ticket, connection.verifier, device)
+        DiscordConnection.Result.Cancelled -> null
+        is DiscordConnection.Result.Failed -> throw AudienceKitException.SignInFailed(result.reason)
+    }
+
+    /** Connects Discord with a ticket from the API's hand-back and the verifier that started it. */
+    public suspend fun connectDiscord(ticket: String, verifier: String, device: DeviceDescription): SignInResult {
+        val token = storedToken() ?: throw AudienceKitException.NotSignedIn()
+        val body = DiscordConnectRequest(ticket = ticket, verifier = verifier, host = configuration.host, device = device)
+        return exchange(
+            "/v1/token/discord",
+            encodeJson.encodeToString(DiscordConnectRequest.serializer(), body).toByteArray(),
+            token,
+        )
+    }
+
+    /**
+     * The Discord account connected to the signed-in one (`me { self { signedInWithDiscord discordUsername } }`): null
+     * when there's none, and when the API is older than the field.
+     */
+    public suspend fun connectedDiscord(): ConnectedDiscord? {
+        val response = try {
+            graphQL(Queries.connectedDiscord, ConnectedDiscordResponse.serializer(), operationName = "ConnectedDiscord")
+        } catch (e: AudienceKitException.GraphQL) {
+            return null
+        }
+        val user = response.me?.self ?: return null
+        return if (user.signedInWithDiscord == true) ConnectedDiscord(user.discordUsername) else null
+    }
+
     private suspend fun signIn(body: SignInRequest): SignInResult {
         val request = APIRequest(
             method = "POST",
@@ -864,6 +907,15 @@ internal data class GoogleSignInRequest(
     val device: DeviceDescription,
     val name: String? = null,
     val connect: Boolean? = null,
+)
+
+@Serializable
+internal data class DiscordConnectRequest(
+    val ticket: String,
+    val verifier: String,
+    val host: String? = null,
+    val device: DeviceDescription,
+    val connect: Boolean = true,
 )
 
 /** A REST error: `{ "error": "<code>", "message": "..." }` (the API's doc/TOKENS.md, "Error codes"). */

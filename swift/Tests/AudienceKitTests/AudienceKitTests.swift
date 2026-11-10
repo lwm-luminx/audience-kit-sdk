@@ -1284,3 +1284,113 @@ private func makeClient(
         #expect(CredentialEnvelope.decode(Data(#"{"v":0,"credential":{}}"#.utf8)) == nil)
     }
 }
+
+@Suite struct DiscordConnectTests {
+    @Test func hashesTheVerifierLikeTheAPI() {
+        #expect(SHA256Hex.digest("") == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+        #expect(SHA256Hex.digest("abc") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+        let long = String(repeating: "a", count: 1000)
+        #expect(SHA256Hex.digest(long) == "41edece42d63e8d9bf515a9ba6932e1c20cbc9f5a5d134645adb5db1b9737ea3")
+    }
+
+    @Test func buildsTheAuthorizeURLOnTheSessionsAPI() async throws {
+        let stub = Stub { _ in .json(status: 200, body: "{}") }
+        let (client, _) = makeClient(stub, token: "jwt-1")
+
+        let connection = try await client.discordConnection(app: "rent.hackdiffe.app")
+        let components = try #require(URLComponents(url: connection.authorizeURL, resolvingAgainstBaseURL: false))
+        #expect(components.host == stub.baseURL.host)
+        #expect(components.path == "/v1/token/discord/authorize")
+        let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+        #expect(query["platform"] == "ios")
+        #expect(query["app"] == "rent.hackdiffe.app")
+        #expect(query["challenge"] == SHA256Hex.digest(connection.verifier))
+        #expect(connection.verifier.count == 64)
+        #expect(DiscordConnection.randomVerifier() != connection.verifier)
+    }
+
+    @Test func readsTheCallback() {
+        let answer = { DiscordConnection.answer(from: URL(string: $0)!) }
+        #expect(answer("audiencekit-discord://callback?ticket=t-1") == .ticket("t-1"))
+        #expect(answer("audiencekit-discord://callback?error=access_denied") == .cancelled)
+        #expect(answer("audiencekit-discord://callback?error=sign_in_failed&error_description=Nope")
+            == .failed(message: "Nope"))
+        #expect(answer("audiencekit-discord://callback") == nil)
+        #expect(answer("https://evil.example/callback?ticket=t-1") == nil)
+    }
+
+    @Test func connectsDiscordToTheSignedInAccount() async throws {
+        let stub = Stub { request in .json(status: 200, body: tokenJSON(request, token: "jwt-5", userId: "u-2")) }
+        let (client, store) = makeClient(stub, token: "jwt-3")
+        let connection = DiscordConnection.make(base: stub.baseURL, app: "rent.hackdiffe.app", verifier: "v-1")
+
+        let result = try await client.connectDiscord(
+            callbackURL: URL(string: "audiencekit-discord://callback?ticket=t-1")!, connection: connection,
+            device: device)
+
+        #expect(result?.userId == "u-2")
+        #expect(try store.load()?.token == "jwt-5")
+        let request = try #require(stub.requests.first)
+        #expect(request.path == "/v1/token/discord")
+        #expect(request.header("Authorization") == "Bearer jwt-3")
+        let body = try request.jsonBody()
+        #expect(body["ticket"] as? String == "t-1")
+        #expect(body["verifier"] as? String == "v-1")
+        #expect(body["connect"] as? Bool == true)
+        #expect(body["host"] as? String == "hotmess.admin.audiencekit.com")
+    }
+
+    @Test func aCancelledOrFailedConnectSendsNothing() async throws {
+        let stub = Stub { _ in .json(status: 500, body: "{}") }
+        let (client, store) = makeClient(stub, token: "jwt-3")
+        let connection = DiscordConnection.make(base: stub.baseURL, app: "rent.hackdiffe.app")
+
+        let cancelled = try await client.connectDiscord(
+            callbackURL: URL(string: "audiencekit-discord://callback?error=access_denied")!, connection: connection,
+            device: device)
+        #expect(cancelled == nil)
+        await #expect(throws: AudienceKitError.signInFailed(message: "Discord said no")) {
+            try await client.connectDiscord(
+                callbackURL: URL(string: "audiencekit-discord://callback?error=x&error_description=Discord%20said%20no")!,
+                connection: connection, device: device)
+        }
+        await #expect(throws: AudienceKitError.signInFailed(message: "Discord didn't connect. Try again.")) {
+            try await client.connectDiscord(callbackURL: URL(string: "audiencekit-discord://callback")!,
+                                            connection: connection, device: device)
+        }
+        #expect(stub.requests.isEmpty)
+        #expect(try store.load()?.token == "jwt-3")
+    }
+
+    @Test func aRefusedConnectKeepsTheSession() async throws {
+        let stub = Stub { _ in
+            .json(status: 400, body: #"{"fault":{"message":"This account already has a different Discord account"}}"#)
+        }
+        let (client, store) = makeClient(stub, token: "jwt-3")
+
+        await #expect(throws: AudienceKitError.signInFailed(
+            message: "This account already has a different Discord account"))
+        {
+            try await client.connectDiscord(ticket: "t-1", verifier: "v-1", device: device)
+        }
+        #expect(try store.load()?.token == "jwt-3")
+    }
+
+    @Test func readsTheConnectedDiscord() async throws {
+        let connected = Stub { _ in
+            .json(status: 200, body: #"{"data":{"me":{"self":{"signedInWithDiscord":true,"discordUsername":"nelly"}}}}"#)
+        }
+        #expect(try await makeClient(connected).0.connectedDiscord() == ConnectedDiscord(username: "nelly"))
+
+        let none = Stub { _ in
+            .json(status: 200, body: #"{"data":{"me":{"self":{"signedInWithDiscord":false,"discordUsername":null}}}}"#)
+        }
+        #expect(try await makeClient(none).0.connectedDiscord() == nil)
+
+        let older = Stub { _ in
+            .json(status: 200, body: #"{"errors":[{"message":"Field 'signedInWithDiscord' doesn't exist","#
+                + #""extensions":{"code":"undefinedField"}}]}"#)
+        }
+        #expect(try await makeClient(older).0.connectedDiscord() == nil)
+    }
+}

@@ -20,6 +20,14 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   `SEE LICENSE IN LICENSE` in the npm package (which now ships the file, as the Python release does), and a POM
   `<licenses>` entry on every Maven publication.
 
+## 0.49.0 (2026-11-10)
+
+- Swift: read-only chat rooms. A room that mirrors a provider's channel (the API's read-only Discord bridge) sends
+  `ChatRoomEvent.readOnly(replyURL:)` right after `.joined`: signed-in people read and report its messages, sending
+  fails, and `replyURL` opens the channel on Discord to reply there. The subscription now asks for `ChatJoined`'s
+  `readOnly` and `replyUrl`, so it needs an API with them (audience_kit_api #428). `.readOnly` is a new case, so
+  exhaustive switches over `ChatRoomEvent` need it. Kotlin follows.
+
 ## 0.48.0 (2026-11-09)
 
 - Soapbox (Swift and Kotlin): articles from the audience's publications (a newspaper such as QSaltLake, a candidate)

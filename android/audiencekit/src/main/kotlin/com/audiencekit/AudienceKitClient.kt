@@ -1,5 +1,6 @@
 package com.audiencekit
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -10,6 +11,10 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.put
 import kotlinx.serialization.serializer
 import java.io.IOException
 import java.net.URI
@@ -86,6 +91,11 @@ public class AudienceKitClient(
     private val tokenStore: TokenStore = InMemoryTokenStore(),
     private val transport: HttpTransport = UrlConnectionTransport(),
     public val monitor: GraphQLMonitor? = null,
+    /**
+     * Proves each sign-in comes from the genuine app on a genuine device ([DeviceAttestation]). On Android pass
+     * `PlayIntegrityAttestor(context)` from `audiencekit-android`; null sends none.
+     */
+    public val deviceAttestor: DeviceAttestor? = null,
 ) {
     private val sessionChannel = Channel<SessionEvent>(Channel.UNLIMITED)
 
@@ -235,14 +245,7 @@ public class AudienceKitClient(
     }
 
     private suspend fun signIn(body: SignInRequest): SignInResult {
-        val request = APIRequest(
-            method = "POST",
-            path = "/v1/token",
-            body = encodeJson.encodeToString(SignInRequest.serializer(), body).toByteArray(),
-            authenticated = false,
-        )
-
-        val response = perform(request)
+        val response = postSignIn("/v1/token", encodeJson.encodeToString(SignInRequest.serializer(), body).toByteArray())
         when (response.status) {
             in 200..299 -> Unit
             401 -> throw AudienceKitException.SignInRejected()
@@ -317,9 +320,7 @@ public class AudienceKitClient(
      * Authorization; a refusal never ends it.
      */
     private suspend fun exchange(path: String, body: ByteArray, token: String? = null): SignInResult {
-        val request = APIRequest(method = "POST", path = path, body = body, authenticated = false)
-
-        val response = perform(request, token)
+        val response = postSignIn(path, body, token)
         when (response.status) {
             in 200..299 -> Unit
             401 -> {
@@ -343,6 +344,57 @@ public class AudienceKitClient(
         resolvedAudienceId = result.audienceId
         sessionChannel.trySend(SessionEvent.SIGNED_IN)
         return result
+    }
+
+    /**
+     * Posts a sign-in with device attestation ([deviceAttestor]) when the client has an attestor. When the API doesn't
+     * know the attestor's key, it forgets it and tries once more. A device the audience refuses throws
+     * [AudienceKitException.DeviceNotTrusted].
+     */
+    private suspend fun postSignIn(path: String, body: ByteArray, token: String? = null): HttpResponse {
+        suspend fun post() = perform(APIRequest(method = "POST", path = path, body = attested(body), authenticated = false), token)
+
+        var response = post()
+        val attestor = deviceAttestor
+        if (response.status == 403 && refusalReason(response) == ATTESTATION_KEY_UNKNOWN && attestor != null) {
+            attestor.forgetKey()
+            response = post()
+        }
+        if (response.status == 403 && refusalReason(response) in DEVICE_REFUSALS) {
+            val error = runCatching { decodeJson.decodeFromString(ErrorEnvelope.serializer(), response.text) }
+            throw AudienceKitException.DeviceNotTrusted(error.getOrNull()?.message)
+        }
+        return response
+    }
+
+    private fun refusalReason(response: HttpResponse): String? =
+        runCatching { decodeJson.decodeFromString(ErrorEnvelope.serializer(), response.text).reason }.getOrNull()
+
+    /** Adds `attestation` to a sign-in body. Never fails the sign-in: when anything goes wrong it sends why. */
+    private suspend fun attested(body: ByteArray): ByteArray {
+        val attestor = deviceAttestor ?: return body
+        val fields = runCatching { decodeJson.parseToJsonElement(body.toString(Charsets.UTF_8)).jsonObject }
+            .getOrNull() ?: return body
+        val proof = attestor.unsupportedReason()?.let { DeviceAttestation.unsupported(ATTESTATION_PLATFORM, it) }
+            ?: try {
+                val challenge = attestationChallenge() ?: return body
+                if (challenge.mode == "off") return body
+                attestor.attest(challenge.challenge)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                DeviceAttestation.unsupported(ATTESTATION_PLATFORM, "attest_failed")
+            }
+        val attestation = encodeJson.encodeToJsonElement(DeviceAttestation.serializer(), proof)
+        return JsonObject(fields + ("attestation" to attestation)).toString().toByteArray()
+    }
+
+    /** A fresh challenge for the audience's host; null when the API doesn't offer attestation (an older API). */
+    private suspend fun attestationChallenge(): AttestationChallenge? {
+        val body = buildJsonObject { configuration.host?.let { put("host", it) } }.toString().toByteArray()
+        val response = perform(APIRequest(method = "POST", path = "/v1/token/attestation", body = body, authenticated = false))
+        if (response.status !in 200..299) return null
+        return decode(AttestationChallenge.serializer(), response.text, decodeJson)
     }
 
     /**
@@ -835,6 +887,11 @@ public class AudienceKitClient(
 
         private val decodeJson get() = json
 
+        /** The Kotlin SDK attests with Play Integrity; the Swift SDK sends `ios`. */
+        private const val ATTESTATION_PLATFORM = "android"
+        private const val ATTESTATION_KEY_UNKNOWN = "attestation_key_unknown"
+        private val DEVICE_REFUSALS = setOf("device_not_trusted", ATTESTATION_KEY_UNKNOWN)
+
         // Defaults are sent (the device `type`); nulls are left out, as the API expects.
         private val encodeJson = Json {
             encodeDefaults = true
@@ -920,7 +977,12 @@ internal data class DiscordConnectRequest(
 
 /** A REST error: `{ "error": "<code>", "message": "..." }` (the API's doc/TOKENS.md, "Error codes"). */
 @Serializable
-internal data class ErrorEnvelope(val error: String? = null, val message: String? = null)
+internal data class ErrorEnvelope(
+    val error: String? = null,
+    val message: String? = null,
+    /** A 403's machine-readable word (`banned`, `device_not_trusted`…). */
+    val reason: String? = null,
+)
 
 @Serializable
 internal data class GraphQLRequest(

@@ -66,6 +66,9 @@ public struct AudienceKitError: Error, Sendable, Equatable {
         public static let signInRejected = "SIGN_IN_REJECTED"
         /// `POST /v1/token` failed (HTTP 400). The message is the API's when it sent one.
         public static let signInFailed = "SIGN_IN_FAILED"
+        /// The audience only lets its own app on a genuine device sign in, and this sign-in didn't prove it (HTTP 403,
+        /// reason `device_not_trusted`): a simulator, an emulator, a modified app or a rooted device.
+        public static let deviceNotTrusted = "DEVICE_NOT_TRUSTED"
         /// Any other unsuccessful HTTP status; see ``AudienceKitError/status``.
         public static let http = "HTTP"
         /// The request never got a response: offline, timed out, TLS failure and so on.
@@ -99,6 +102,11 @@ public struct AudienceKitError: Error, Sendable, Equatable {
 
     public static func signInFailed(message: String?) -> AudienceKitError {
         AudienceKitError(code: Code.signInFailed, message: message ?? "Sign-in failed.", status: 400)
+    }
+
+    public static func deviceNotTrusted(message: String?) -> AudienceKitError {
+        AudienceKitError(code: Code.deviceNotTrusted,
+                         message: message ?? "This app can't sign in on this device.", status: 403)
     }
 
     public static func http(status: Int, code: String? = nil, message: String? = nil) -> AudienceKitError {

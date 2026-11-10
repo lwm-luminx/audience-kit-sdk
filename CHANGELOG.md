@@ -20,6 +20,24 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   `SEE LICENSE IN LICENSE` in the npm package (which now ships the file, as the Python release does), and a POM
   `<licenses>` entry on every Maven publication.
 
+## 0.50.0 (2026-11-10)
+
+- Device attestation at sign-in (Rick, 2026-11-10; the API's doc/DEVICE_ATTESTATION.md, audience_kit_api #459). Every
+  sign-in now asks `POST /v1/token/attestation` for a one-use challenge and sends proof over it as `attestation`, so an
+  audience can refuse tokens minted anywhere but its genuine app on a genuine device. Apps change nothing beyond
+  updating the SDK:
+  - Swift: `AppAttestAttestor` (App Attest / DeviceCheck), on by default on iOS (`AudienceSession`'s new
+    `deviceAttestor:` parameter, `AppAttestAttestor.platformDefault`). The first sign-in from an install attests a
+    Secure Enclave key; later ones send an assertion. The key ID is kept in `UserDefaults`
+    (`UserDefaultsAttestationKeyStore`). Simulators send `unsupported` without a challenge round trip.
+  - Kotlin: `DeviceAttestor` and `AudienceKitClient(deviceAttestor = …)`; `audiencekit-android` adds
+    `PlayIntegrityAttestor` (Play Integrity, `com.google.android.play:integrity`), on by default in
+    `AudienceKitClient(context, configuration)`.
+  - When the audience enforces attestation and the device fails, sign-in throws `AudienceKitError` code
+    `DEVICE_NOT_TRUSTED` (Swift) or `AudienceKitException.DeviceNotTrusted` (Kotlin, a new subclass). When the API
+    doesn't know an App Attest key (a restored backup), the SDK makes a new one and retries once. When the audience has
+    attestation off, or the API is older, nothing extra is sent.
+
 ## 0.49.0 (2026-11-10)
 
 - Swift: read-only chat rooms. A room that mirrors a provider's channel (the API's read-only Discord bridge) sends

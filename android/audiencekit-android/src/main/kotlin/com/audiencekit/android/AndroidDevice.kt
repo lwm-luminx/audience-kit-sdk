@@ -8,6 +8,7 @@ import android.os.Build
 import android.provider.Settings
 import com.audiencekit.AudienceKitClient
 import com.audiencekit.AudienceKitConfiguration
+import com.audiencekit.DeviceAttestor
 import com.audiencekit.DeviceDescription
 import com.audiencekit.HttpTransport
 import com.audiencekit.UrlConnectionTransport
@@ -47,12 +48,17 @@ public fun installationIdentifier(context: Context): String {
     }
 }
 
-/** An [AudienceKitClient] that keeps its session in a [KeystoreTokenStore]. */
+/**
+ * An [AudienceKitClient] that keeps its session in a [KeystoreTokenStore] and proves its sign-ins with Play Integrity
+ * ([PlayIntegrityAttestor]; pass null to send none).
+ */
 public fun AudienceKitClient(
     context: Context,
     configuration: AudienceKitConfiguration,
     transport: HttpTransport = UrlConnectionTransport(),
-): AudienceKitClient = AudienceKitClient(configuration, KeystoreTokenStore(context), transport)
+    deviceAttestor: DeviceAttestor? = PlayIntegrityAttestor(context),
+): AudienceKitClient =
+    AudienceKitClient(configuration, KeystoreTokenStore(context), transport, deviceAttestor = deviceAttestor)
 
 private fun deviceModel(): String {
     val manufacturer = Build.MANUFACTURER.replaceFirstChar { it.uppercase() }

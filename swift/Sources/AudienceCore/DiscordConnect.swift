@@ -163,7 +163,8 @@ struct DiscordConnectRequest: Encodable {
     var connect = true
 }
 
-/// SHA-256 as lowercase hex, without CryptoKit so it works on Linux too. Only for the verifier's challenge.
+/// SHA-256 without CryptoKit so it works on Linux too: the verifier's challenge (hex) and App Attest's client data
+/// hash (``data(_:)``).
 enum SHA256Hex {
     private static let k: [UInt32] = [
         0x428A_2F98, 0x7137_4491, 0xB5C0_FBCF, 0xE9B5_DBA5, 0x3956_C25B, 0x59F1_11F1, 0x923F_82A4, 0xAB1C_5ED5,
@@ -177,6 +178,15 @@ enum SHA256Hex {
     ]
 
     static func digest(_ string: String) -> String {
+        words(string).map { String(format: "%08x", $0) }.joined()
+    }
+
+    /// The 32-byte digest of the string's UTF-8 bytes.
+    static func data(_ string: String) -> Data {
+        Data(words(string).flatMap { word in (0 ..< 4).map { UInt8(truncatingIfNeeded: word >> (24 - 8 * $0)) } })
+    }
+
+    private static func words(_ string: String) -> [UInt32] {
         var message = Array(string.utf8)
         let bitLength = UInt64(message.count) * 8
         message.append(0x80)
@@ -208,6 +218,6 @@ enum SHA256Hex {
             }
             h = zip(h, [a, b, c, d, e, f, g, hh]).map { $0 &+ $1 }
         }
-        return h.map { String(format: "%08x", $0) }.joined()
+        return h
     }
 }

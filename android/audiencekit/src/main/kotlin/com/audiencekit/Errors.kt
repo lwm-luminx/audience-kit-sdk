@@ -30,6 +30,13 @@ public sealed class AudienceKitException(message: String, cause: Throwable? = nu
     /** `POST /v1/token` failed (HTTP 400). Carries the API's `message` when it sent one. */
     public data class SignInFailed(val faultMessage: String?) : AudienceKitException(faultMessage ?: "Sign-in failed.")
 
+    /**
+     * The audience only lets its own app on a genuine device sign in, and this sign-in didn't prove it (HTTP 403,
+     * reason `device_not_trusted`): an emulator, a modified app or a rooted device. Carries the API's message.
+     */
+    public class DeviceNotTrusted(message: String? = null) :
+        AudienceKitException(message ?: "This app can't sign in on this device.")
+
     /** The credentials are valid but not allowed here (HTTP 403), e.g. a session bound to another audience. */
     public class Forbidden : AudienceKitException("You don't have access to this.")
 

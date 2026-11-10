@@ -30,6 +30,7 @@ kotlin {
 
 dependencies {
     api(project(":audiencekit"))
+    implementation(libs.play.integrity)
 }
 
 publishing {

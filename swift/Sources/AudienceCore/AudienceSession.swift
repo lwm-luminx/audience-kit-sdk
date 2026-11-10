@@ -79,17 +79,22 @@ public actor AudienceSession {
     private var schemaFieldCache: [String: Set<String>] = [:]
     /// The app's monitoring, told about every GraphQL operation (``GraphQLMonitor``).
     public nonisolated let monitor: (any GraphQLMonitor)?
+    /// Proves each sign-in comes from the genuine app on a genuine device (``DeviceAttestation``): App Attest on iOS
+    /// by default (``AppAttestAttestor/platformDefault``); nil sends none.
+    public nonisolated let deviceAttestor: (any DeviceAttestor)?
 
     public init(
         configuration: AudienceKitConfiguration,
         credentialStore: any CredentialStore = InMemoryCredentialStore(),
         session: URLSession = .shared,
-        monitor: (any GraphQLMonitor)? = nil
+        monitor: (any GraphQLMonitor)? = nil,
+        deviceAttestor: (any DeviceAttestor)? = AppAttestAttestor.platformDefault
     ) {
         self.configuration = configuration
         self.credentialStore = credentialStore
         self.session = session
         self.monitor = monitor
+        self.deviceAttestor = deviceAttestor
     }
 
     deinit {
@@ -175,14 +180,23 @@ public actor AudienceSession {
         try await signIn(path: "/v1/token", body: try JSONEncoder().encode(body), authenticated: false)
     }
 
+    /// Posts a sign-in, with device attestation (``DeviceAttestor``) when the session has an attestor. When the API
+    /// doesn't know the App Attest key (a restored backup), the attestor makes a new one and the sign-in is tried once
+    /// more. A refused device throws ``AudienceKitError/Code/deviceNotTrusted``.
     func signIn(path: String, body: Data, authenticated: Bool) async throws -> SignInResult {
-        let request = APIRequest(method: "POST", path: path, body: body, authenticated: authenticated)
-
-        let (data, response) = try await perform(request)
+        var (data, response) = try await postSignIn(path: path, body: body, authenticated: authenticated)
+        if response.statusCode == 403, RESTErrorBody.decode(data)?.reason == RESTErrorBody.attestationKeyUnknown,
+           let attestor = deviceAttestor
+        {
+            await attestor.forgetKey()
+            (data, response) = try await postSignIn(path: path, body: body, authenticated: authenticated)
+        }
 
         switch response.statusCode {
         case 200 ..< 300:
             break
+        case 403 where RESTErrorBody.deviceRefusals.contains(RESTErrorBody.decode(data)?.reason ?? ""):
+            throw AudienceKitError.deviceNotTrusted(message: RESTErrorBody.decode(data)?.message)
         case 401:
             throw AudienceKitError.signInRejected
         case 400 where RESTErrorBody.decode(data)?.error != RESTErrorBody.unsupportedAPIVersion:
@@ -195,6 +209,11 @@ public actor AudienceSession {
         let credential = try Self.decode(Credential.self, from: data)
         try store(credential)
         return SignInResult(credential: credential)
+    }
+
+    private func postSignIn(path: String, body: Data, authenticated: Bool) async throws -> (Data, HTTPURLResponse) {
+        let request = APIRequest(method: "POST", path: path, body: await attested(body), authenticated: authenticated)
+        return try await perform(request)
     }
 
     /// Makes `credential` the session: one minted outside the SDK, such as a venue device's, one the platform
@@ -489,7 +508,7 @@ public actor AudienceSession {
 
     /// Sends `request` to `baseURL` (the configured one by default), with `token` when it's authenticated (by
     /// default the stored one).
-    private func perform(_ request: APIRequest, token: String? = nil, baseURL: URL? = nil) async throws
+    func perform(_ request: APIRequest, token: String? = nil, baseURL: URL? = nil) async throws
         -> (Data, HTTPURLResponse)
     {
         let urlRequest = try makeURLRequest(request, token: token, baseURL: baseURL ?? configuration.baseURL)
@@ -693,6 +712,11 @@ struct AppleSignInRequest: Encodable {
 /// `{ "fault": { "message": "…" } }`.
 struct RESTErrorBody: Decodable {
     static let unsupportedAPIVersion = "unsupported_api_version"
+    /// A 403's `reason` when the audience enforces device attestation and this sign-in didn't pass it.
+    static let deviceNotTrusted = "device_not_trusted"
+    /// A 403's `reason` when the API doesn't know the App Attest key: make a new one and try again.
+    static let attestationKeyUnknown = "attestation_key_unknown"
+    static let deviceRefusals: Set<String> = [deviceNotTrusted, attestationKeyUnknown]
 
     struct Fault: Decodable {
         var message: String?
@@ -700,12 +724,14 @@ struct RESTErrorBody: Decodable {
 
     var error: String?
     var message: String?
+    /// A 403's machine-readable word (`banned`, `device_not_trusted`…).
+    var reason: String?
     var fault: Fault?
     var supported: [String]?
     var minimumSDKVersion: String?
 
     enum CodingKeys: String, CodingKey {
-        case error, message, fault, supported
+        case error, message, reason, fault, supported
         case minimumSDKVersion = "minimum_sdk_version"
     }
 

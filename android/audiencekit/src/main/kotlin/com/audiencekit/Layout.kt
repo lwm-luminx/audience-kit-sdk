@@ -79,7 +79,10 @@ public data class CardContent(
 public data class PromoCard(
     /** The placement, as [recordCardViews] takes it. */
     val id: String,
-    /** One of [cardCategories]' keys: venue, event, health, employment, small_business, charity. */
+    /**
+     * One of [cardCategories]' keys: venue, event, health, employment, small_business, charity, announcement or
+     * audiencekit (AudienceKit's own cards, which nobody can hide).
+     */
     val category: String,
     /** Its badge, e.g. "Promoted" or "Charity". */
     val label: String,
@@ -90,7 +93,15 @@ public data class PromoCard(
     val venueId: String? = null,
     /** The event it promotes, for an event card. */
     val eventId: String? = null,
-)
+    /**
+     * The staff app the card is about getting, if any. Skip the card on a phone that already has it
+     * ([CardFilter.installedStaffApps]); the server never learns which apps someone has.
+     */
+    val staffApp: StaffApp? = null,
+) {
+    /** AudienceKit's own card ([PlatformCredit]), labelled "From AudienceKit". */
+    val isFromAudienceKit: Boolean get() = category == "audiencekit"
+}
 
 /**
  * One card of a screen, in rank order. It carries the ids of the records it's about (load them as before), a web
@@ -125,7 +136,7 @@ public data class LayoutCard(
     val isFallback: Boolean = false,
 ) {
     /** The candidate to draw in a promo slot: the first the filter allows, or null to draw nothing. */
-    public fun promo(filter: CardFilter): PromoCard? = candidates.firstOrNull { filter.allows(it.category) }
+    public fun promo(filter: CardFilter): PromoCard? = candidates.firstOrNull { filter.allows(it) }
 
     public companion object {
         /** A card of the built-in order: nothing but its kind. */
@@ -182,7 +193,16 @@ public data class CardFilter(
      * was hidden before the audience changed that; until they load, every hidden category is honoured.
      */
     val categories: List<CardCategory>? = null,
+    /**
+     * The staff apps this phone has (`StaffApps.installed` in audiencekit-android): a card about getting one of them is
+     * skipped. Worked out on the phone; the server never learns.
+     */
+    val installedStaffApps: Set<StaffApp> = emptySet(),
 ) {
+    /** Whether to show the card: its category isn't hidden and it isn't about a staff app the phone already has. */
+    public fun allows(card: PromoCard): Boolean =
+        allows(card.category) && (card.staffApp == null || card.staffApp !in installedStaffApps)
+
     public fun allows(category: String): Boolean {
         if (category !in hidden) return true
         val categories = categories ?: return false
@@ -320,6 +340,10 @@ public class PromoViewRecorder(
 internal object LayoutQueries {
     const val CARD_CONTENT_FIELDS: String = "headline body imageUrl imageAlt linkUrl linkLabel"
 
+    /** The layout, with each promo card's `staffApp` where the API has it (an older API doesn't). */
+    fun layoutFor(shape: SchemaShape): String =
+        layout.replace("sponsorName ", if (shape.has("PromoCard", "staffApp")) "sponsorName staffApp " else "sponsorName ")
+
     val layout: String = """
         query Layout(${'$'}screen: LayoutScreen!, ${'$'}client: LayoutClientInput!, ${'$'}position: CoordinatesInput, ${'$'}localeId: ID) {
           layout(screen: ${'$'}screen, client: ${'$'}client, position: ${'$'}position, localeId: ${'$'}localeId) {
@@ -371,6 +395,7 @@ internal data class PromoCardWire(
     val linkLabel: String? = null,
     val venue: IdRef? = null,
     val event: IdRef? = null,
+    val staffApp: String? = null,
 ) {
     fun toPromoCard() = PromoCard(
         id = id,
@@ -380,6 +405,7 @@ internal data class PromoCardWire(
         content = CardContent(headline, body, imageUrl, imageAlt, linkUrl, linkLabel),
         venueId = venue?.id,
         eventId = event?.id,
+        staffApp = StaffApp.fromKey(staffApp),
     )
 }
 
@@ -464,7 +490,9 @@ public suspend fun AudienceKitClient.layout(
         position?.let { put("position", it.toGraphQLValue()) }
         localeId?.let { put("localeId", JsonPrimitive(it)) }
     }
-    val wire = graphQL(LayoutQueries.layout, LayoutResponse.serializer(), variables, "Layout").layout
+    val wire = graphQL(listOf("PromoCard"), LayoutResponse.serializer(), variables, "Layout") { shape ->
+        LayoutQueries.layoutFor(shape)
+    }.layout
     val cards = wire.cards.mapNotNull { element ->
         runCatching { AudienceKitClient.json.decodeFromJsonElement(LayoutCardWire.serializer(), element) }
             .getOrNull()?.toCard()

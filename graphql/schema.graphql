@@ -16948,7 +16948,8 @@ type PromoCard implements IPromoContent {
 
   """
   Its badge, in the audience's words: Promoted, or Charity for a free charity
-  placement. Show it as sent; it can change without an app release.
+  placement, From AudienceKit for AudienceKit's own. Show it as sent; it can
+  change without an app release.
   """
   label: String!
 
@@ -16966,6 +16967,13 @@ type PromoCard implements IPromoContent {
   Who placed it.
   """
   sponsorName: String!
+
+  """
+  velvet, backstage or focus when the card is about getting that staff app: the
+  app skips it on a phone that already has the app (checked on the device; the
+  server never learns).
+  """
+  staffApp: String
 
   """
   The venue it promotes, for a venue card.

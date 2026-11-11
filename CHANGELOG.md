@@ -3,8 +3,17 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
-## Unreleased
+## 0.53.0 (2026-11-11)
 
+- "Check the app", moved out of the DNC demo app so every app gets it (Rick, 2026-11-11: shared features belong in the
+  SDK). `GraphQLOperationLog` (AudienceCore) is a `GraphQLMonitor` that keeps the last 100 operations and their errors,
+  writes failures to the unified log (category `graphql`), and passes everything on to the app's own monitoring.
+  `AppCheck` runs the app's steps (each one OK, empty, failed or skipped, timed) and builds a plain-text report;
+  `AppCheckView` (AudienceKitUI) is the screen, with "Copy report" and the recent failed requests. Empty screens
+  caused by a refused query, which apps hid behind `try?` (DNC's events, Hack Different's catalog), now show up there.
+- New `AudienceKitTesting` library for apps' unit tests: `GraphQLStub` answers an audience's GraphQL from a closure,
+  records each request, hands out a signed-in member `AudienceSession`, and `withinComplexityBudget(perItem:)`
+  refuses an over-budget page with the API's own error, so a page size the server would turn away fails in a test.
 - CI checks the documents the SDK builds from a `SchemaShape` (events, locales, offices, Soapbox and others) against
   the API schema too: `RenderedDocumentsTests` writes them out and the graphql job validates them. The source check
   skipped all 16 of them, including every query the DNC demo app reads.

@@ -15,12 +15,15 @@ let package = Package(
         .library(name: "AudienceCore", targets: ["AudienceCore"]),
         .library(name: "AudienceKit", targets: ["AudienceKit"]),
         .library(name: "AudienceKitUI", targets: ["AudienceKitUI"]),
+        // For apps' unit tests: a stub GraphQL API (GraphQLStub) that enforces the complexity budget.
+        .library(name: "AudienceKitTesting", targets: ["AudienceKitTesting"]),
     ],
     targets: [
         .target(name: "AudienceCore", path: "swift/Sources/AudienceCore"),
         .target(name: "AudienceKit", dependencies: ["AudienceCore"], path: "swift/Sources/AudienceKit"),
         .target(name: "AudienceKitUI", dependencies: ["AudienceCore", "AudienceKit"], path: "swift/Sources/AudienceKitUI"),
-        .testTarget(name: "AudienceKitTests", dependencies: ["AudienceKit", "AudienceCore", "AudienceKitUI"],
+        .target(name: "AudienceKitTesting", dependencies: ["AudienceCore"], path: "swift/Sources/AudienceKitTesting"),
+        .testTarget(name: "AudienceKitTests", dependencies: ["AudienceKit", "AudienceCore", "AudienceKitUI", "AudienceKitTesting"],
                     path: "swift/Tests/AudienceKitTests"),
     ]
 )

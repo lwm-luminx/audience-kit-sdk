@@ -372,6 +372,39 @@ carries the session and handles a rejected session the same way:
 let data = try await client.data(for: APIRequest(method: "POST", path: "/", authenticated: false))
 ```
 
+## Check the app
+
+Give the session a `GraphQLOperationLog` (it forwards to your own monitoring), then put an `AppCheckView` on the Me
+or Settings screen with the steps your screens load. Each step says what it found, found nothing, or why it failed,
+and "Copy report" makes a plain-text bug report with the recent failed requests:
+
+```swift
+let operations = GraphQLOperationLog(subsystem: "com.example.app", forwardingTo: newRelicMonitor)
+let client = AudienceKitClient(configuration: configuration, credentialStore: store, monitor: operations)
+
+NavigationLink("Check the app") {
+    AppCheckView(title: "Example \(version), \(configuration.baseURL)", log: operations) { check in
+        await check.step("Signed in") { try await client.me().map { "As \($0.id)." } }
+        await check.step("Upcoming events") {
+            let events = try await client.events(window: .upcoming, first: 10)
+            return events.isEmpty ? nil : "\(events.count) upcoming."
+        }
+    }
+}
+```
+
+In unit tests, `AudienceKitTesting`'s `GraphQLStub` stands in for the API. `withinComplexityBudget(perItem:)` refuses
+a page the server would refuse (a member's budget is 1000; an event in a list costs about 77), so asking for too many
+fails in the test instead of leaving a screen empty:
+
+```swift
+let api = GraphQLStub(respond: GraphQLStub.withinComplexityBudget(perItem: 77) { _ in
+    .data(#"{"events":{"list":{"nodes":[]}}}"#)
+})
+let events = try await MyService(client: api.client).events()
+#expect(api.requests.allSatisfy { ($0.int("first") ?? 0) * 77 <= 1_000 })
+```
+
 ## Errors
 
 Every failure is an `AudienceKitError`: a `code`, a `message` for the person,

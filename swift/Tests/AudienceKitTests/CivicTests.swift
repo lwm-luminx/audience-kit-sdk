@@ -148,3 +148,51 @@ private let officeJSON = #"""
     #expect(offices.isEmpty)
     #expect(stub.requests.last?.query.contains("offices") == false)
 }
+
+@Test func titlesAreTheirOwnKindAndFilterApart() async throws {
+    let crown = officeJSON.replacingOccurrences(of: "\"o-1\"", with: "\"o-3\"")
+        .replacingOccurrences(of: "US_HOUSE", with: "PAGEANT_TITLE")
+    let stub = Stub { _ in .json(status: 200, body: #"{"data":{"offices":["# + officeJSON + "," + crown + "]}}") }
+
+    let client = civicClient(stub)
+    #expect(try await client.offices(localeID: "l-ut", titles: true).map(\.id) == ["o-3"])
+    #expect(try await client.offices(localeID: "l-ut", titles: false).map(\.id) == ["o-1"])
+    #expect(try await client.offices(localeID: "l-ut").count == 2)
+
+    let kinds: [OfficeKind] = [.pageantTitle, .courtTitle, .clubTitle, .chapterLead]
+    #expect(kinds.allSatisfy { $0.isTitle })
+    #expect(kinds.map { OfficeKind(rawValue: $0.rawValue) } == kinds)
+    #expect(!OfficeKind.usHouse.isTitle)
+}
+
+@Test func anOfficeHoldersTitlesAndCivicOfficesSplit() {
+    let locale = OfficeLocale(id: "l-ut", name: "Utah", label: "utah", kind: nil, divisionId: nil)
+    let crown = PersonOffice(id: "o-1", office: .courtTitle, title: "Empress XL", label: "Empress XL, Utah", locale: locale)
+    let seat = PersonOffice(id: "o-2", office: .stateHouse, title: "State Representative", label: "State Rep", locale: locale)
+    let holder = OfficeHolder(id: "p-1", name: "Pat", avatarUrl: nil, bannerUrl: nil, offices: [crown, seat],
+                              donateTarget: nil, website: nil, socialAccounts: [], events: [], sharedIssues: [])
+    #expect(holder.titles == [crown])
+    #expect(holder.civicOffices == [seat])
+}
+
+@Test func aPersonsTitlesLeaveOutCivicOffices() async throws {
+    let crown = officeJSON.replacingOccurrences(of: "\"o-1\"", with: "\"o-3\"")
+        .replacingOccurrences(of: "US_HOUSE", with: "COURT_TITLE")
+    let stub = Stub { request in
+        if request.query.contains("__type") {
+            let pattern = try! NSRegularExpression(pattern: #"(t\d+): __type"#)
+            let query = request.query
+            let entries = pattern.matches(in: query, range: NSRange(query.startIndex..., in: query)).map { match in
+                let alias = String(query[Range(match.range(at: 1), in: query)!])
+                return #""\#(alias)":{"fields":[{"name":"id"},{"name":"offices"}]}"#
+            }
+            return .json(status: 200, body: #"{"data":{"# + entries.joined(separator: ",") + "}}")
+        }
+        return .json(status: 200, body: #"{"data":{"node":{"id":"p-1","offices":["# + officeJSON + "," + crown + "]}}}")
+    }
+
+    let titles = try await civicClient(stub).titles(personID: "p-1")
+
+    #expect(titles.map(\.id) == ["o-3"])
+    #expect(stub.requests.last?.query.contains("PersonTitles") == true)
+}

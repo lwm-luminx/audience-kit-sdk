@@ -1723,6 +1723,11 @@ type Audience implements IRelay & Node {
     Only these; incumbents and candidates by default.
     """
     status: [OfficeStatus!]
+
+    """
+    Only community titles (true) or only civic offices (false); both by default.
+    """
+    titles: Boolean
   ): [PersonOffice!]!
 
   """
@@ -13000,6 +13005,11 @@ type Locale implements HasBanner & HasTimestamps & Node {
     Only these; incumbents and candidates by default.
     """
     status: [OfficeStatus!]
+
+    """
+    Only community titles (true) or only civic offices (false); both by default.
+    """
+    titles: Boolean
   ): [PersonOffice!]!
 
   """
@@ -14617,7 +14627,8 @@ type NodeChanged {
 }
 
 """
-Which office a person holds or is running for (PersonOffice::OFFICES). The title says how it reads.
+Which office or title a person holds or is running for (PersonOffice::OFFICES):
+civic offices, then community titles (PersonOffice::TITLES). The title says how it reads.
 """
 enum OfficeKind {
   """
@@ -14626,9 +14637,19 @@ enum OfficeKind {
   ATTORNEY_GENERAL
 
   """
+  A local chapter's lead or point of contact, such as a DEF CON Group's.
+  """
+  CHAPTER_LEAD
+
+  """
   A city council seat.
   """
   CITY_COUNCIL
+
+  """
+  A community or club title, such as Mr. Leather or Mr. Bear.
+  """
+  CLUB_TITLE
 
   """
   A county council or board seat.
@@ -14639,6 +14660,11 @@ enum OfficeKind {
   A county executive or mayor.
   """
   COUNTY_EXECUTIVE
+
+  """
+  An Imperial Court (or similar) reign, such as Empress XL.
+  """
+  COURT_TITLE
 
   """
   Governor, on the state.
@@ -14659,6 +14685,11 @@ enum OfficeKind {
   Any other office.
   """
   OTHER
+
+  """
+  A pageant title, such as Miss Gay Utah 2026. Incumbent is the reigning titleholder, candidate a contestant.
+  """
+  PAGEANT_TITLE
 
   """
   A party office, such as state party chair.
@@ -15640,6 +15671,11 @@ type Person implements HasBanner & HasTags & HasTaskTemplates & Node {
     Only these; incumbents and candidates by default.
     """
     status: [OfficeStatus!]
+
+    """
+    Only community titles (true) or only civic offices (false); both by default.
+    """
+    titles: Boolean
   ): [PersonOffice!]!
 
   """

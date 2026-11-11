@@ -3,6 +3,16 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.56.0 (2026-11-11)
+
+- Community titles (Rick, 2026-11-11: titles reuse offices, audience_kit_api #518). `OfficeKind` gains
+  `pageantTitle`, `courtTitle`, `clubTitle` and `chapterLead`, with `isTitle`: a Hot Mess crown or Imperial Court
+  reign, a club title (Mr. Leather), a Hack Different chapter lead. `offices(at:localeID:status:titles:)` keeps only
+  titles (true) or only civic offices (false), filtered in the SDK so it works against an API from before titles;
+  `OfficeHolder.titles` and `civicOffices` split a person's page; `[PersonOffice].only(titles:)`.
+  `titles(personID:)` reads just someone's titles (a `PersonTitles` query), for a performer's page in Hot Mess.
+- graphql/schema.graphql is copied again from the API's next (the title kinds and `titles:` arguments).
+
 ## 0.55.0 (2026-11-11)
 
 - Community chats (Rick, 2026-11-11: link Hack Different's hackerspaces and conferences to the chats they use).

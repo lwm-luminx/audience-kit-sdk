@@ -3,6 +3,22 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.54.0 (2026-11-11)
+
+- AudienceKit's own cards and credit (Rick, 2026-11-10: "I'm my own first advertising client"). Promo cards in the new
+  `audiencekit` category are labelled "From AudienceKit", can't be hidden, and carry `staffApp` (velvet, backstage or
+  focus) when they're about getting a staff app. `CardFilter.installedStaffApps` skips those on a phone that already
+  has the app, checked on the device, so the server never learns. On an API without `PromoCard.staffApp` the layout
+  asks again without it.
+- `StaffApp` (AudienceCore, and `com.audiencekit.StaffApp` on Android): Focus, Velvet and Backstage with their names,
+  App Store and Android IDs, URL schemes, download links (audiencekit.com/apps/<app>/) and deep links
+  (`StaffApp.velvet(venueID:audienceID:)`, `StaffApp.backstage(personID:audienceID:)`). `StaffAppLink`
+  (AudienceKitUI) opens the app when it's installed and its download page when it isn't ("Open in Velvet", "Join the
+  Velvet beta", "Get Backstage"); `StaffApps.installed(context)` in audiencekit-android checks the packages.
+- `PlatformCredit` and `PlatformCreditFooter` (AudienceKitUI): "Powered by AudienceKit", "A Love Wins Media product",
+  audiencekit.com's Privacy, Terms, Child safety and Contact pages, "Bring AudienceKit to your venue" and the
+  copyright line, with links tagged `utm_source=<bundle>&utm_medium=app`. The same words and links on Android.
+
 ## 0.53.0 (2026-11-11)
 
 - "Check the app", moved out of the DNC demo app so every app gets it (Rick, 2026-11-11: shared features belong in the

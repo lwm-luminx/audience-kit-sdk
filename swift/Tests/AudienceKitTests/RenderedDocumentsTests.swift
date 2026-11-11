@@ -27,6 +27,7 @@ struct RenderedDocumentsTests {
             ("Publications", Queries.publications(shape)),
             ("Publication", Queries.publication(shape)),
             ("MyOpEds", Queries.myOpEds(shape)),
+            ("Layout", Queries.layout(shape)),
         ] + [ArticleTopic.venue("v"), .event("e"), .person("p"), .locale("l")].map { topic in
             ("ArticlesAbout\(Queries.articles(about: topic).type)", Queries.articles(about: topic).document(shape))
         }

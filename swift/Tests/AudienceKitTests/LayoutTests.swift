@@ -7,6 +7,11 @@ import Testing
 import FoundationNetworking
 #endif
 
+private extension RecordedRequest {
+    var layoutQuery: String { ((try? jsonBody())?["query"] as? String) ?? "" }
+    var layoutOperation: String? { (try? jsonBody())?["operationName"] as? String }
+}
+
 private let layoutAudienceID = "00000000-0000-4000-8000-000000000001"
 
 private func layoutClient(_ stub: Stub) -> AudienceKitClient {
@@ -121,6 +126,47 @@ private let layoutJSON = """
         // Until the categories load, every hidden one is honoured.
         #expect(card.promo(CardFilter(hidden: ["venue"]))?.id == "2")
         #expect(card.promo(CardFilter(hidden: ["venue", "health"])) == nil)
+    }
+
+    @Test func skipsAudienceKitCardsAboutAStaffAppThePhoneHas() throws {
+        let json = #"""
+        {"id":"slot","kind":"promo.slot","rank":1,"title":null,"candidates":[
+          {"id":"ak-velvet","category":"audiencekit","label":"From AudienceKit","sponsorName":"AudienceKit",
+           "staffApp":"velvet","headline":"Run a bar? Run your nights from Velvet"},
+          {"id":"ak-future","category":"audiencekit","label":"From AudienceKit","sponsorName":"AudienceKit",
+           "staffApp":"someday","headline":"An app this SDK doesn't know"},
+          {"id":"health","category":"health","label":"Promoted","sponsorName":"Clinic","headline":"Free testing"}]}
+        """#
+        let card = try JSONDecoder().decode(LayoutCard.self, from: Data(json.utf8))
+        let velvet = try #require(card.candidates.first)
+        #expect(velvet.staffApp == .velvet && velvet.isFromAudienceKit && velvet.label == "From AudienceKit")
+        #expect(card.candidates[1].staffApp == nil)
+        #expect(card.promo(CardFilter())?.id == "ak-velvet")
+        #expect(card.promo(CardFilter(installedStaffApps: [.velvet]))?.id == "ak-future")
+        // AudienceKit's own cards can't be hidden, once the categories say so.
+        let categories = [CardCategory(key: "audiencekit", label: "AudienceKit", description: "From the platform", hideable: false)]
+        #expect(card.promo(CardFilter(hidden: ["audiencekit"], categories: categories))?.id == "ak-velvet")
+    }
+
+    @Test func asksForStaffAppsAndAsksAgainWithoutThemOnAnOlderAPI() async throws {
+        let stub = Stub { request in
+            switch request.layoutOperation {
+            case "SchemaFields":
+                return .json(status: 200, body: #"{"data":{"t0":{"fields":[{"name":"id"},{"name":"category"}]}}}"#)
+            case "Layout" where request.layoutQuery.contains("staffApp"):
+                return .json(status: 200, body: #"""
+                {"errors":[{"message":"Field 'staffApp' doesn't exist on type 'PromoCard'","extensions":{"code":"undefinedField"}}]}
+                """#)
+            default:
+                return .json(status: 200, body: layoutJSON)
+            }
+        }
+        let layout = try await layoutClient(stub).layout(screen: .now, cardKinds: ["now.stage"])
+
+        #expect(layout.card("promo.slot")?.candidates.map { $0.id } == ["pp-1", "pp-2"])
+        #expect(stub.requests.map { $0.layoutOperation } == ["Layout", "SchemaFields", "Layout"])
+        #expect(try #require(stub.requests.last).layoutQuery.contains("staffApp") == false)
+        #expect(Queries.layout(.everything).contains("sponsorName staffApp headline"))
     }
 
     @Test func recordsCardViews() async throws {

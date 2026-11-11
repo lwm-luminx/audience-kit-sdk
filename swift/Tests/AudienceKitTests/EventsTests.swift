@@ -333,3 +333,41 @@ private func reducedSchema(_ request: RecordedRequest) -> StubResponse {
     #expect(Queries.chatRoom(.venue(id: "v-1"), watch: false).contains("room: venueChat(venueId: $id)"))
     #expect(Queries.chatRoom(.locale(id: "l-1"), watch: true).contains("room: localeChat(localeId: $id, watch: true)"))
 }
+
+@Test func anEventsPageCarriesItsCommunityChats() async throws {
+    let links = #""socialLinks":{"nodes":[{"id":"s-1","handle":"defcon","provider":"discord","url":"https://discord.gg/defcon"},"#
+        + ##"{"id":"s-2","handle":"#dc:example.org","provider":"matrix","url":"https://matrix.to/#/#dc:example.org"},"##
+        + #"{"id":"s-3","handle":"defcon","provider":"x","url":"https://x.com/defcon"}]}"#
+    let body = String(eventJSON.trimmingCharacters(in: .whitespacesAndNewlines).dropLast()) + "," + links + "}"
+    let stub = Stub { _ in .json(status: 200, body: #"{"data":{"events":{"event":\#(body)}}}"#) }
+
+    let event = try #require(try await eventsClient(stub).event(id: "e-1"))
+
+    #expect(stub.requests.first?.query.contains("socialLinks { nodes { id handle provider url } }") == true)
+    #expect(event.socialLinks?.map(\.provider) == ["discord", "matrix", "x"])
+    #expect(event.communityChats.map(\.networkName) == ["Discord", "Matrix"])
+    #expect(event.communityChats.first?.link == URL(string: "https://discord.gg/defcon"))
+    let decoded = try JSONDecoder().decode(Event.self, from: JSONEncoder().encode(event))
+    #expect(decoded == event)
+}
+
+@Test func eventListsLeaveLinksOut() async throws {
+    let stub = Stub { _ in .json(status: 200, body: #"{"data":{"events":{"list":{"nodes":[\#(eventJSON)]}}}}"#) }
+
+    let event = try #require(try await eventsClient(stub).events().first)
+
+    #expect(stub.requests.first?.query.contains("socialLinks") == false)
+    #expect(event.socialLinks == nil)
+    #expect(event.communityChats.isEmpty)
+}
+
+@Test func socialLinksNameTheirNetworks() {
+    let names = ["irc", "mailing_list", "apple_music", "tiktok"].map {
+        SocialLink(id: "i", handle: "h", provider: $0).networkName
+    }
+    #expect(names == ["IRC", "Mailing list", "Apple Music", "TikTok"])
+    #expect(SocialLink(id: "i", handle: "h", provider: "irc").isCommunityChat)
+    #expect(!SocialLink(id: "i", handle: "h", provider: "instagram").isCommunityChat)
+    let event = Event(id: "e", socialLinks: [SocialLink(id: "i", handle: "#a:b.c", provider: "matrix")])
+    #expect(event.communityChats.count == 1)
+}

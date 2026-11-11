@@ -78,6 +78,12 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
     /// The audience's tags on it, by name.
     public let tags: [Tag]?
     public let rsvp: RSVP?
+    /// Its links out, such as a conference's own Discord or Matrix space: asked for by
+    /// ``AudienceSession/event(id:)`` only, nil from lists and on APIs without `Event.socialLinks`.
+    public var socialLinks: [SocialLink]? { links?.nodes }
+    /// Its community chats elsewhere (``SocialLink/isCommunityChat``), to offer as Join buttons.
+    public var communityChats: [SocialLink] { socialLinks?.filter(\.isCommunityChat) ?? [] }
+    private let links: LinkNodes?
     private let venueMixin: EventVenueMixin?
     private let people: PeopleMixin?
     private let tickets: TicketsMixin?
@@ -104,7 +110,7 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
                 sourceUrl: String? = nil, locale: AudienceLocale? = nil, tags: [Tag]? = nil,
                 venue: EventVenue? = nil, venueName: String? = nil, rsvp: RSVP? = nil, hosts: [EventPerson]? = nil,
                 lineup: [EventPerson]? = nil, ticketURL: URL? = nil, ticketOffers: [AdmissionOffer]? = nil,
-                coverCharge: CoverCharge? = nil)
+                coverCharge: CoverCharge? = nil, socialLinks: [SocialLink]? = nil)
     {
         self.id = id
         self.name = name
@@ -118,6 +124,7 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
         self.locale = locale
         self.tags = tags
         self.rsvp = rsvp
+        links = socialLinks.map { LinkNodes(nodes: $0) }
         venueMixin = venue == nil && venueName == nil ? nil : EventVenueMixin(name: venueName, venue: venue)
         people = hosts == nil && lineup == nil ? nil
             : PeopleMixin(hosts: hosts.map { Nodes(nodes: $0) }, lineup: lineup.map { Nodes(nodes: $0) })
@@ -127,6 +134,7 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
     }
 
     private struct Nodes: Codable, Sendable, Hashable { var nodes: [EventPerson?] }
+    private struct LinkNodes: Codable, Sendable, Hashable { var nodes: [SocialLink] }
     private struct PeopleMixin: Codable, Sendable, Hashable {
         var hosts: Nodes?
         var lineup: Nodes?
@@ -144,6 +152,7 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
         case id, name, description, startAt, endAt, isFeatured, isCanceled, bannerUrl, sourceUrl, locale, tags, rsvp
         case people, tickets
         case venueMixin = "venue"
+        case links = "socialLinks"
     }
 
     /// Reads the dates as the ISO 8601 strings the API sends, whatever the decoder's date strategy.
@@ -164,6 +173,7 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
         venueMixin = try container.decodeIfPresent(EventVenueMixin.self, forKey: .venueMixin)
         people = try container.decodeIfPresent(PeopleMixin.self, forKey: .people)
         tickets = try container.decodeIfPresent(TicketsMixin.self, forKey: .tickets)
+        links = try container.decodeIfPresent(LinkNodes.self, forKey: .links)
     }
 
     /// Writes the API's shape, so an encoded event decodes back the same.
@@ -184,6 +194,7 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
         try container.encodeIfPresent(venueMixin, forKey: .venueMixin)
         try container.encodeIfPresent(people, forKey: .people)
         try container.encodeIfPresent(tickets, forKey: .tickets)
+        try container.encodeIfPresent(links, forKey: .links)
     }
 }
 
@@ -319,10 +330,13 @@ extension Queries {
         """
     }
 
+    /// One event's page: its fields and, where the API has them, its links out (lists leave those out to keep
+    /// their cost down).
     static func event(_ shape: SchemaShape) -> String {
-        """
+        let links = shape.has("Event", "socialLinks") ? " socialLinks { nodes { \(socialLinkFields) } }" : ""
+        return """
         query Event($id: ID!) {
-          events { event(id: $id) { \(eventFields(shape)) } }
+          events { event(id: $id) { \(eventFields(shape))\(links) } }
         }
         """
     }

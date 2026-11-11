@@ -23,6 +23,8 @@ struct PlatformCreditTests {
     @Test func staffAppLinksAndWords() {
         #expect(StaffApp.velvet(venueID: "v-1", audienceID: "a-1").absoluteString
             == "audiencekit-velvet://venue?id=v-1&audience=a-1")
+        #expect(StaffApp.velvet(venueID: "v-1", audienceID: "a-1", eventID: "e-1").absoluteString
+            == "audiencekit-velvet://venue?id=v-1&audience=a-1&event=e-1")
         #expect(StaffApp.backstage(personID: "p-1", audienceID: nil).absoluteString
             == "audiencekit-backstage://person?id=p-1")
         #expect(StaffApp.velvet.homeURL.absoluteString == "audiencekit-velvet://")

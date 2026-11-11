@@ -72,6 +72,7 @@ class HouseCardsTest {
     @Test
     fun staffAppLinksAndWords() {
         assertEquals("audiencekit-velvet://venue?id=v+1&audience=a-1", StaffApp.velvet("v 1", "a-1"))
+        assertEquals("audiencekit-velvet://venue?id=v-1&event=e+1", StaffApp.velvet("v-1", null, "e 1"))
         assertEquals("audiencekit-backstage://person?id=p-1", StaffApp.backstage("p-1", null))
         assertEquals("com.audiencekit.Backstage", StaffApp.BACKSTAGE.androidPackage)
         assertEquals("Open in Velvet", StaffApp.VELVET.linkTitle(installed = true))

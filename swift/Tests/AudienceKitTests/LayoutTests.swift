@@ -7,6 +7,11 @@ import Testing
 import FoundationNetworking
 #endif
 
+private extension RecordedRequest {
+    var layoutQuery: String { ((try? jsonBody())?["query"] as? String) ?? "" }
+    var layoutOperation: String? { (try? jsonBody())?["operationName"] as? String }
+}
+
 private let layoutAudienceID = "00000000-0000-4000-8000-000000000001"
 
 private func layoutClient(_ stub: Stub) -> AudienceKitClient {
@@ -145,10 +150,10 @@ private let layoutJSON = """
 
     @Test func asksForStaffAppsAndAsksAgainWithoutThemOnAnOlderAPI() async throws {
         let stub = Stub { request in
-            switch request.operationName {
+            switch request.layoutOperation {
             case "SchemaFields":
                 return .json(status: 200, body: #"{"data":{"t0":{"fields":[{"name":"id"},{"name":"category"}]}}}"#)
-            case "Layout" where request.query.contains("staffApp"):
+            case "Layout" where request.layoutQuery.contains("staffApp"):
                 return .json(status: 200, body: #"""
                 {"errors":[{"message":"Field 'staffApp' doesn't exist on type 'PromoCard'","extensions":{"code":"undefinedField"}}]}
                 """#)
@@ -158,9 +163,9 @@ private let layoutJSON = """
         }
         let layout = try await layoutClient(stub).layout(screen: .now, cardKinds: ["now.stage"])
 
-        #expect(layout.card("promo.slot")?.candidates.map(\.id) == ["pp-1", "pp-2"])
-        #expect(stub.requests.map(\.operationName) == ["Layout", "SchemaFields", "Layout"])
-        #expect(try #require(stub.requests.last).query.contains("staffApp") == false)
+        #expect(layout.card("promo.slot")?.candidates.map { $0.id } == ["pp-1", "pp-2"])
+        #expect(stub.requests.map { $0.layoutOperation } == ["Layout", "SchemaFields", "Layout"])
+        #expect(try #require(stub.requests.last).layoutQuery.contains("staffApp") == false)
         #expect(Queries.layout(.everything).contains("sponsorName staffApp headline"))
     }
 

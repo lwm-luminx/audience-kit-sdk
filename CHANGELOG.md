@@ -3,7 +3,7 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
-## Unreleased
+## 0.53.0 (2026-11-11)
 
 - "Check the app", moved out of the DNC demo app so every app gets it (Rick, 2026-11-11: shared features belong in the
   SDK). `GraphQLOperationLog` (AudienceCore) is a `GraphQLMonitor` that keeps the last 100 operations and their errors,

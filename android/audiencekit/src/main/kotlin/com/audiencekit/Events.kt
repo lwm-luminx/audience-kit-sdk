@@ -101,7 +101,17 @@ public data class Event(
     val rsvp: EventRSVPSummary? = null,
     val people: EventPeople? = null,
     val tickets: EventTickets? = null,
+    @SerialName("socialLinks") val links: Connection<SocialLink>? = null,
 ) {
+    /**
+     * Its links out, such as a conference's own Discord or Matrix space: asked for by [AudienceKitClient.event] only,
+     * null from lists and on APIs without `Event.socialLinks`.
+     */
+    val socialLinks: List<SocialLink>? get() = links?.items
+
+    /** Its community chats elsewhere ([SocialLink.isCommunityChat]), to offer as Join buttons. */
+    val communityChats: List<SocialLink> get() = socialLinks.communityChats
+
     /** Where it is; null while the venue is still to be announced. */
     val venue: EventVenue? get() = venueMixin?.venue
 
@@ -187,11 +197,15 @@ public fun Queries.events(shape: SchemaShape): String = """
     }
 """.trimIndent()
 
-public fun Queries.event(shape: SchemaShape): String = """
-    query Event(${'$'}id: ID!) {
-      events { event(id: ${'$'}id) { ${eventFields(shape)} } }
-    }
-""".trimIndent()
+/** One event's page: its fields and, where the API has them, its links out (lists leave those out to keep cost down). */
+public fun Queries.event(shape: SchemaShape): String {
+    val links = if (shape.has("Event", "socialLinks")) " socialLinks { nodes { ${SocialLink.FIELDS} } }" else ""
+    return """
+        query Event(${'$'}id: ID!) {
+          events { event(id: ${'$'}id) { ${eventFields(shape)}$links } }
+        }
+    """.trimIndent()
+}
 
 public fun Queries.eventSeries(shape: SchemaShape): String = """
     query EventSeries(${'$'}localeId: ID, ${'$'}venueId: ID, ${'$'}first: Int) {

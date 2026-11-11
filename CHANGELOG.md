@@ -3,6 +3,18 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.55.0 (2026-11-11)
+
+- Community chats (Rick, 2026-11-11: link Hack Different's hackerspaces and conferences to the chats they use).
+  `SocialLink.isCommunityChat` picks out `discord`, `matrix`, `irc` and `mailing_list` links, `networkName` names the
+  network ("Matrix", "IRC", "Mailing list"), and `communityChats` on `Event` and `VenueDetail` lists them. Events
+  carry their own links (`Event.socialLinks`, the API's new `Event.socialLinks`, such as DEF CON's Discord or 40C3's
+  Matrix space): `event(id:)` asks for them, lists leave them out to keep their cost down, and an API without the
+  field gets the query again without it.
+- `CommunityChatLinks` (AudienceKitUI): "Join on Discord", "Join on Matrix", "Join on IRC" and "Mailing list" buttons
+  that open each chat.
+- `graphql/schema.graphql` updated from the API.
+
 ## 0.54.0 (2026-11-11)
 
 - AudienceKit's own cards and credit (Rick, 2026-11-10: "I'm my own first advertising client"). Promo cards in the new

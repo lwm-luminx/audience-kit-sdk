@@ -84,6 +84,43 @@ class EventsTest {
     }
 
     @Test
+    fun anEventsPageCarriesItsCommunityChats() = runTest {
+        val links = """"socialLinks":{"nodes":[""" +
+            """{"id":"s-1","handle":"defcon","provider":"discord","url":"https://discord.gg/defcon"},""" +
+            """{"id":"s-2","handle":"#dc:example.org","provider":"matrix","url":"https://matrix.to/#/#dc:example.org"},""" +
+            """{"id":"s-3","handle":"defcon","provider":"x","url":"https://x.com/defcon"}]}"""
+        val stub = StubTransport {
+            StubTransport.json(200, """{"data":{"events":{"event":${EVENT_JSON.trim().dropLast(1)},$links}}}}""")
+        }
+
+        val event = eventsClient(stub).event("e-1")!!
+
+        assertTrue("socialLinks { nodes { id handle provider url } }" in stub.requests.single().document())
+        assertEquals(listOf("discord", "matrix", "x"), event.socialLinks?.map { it.provider })
+        assertEquals(listOf("Discord", "Matrix"), event.communityChats.map { it.networkName })
+        assertEquals("https://discord.gg/defcon", event.communityChats.first().url)
+    }
+
+    @Test
+    fun eventListsLeaveLinksOut() = runTest {
+        val stub = StubTransport { StubTransport.json(200, """{"data":{"events":{"list":{"nodes":[$EVENT_JSON]}}}}""") }
+
+        val event = eventsClient(stub).events().single()
+
+        assertFalse("socialLinks" in stub.requests.single().document())
+        assertNull(event.socialLinks)
+        assertEquals(emptyList(), event.communityChats)
+    }
+
+    @Test
+    fun socialLinksNameTheirNetworks() {
+        val names = listOf("irc", "mailing_list", "apple_music", "tiktok").map { SocialLink("i", "h", it).networkName }
+        assertEquals(listOf("IRC", "Mailing list", "Apple Music", "TikTok"), names)
+        assertTrue(SocialLink("i", "h", "irc").isCommunityChat)
+        assertFalse(SocialLink("i", "h", "instagram").isCommunityChat)
+    }
+
+    @Test
     fun venueOffersListEveryWayInForTheNight() = runTest {
         val stub = StubTransport {
             StubTransport.json(

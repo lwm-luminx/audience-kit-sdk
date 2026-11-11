@@ -76,9 +76,11 @@ public enum StaffApp: String, CaseIterable, Sendable, Hashable, Codable {
     /// The staff apps other than `app`, in the order the store copy lists them.
     public static func others(than app: StaffApp) -> [StaffApp] { allCases.filter { $0 != app } }
 
-    /// Opens Velvet on a venue's workspace: `audiencekit-velvet://venue?id=<venue>&audience=<audience>`.
-    public static func velvet(venueID: String, audienceID: String?) -> URL {
-        StaffApp.velvet.link(host: "venue", id: venueID, audienceID: audienceID)
+    /// Opens Velvet on a venue's workspace: `audiencekit-velvet://venue?id=<venue>&audience=<audience>`, and with
+    /// `eventID` on that event's page there (`&event=<event>`).
+    public static func velvet(venueID: String, audienceID: String?, eventID: String? = nil) -> URL {
+        StaffApp.velvet.link(host: "venue", id: venueID, audienceID: audienceID,
+                             extra: eventID.map { [URLQueryItem(name: "event", value: $0)] } ?? [])
     }
 
     /// Opens Backstage on a person's page: `audiencekit-backstage://person?id=<person>&audience=<audience>`.
@@ -86,12 +88,12 @@ public enum StaffApp: String, CaseIterable, Sendable, Hashable, Codable {
         StaffApp.backstage.link(host: "person", id: personID, audienceID: audienceID)
     }
 
-    func link(host: String, id: String, audienceID: String?) -> URL {
+    func link(host: String, id: String, audienceID: String?, extra: [URLQueryItem] = []) -> URL {
         var components = URLComponents()
         components.scheme = urlScheme
         components.host = host
         components.queryItems = [URLQueryItem(name: "id", value: id)]
-            + (audienceID.map { [URLQueryItem(name: "audience", value: $0)] } ?? [])
+            + (audienceID.map { [URLQueryItem(name: "audience", value: $0)] } ?? []) + extra
         return components.url!
     }
 }

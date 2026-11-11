@@ -53,8 +53,13 @@ public enum class StaffApp(
         /** The app with the API's key, or null for one this SDK doesn't know. */
         public fun fromKey(key: String?): StaffApp? = entries.firstOrNull { it.key == key }
 
-        /** Opens Velvet on a venue's workspace: `audiencekit-velvet://venue?id=<venue>&audience=<audience>`. */
-        public fun velvet(venueId: String, audienceId: String?): String = VELVET.link("venue", venueId, audienceId)
+        /**
+         * Opens Velvet on a venue's workspace: `audiencekit-velvet://venue?id=<venue>&audience=<audience>`, and with
+         * [eventId] on that event's page there (`&event=<event>`).
+         */
+        @JvmOverloads
+        public fun velvet(venueId: String, audienceId: String?, eventId: String? = null): String =
+            VELVET.link("venue", venueId, audienceId) + (eventId?.let { "&event=${encode(it)}" } ?: "")
 
         /** Opens Backstage on a person's page: `audiencekit-backstage://person?id=<person>&audience=<audience>`. */
         public fun backstage(personId: String, audienceId: String?): String =

@@ -3,6 +3,12 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.55.0 (2026-11-11)
+
+- `StaffApp.velvet(venueID:audienceID:eventID:)` (and `velvet(venueId, audienceId, eventId)` on Android) links to an
+  event at a venue: `audiencekit-velvet://venue?id=<venue>&audience=<audience>&event=<event>`. Velvet 1.10 opens the
+  venue and then the event's page, so Hot Mess can say "Open in Velvet" on events at venues the person manages.
+
 ## 0.54.0 (2026-11-11)
 
 - AudienceKit's own cards and credit (Rick, 2026-11-10: "I'm my own first advertising client"). Promo cards in the new

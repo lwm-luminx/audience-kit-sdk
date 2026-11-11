@@ -20,6 +20,17 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   `SEE LICENSE IN LICENSE` in the npm package (which now ships the file, as the Python release does), and a POM
   `<licenses>` entry on every Maven publication.
 
+## 0.52.0 (2026-11-10)
+
+- Civic organizing in Swift, for the DNC demo app (Rick, 2026-11-10; the API's `PersonOffice`, audience_kit_api #477).
+  `AudienceSession.offices(at:localeID:status:)` gives someone's representatives and candidates, most local first (the
+  API's root `offices`), each with its holder and their `DonationTarget`; `officeHolder(id:)` reads one person's page
+  (offices, Donate target, website, social accounts, upcoming events, and the voter issues they share with the
+  signed-in person). New models: `OfficeKind` (unknown kinds kept), `OfficeStatus`, `PersonOffice`, `OfficeLocale`,
+  `OfficeHolderSummary`, `OfficeHolder`, `DonationTarget`, `SocialAccount`. An audience without offices gets none back
+  (the documents drop fields its schema lacks). Kotlin follows.
+- graphql/schema.graphql is copied again from the API's next (offices, nested locales, donation targets).
+
 ## 0.51.0 (2026-11-10)
 
 - App Review sign-in is never offered in an App Store install (Rick, 2026-11-10). Swift: `InstallSource.offersReviewCode`

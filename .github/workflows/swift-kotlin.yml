@@ -72,6 +72,13 @@ jobs:
       - uses: actions/checkout@v4
       - run: swift build
       - run: swift test --enable-code-coverage
+        env:
+          # RenderedDocumentsTests writes the documents the SDK builds from a SchemaShape here, for the graphql job.
+          AUDIENCEKIT_DOCUMENTS_DIR: ${{ github.workspace }}/rendered-documents
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rendered-documents
+          path: rendered-documents
       # Line coverage of what builds on Linux must stay at 85% or more (86.8% at 0.42.0).
       - run: scripts/swift-coverage.sh 85
 
@@ -95,9 +102,14 @@ jobs:
     # The documents are string literals no codegen reads yet; check them against graphql/schema.graphql, the API's
     # consumer schema as of the API's next branch (the monorepo copies it in when it changes). The published schema on
     # developer.audiencekit.com is production's, which lags the fields the SDK already uses.
+    needs: swift
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: rendered-documents
+          path: rendered-documents
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -107,6 +119,9 @@ jobs:
         run: |
           npm install --silent --no-save --no-package-lock graphql@16
           node scripts/graphql/check.mjs --schema graphql/schema.graphql --endpoint consumer swift/Sources android/audiencekit/src/main
+      - name: The documents built from a SchemaShape match the API schema too
+        # check.mjs can't read these from the source (they interpolate their fields), so it skips them above.
+        run: node scripts/graphql/check.mjs --schema graphql/schema.graphql --endpoint consumer rendered-documents
 
   apple:
     # The update prompts' StoreKit, SwiftUI and UIKit code only builds on Apple platforms, which Linux skips.

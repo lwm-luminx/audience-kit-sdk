@@ -1592,6 +1592,13 @@ type Audience implements IRelay & Node {
   ): Locale @endpoint(in: [AUDIENCE, STAFF])
 
   """
+  What each kind of thing attached to locales does along the locale tree:
+  whether it collects up (venues), inherits down (liquor rules, administration)
+  or is replaced going down (chat).
+  """
+  localeTree: [LocaleTreeRule!]!
+
+  """
   Locales belonging to this audience: all of them, or those the arguments pick (doc/LOCALE_HIERARCHY.md).
   """
   locales(
@@ -1716,6 +1723,11 @@ type Audience implements IRelay & Node {
     Only these; incumbents and candidates by default.
     """
     status: [OfficeStatus!]
+
+    """
+    Only community titles (true) or only civic offices (false); both by default.
+    """
+    titles: Boolean
   ): [PersonOffice!]!
 
   """
@@ -3462,6 +3474,41 @@ type ChatAccount {
   memberCount: Int!
 
   """
+  The people (bots last) the bot saw in its servers when last saved, by name.
+  """
+  members(
+    """
+    Returns the elements in the list that come after the specified cursor.
+    """
+    after: String
+
+    """
+    Returns the elements in the list that come before the specified cursor.
+    """
+    before: String
+
+    """
+    Returns the first _n_ elements from the list.
+    """
+    first: Int
+
+    """
+    Returns the last _n_ elements from the list.
+    """
+    last: Int
+
+    """
+    Part of a name or username.
+    """
+    search: String
+
+    """
+    Only this server.
+    """
+    server: String
+  ): ChatServerMemberConnection!
+
+  """
   A link that adds its bot to the server it migrated from, to read: View Channels and Read Message History.
   """
   migratedBotInstallUrl: String
@@ -3486,6 +3533,11 @@ type ChatAccount {
   come in for signed-in people to read and report, nothing goes out.
   """
   readOnly: Boolean!
+
+  """
+  The channels the bot saw in its servers when last saved, in the servers' order.
+  """
+  savedChannels: [ChatServerChannel!]!
 
   """
   A server's text channels, to pick from: the community's, the one it migrated from, or one the audience's own bot is in.
@@ -3586,6 +3638,11 @@ type ChatChannel {
   The room's channel in the server the community migrated from, whose messages come in too.
   """
   migratedChannelId: String
+
+  """
+  The channel's name, as the bot last saw it (Discord).
+  """
+  name: String
 
   """
   Where the apps send people to the room.
@@ -4727,6 +4784,146 @@ enum ChatSenderKind {
 }
 
 """
+A channel in one of a chat account's servers, as its bot last saw it (Chat::Discord::Sync).
+"""
+type ChatServerChannel {
+  """
+  The provider's channel ID.
+  """
+  externalId: String!
+
+  """
+  Unique identifier.
+  """
+  id: ID!
+
+  """
+  The provider's channel type (Discord: 0 text, 2 voice, 4 category, 5 announcement).
+  """
+  kind: Int
+
+  """
+  Its name on the provider.
+  """
+  name: String
+
+  """
+  The category it sits in.
+  """
+  parentExternalId: String
+
+  """
+  Where the server lists it.
+  """
+  position: Int
+
+  """
+  The provider's server ID.
+  """
+  serverId: String!
+
+  """
+  Where it opens on Discord.
+  """
+  url: String!
+}
+
+"""
+Someone in one of a chat account's servers, as its bot last saw them (Chat::Discord::Sync).
+"""
+type ChatServerMember {
+  """
+  Whether it is a bot.
+  """
+  bot: Boolean!
+
+  """
+  The provider's user ID.
+  """
+  externalId: String!
+
+  """
+  Unique identifier.
+  """
+  id: ID!
+
+  """
+  When they joined the server.
+  """
+  joinedAt: ISO8601DateTime
+
+  """
+  The name the server shows: nickname, display name or username.
+  """
+  name: String
+
+  """
+  Their roles' IDs in the server.
+  """
+  roleIds: [String!]!
+
+  """
+  The provider's server ID.
+  """
+  serverId: String!
+
+  """
+  The AudienceKit user with the same Discord account, if any.
+  """
+  userId: ID
+
+  """
+  That user's name in AudienceKit.
+  """
+  userName: String
+
+  """
+  Their username on the provider.
+  """
+  username: String
+}
+
+"""
+The connection type for ChatServerMember.
+"""
+type ChatServerMemberConnection {
+  """
+  A list of edges.
+  """
+  edges: [ChatServerMemberEdge]
+
+  """
+  A list of nodes.
+  """
+  nodes: [ChatServerMember]
+
+  """
+  Information to aid in pagination.
+  """
+  pageInfo: PageInfo!
+
+  """
+  How many there are in all, whatever page this is.
+  """
+  totalCount: Int!
+}
+
+"""
+An edge in a connection.
+"""
+type ChatServerMemberEdge {
+  """
+  A cursor for use in pagination.
+  """
+  cursor: String!
+
+  """
+  The item at the end of the edge.
+  """
+  node: ChatServerMember
+}
+
+"""
 Our AI moderator, moderation_claude (Moderation::Claude), which runs on its own server and judges messages with Claude.
 """
 type ClaudeModerationProvider implements IModerationProvider & IProvider {
@@ -5767,6 +5964,13 @@ type DiscordApp {
   configured: Boolean!
 
   """
+  Whether the application on Discord already points its interactions, linked
+  roles and event webhooks at these URLs (asked with its bot token). Null when
+  Discord could not be asked.
+  """
+  endpointsSet: Boolean
+
+  """
   Webhooks > Endpoint URL: where Discord sends the application's events, signed with its public key.
   """
   eventWebhooksUrl: String!
@@ -6175,6 +6379,32 @@ type Event implements HasBanner & HasTags & HasTaskTemplates & Node {
   An occurrence edited on its own: changes to its series leave it alone.
   """
   seriesOverride: Boolean!
+
+  """
+  Where its community talks outside AudienceKit (Discord, Matrix, IRC, mailing
+  lists) and its social profiles, such as a conference's own Discord.
+  """
+  socialLinks(
+    """
+    Returns the elements in the list that come after the specified cursor.
+    """
+    after: String
+
+    """
+    Returns the elements in the list that come before the specified cursor.
+    """
+    before: String
+
+    """
+    Returns the first _n_ elements from the list.
+    """
+    first: Int
+
+    """
+    Returns the last _n_ elements from the list.
+    """
+    last: Int
+  ): SocialLinkConnection!
 
   """
   Where it was found, for imported events.
@@ -9897,7 +10127,7 @@ interface ILocaleChat @mixin(extensionKey: "chat", field: "chat", null: false, o
 }
 
 """
-A locale's events: those at its venues, and those still waiting for a venue there.
+A locale's events and those of the locales within it: those at its venues, and those still waiting for a venue there.
 """
 interface ILocaleEvents @mixin(extensionKey: "events", field: "events", null: false, on: ["Locale"]) {
   """
@@ -10023,7 +10253,7 @@ interface ILocaleLiquor @mixin(extensionKey: "liquor", field: "liquor", null: fa
 }
 
 """
-The people featured in a locale.
+The people featured in a locale and in the locales within it.
 """
 interface ILocalePeople @mixin(extensionKey: "people", field: "people", null: false, on: ["Locale"]) {
   """
@@ -12775,6 +13005,11 @@ type Locale implements HasBanner & HasTimestamps & Node {
     Only these; incumbents and candidates by default.
     """
     status: [OfficeStatus!]
+
+    """
+    Only community titles (true) or only civic offices (false); both by default.
+    """
+    titles: Boolean
   ): [PersonOffice!]!
 
   """
@@ -12798,7 +13033,7 @@ type Locale implements HasBanner & HasTimestamps & Node {
   profile: IListingProfile!
 
   """
-  Its IANA time zone, e.g. America/Los_Angeles; Etc/UTC until it is known.
+  Its IANA time zone, e.g. America/Los_Angeles, else that of the nearest locale above it; Etc/UTC until one is known.
   """
   timeZone: String!
 
@@ -13264,6 +13499,52 @@ type LocalePeopleView implements ILocalePeople {
 }
 
 """
+What a kind of locale attachment does along the locale tree (LocaleTree, doc/LOCALE_HIERARCHY.md).
+"""
+enum LocaleTreeMode {
+  """
+  Collects up: a locale lists its own and those of every locale within it.
+  """
+  COLLECT
+
+  """
+  Inherits down, adding up: a locale holds those of every locale it lies within, then its own.
+  """
+  INHERIT
+
+  """
+  Not along the tree: only the locale's own.
+  """
+  OWN
+
+  """
+  Replaced down: the most specific wins; a locale with none falls back to the nearest one above it.
+  """
+  REPLACE
+}
+
+"""
+One kind of thing attached to locales and what it does along the locale tree
+(LocaleTree): chat is replaced going down, venues collect going up.
+"""
+type LocaleTreeRule {
+  """
+  What is attached: venues, events, people, posts, chat, time_zone, liquor_rules, access_grants or offices.
+  """
+  attachment: String!
+
+  """
+  What a locale shows of it, in a sentence.
+  """
+  description: String!
+
+  """
+  What it does along the tree.
+  """
+  mode: LocaleTreeMode!
+}
+
+"""
 The local Venues implementation of a locale's venues.
 """
 type LocaleVenuesView implements ILocaleVenues {
@@ -13386,6 +13667,13 @@ type LocationReportPayload {
   The locale the user is in, or the closest one.
   """
   locale: Locale
+
+  """
+  The most specific locales whose area takes in the position, innermost first
+  (locale is the first): Salt Lake City, not Utah too; UT-3 and a state house
+  district at once. Empty outside every locale.
+  """
+  locales: [Locale!]!
 
   """
   The locale's nearest venues, nearest first, when the user is not in one; null when they are.
@@ -14339,7 +14627,8 @@ type NodeChanged {
 }
 
 """
-Which office a person holds or is running for (PersonOffice::OFFICES). The title says how it reads.
+Which office or title a person holds or is running for (PersonOffice::OFFICES):
+civic offices, then community titles (PersonOffice::TITLES). The title says how it reads.
 """
 enum OfficeKind {
   """
@@ -14348,9 +14637,19 @@ enum OfficeKind {
   ATTORNEY_GENERAL
 
   """
+  A local chapter's lead or point of contact, such as a DEF CON Group's.
+  """
+  CHAPTER_LEAD
+
+  """
   A city council seat.
   """
   CITY_COUNCIL
+
+  """
+  A community or club title, such as Mr. Leather or Mr. Bear.
+  """
+  CLUB_TITLE
 
   """
   A county council or board seat.
@@ -14361,6 +14660,11 @@ enum OfficeKind {
   A county executive or mayor.
   """
   COUNTY_EXECUTIVE
+
+  """
+  An Imperial Court (or similar) reign, such as Empress XL.
+  """
+  COURT_TITLE
 
   """
   Governor, on the state.
@@ -14381,6 +14685,11 @@ enum OfficeKind {
   Any other office.
   """
   OTHER
+
+  """
+  A pageant title, such as Miss Gay Utah 2026. Incumbent is the reigning titleholder, candidate a contestant.
+  """
+  PAGEANT_TITLE
 
   """
   A party office, such as state party chair.
@@ -15276,7 +15585,8 @@ type Person implements HasBanner & HasTags & HasTaskTemplates & Node {
   audience: Audience!
 
   """
-  Their Instagram profile picture, else their Facebook Page's.
+  Their picture: their first approved headshot (as uploaded), else their
+  Instagram profile picture or one staff set, else their Facebook Page's.
   """
   avatarUrl: PhotoURL
 
@@ -15361,6 +15671,11 @@ type Person implements HasBanner & HasTags & HasTaskTemplates & Node {
     Only these; incumbents and candidates by default.
     """
     status: [OfficeStatus!]
+
+    """
+    Only community titles (true) or only civic offices (false); both by default.
+    """
+    titles: Boolean
   ): [PersonOffice!]!
 
   """

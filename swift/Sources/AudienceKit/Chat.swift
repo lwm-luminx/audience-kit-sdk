@@ -172,6 +172,8 @@ public struct VenueDetail: Sendable, Hashable {
     public let phone: String?
     public let website: String?
     public let socialLinks: [SocialLink]?
+    /// Its community chats elsewhere (``SocialLink/isCommunityChat``), to offer as Join buttons.
+    public var communityChats: [SocialLink] { socialLinks?.filter(\.isCommunityChat) ?? [] }
     /// Whether its chat room is open, and its latest messages (Chat).
     public let chatOpen: Bool?
     public let recentMessages: [ChatMessage]?
@@ -179,13 +181,39 @@ public struct VenueDetail: Sendable, Hashable {
     public let upcomingEvents: [Event]?
 }
 
-/// One of a venue's or person's social media profiles: the API's `SocialLink`.
+/// One of a venue's, person's or event's links out: a social media profile, or a community chat elsewhere (a
+/// Discord server, a Matrix room, an IRC channel, a mailing list). The API's `SocialLink`.
 public struct SocialLink: Codable, Sendable, Hashable, Identifiable {
+    /// The providers whose links are community chats (the API's `SocialLink::CHAT_PROVIDERS`): show these as Join
+    /// buttons rather than profiles.
+    public static let chatProviders: Set<String> = ["discord", "matrix", "irc", "mailing_list"]
+
     public let id: String
+    /// A username, an invite code (`discord`), a room address (`matrix`, `#room:server`) or the whole link (`irc`,
+    /// `mailing_list`).
     public let handle: String
-    /// `instagram`, `tiktok`, `x`, `discord`…
+    /// `instagram`, `tiktok`, `x`, `discord`, `matrix`, `irc`, `mailing_list`…
     public let provider: String
     public let url: String?
+
+    /// Whether it's a community chat to join rather than a profile.
+    public var isCommunityChat: Bool { Self.chatProviders.contains(provider) }
+
+    /// Its network's name to show: "Discord", "Matrix", "IRC", "Mailing list", "Instagram"…
+    public var networkName: String {
+        switch provider {
+        case "irc": "IRC"
+        case "x": "X"
+        case "tiktok": "TikTok"
+        case "youtube": "YouTube"
+        case "soundcloud": "SoundCloud"
+        case "mailing_list": "Mailing list"
+        default: provider.split(separator: "_").joined(separator: " ").capitalized
+        }
+    }
+
+    /// Where it opens, when the API gave a link.
+    public var link: URL? { url.flatMap(URL.init(string:)) }
 
     public init(id: String, handle: String, provider: String, url: String? = nil) {
         self.id = id
@@ -196,6 +224,9 @@ public struct SocialLink: Codable, Sendable, Hashable, Identifiable {
 }
 
 extension Queries {
+    /// A ``SocialLink``.
+    static let socialLinkFields = "id handle provider url"
+
     static let chatMessageFields = "id body message name userId avatarUrl photoUrl sentAt role kind title pinned"
 
     static let venueDetailTypes = eventTypes
@@ -203,7 +234,7 @@ extension Queries {
     static func venueDetail(_ shape: SchemaShape) -> String {
         var fields = venueFields(shape) + " description"
         if shape.has("Venue", "profile") {
-            fields += " profile { address phone website socialLinks { nodes { id handle provider url } } }"
+            fields += " profile { address phone website socialLinks { nodes { \(socialLinkFields) } } }"
         }
         if shape.has("Venue", "chat") {
             fields += " chat { open recentMessages(limit: $recentMessages) { nodes { \(chatMessageFields) } } }"

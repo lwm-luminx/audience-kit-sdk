@@ -135,9 +135,39 @@ public sealed interface ChatRoomUpdate {
     public data class Disconnected(val reason: String?, val reconnects: Boolean) : ChatRoomUpdate
 }
 
-/** One of a venue's or person's social media profiles: the API's `SocialLink`. */
+/**
+ * One of a venue's, person's or event's links out: a social media profile, or a community chat elsewhere (a Discord
+ * server, a Matrix room, an IRC channel, a mailing list). The API's `SocialLink`.
+ *
+ * [handle] is a username, an invite code (`discord`), a room address (`matrix`, `#room:server`) or the whole link
+ * (`irc`, `mailing_list`); [provider] is `instagram`, `tiktok`, `x`, `discord`, `matrix`, `irc`, `mailing_list`…
+ */
 @Serializable
-public data class SocialLink(val id: String, val handle: String, val provider: String, val url: String? = null)
+public data class SocialLink(val id: String, val handle: String, val provider: String, val url: String? = null) {
+    /** Whether it's a community chat to join rather than a profile. */
+    val isCommunityChat: Boolean get() = provider in CHAT_PROVIDERS
+
+    /** Its network's name to show: "Discord", "Matrix", "IRC", "Mailing list", "Instagram"… */
+    val networkName: String
+        get() = NETWORK_NAMES[provider]
+            ?: provider.split('_').joinToString(" ") { part -> part.replaceFirstChar { it.uppercase() } }
+
+    public companion object {
+        /** The providers whose links are community chats (the API's `SocialLink::CHAT_PROVIDERS`): Join buttons. */
+        public val CHAT_PROVIDERS: Set<String> = setOf("discord", "matrix", "irc", "mailing_list")
+
+        /** A [SocialLink]. */
+        public const val FIELDS: String = "id handle provider url"
+
+        private val NETWORK_NAMES = mapOf(
+            "irc" to "IRC", "x" to "X", "tiktok" to "TikTok", "youtube" to "YouTube", "soundcloud" to "SoundCloud",
+            "mailing_list" to "Mailing list",
+        )
+    }
+}
+
+/** The community chats among [this] links ([SocialLink.isCommunityChat]), to offer as Join buttons. */
+public val List<SocialLink>?.communityChats: List<SocialLink> get() = this?.filter { it.isCommunityChat }.orEmpty()
 
 /** A venue's page: the venue and what the modules its audience has add to it; a module it lacks leaves its part null. */
 public data class VenueDetail(
@@ -150,7 +180,10 @@ public data class VenueDetail(
     val chatOpen: Boolean?,
     val recentMessages: List<ChatMessage>?,
     val upcomingEvents: List<Event>?,
-)
+) {
+    /** Its community chats elsewhere ([SocialLink.isCommunityChat]), to offer as Join buttons. */
+    val communityChats: List<SocialLink> get() = socialLinks.communityChats
+}
 
 public const val CHAT_MESSAGE_FIELDS: String = "id body message name userId avatarUrl photoUrl sentAt role kind title pinned"
 
@@ -160,7 +193,7 @@ public fun Queries.venueDetail(shape: SchemaShape): String {
     val fields = buildString {
         append(venueFields(shape)).append(" description")
         if (shape.has("Venue", "profile")) {
-            append(" profile { address phone website socialLinks { nodes { id handle provider url } } }")
+            append(" profile { address phone website socialLinks { nodes { ${SocialLink.FIELDS} } } }")
         }
         if (shape.has("Venue", "chat")) {
             append(" chat { open recentMessages(limit: \$recentMessages) { nodes { $CHAT_MESSAGE_FIELDS } } }")

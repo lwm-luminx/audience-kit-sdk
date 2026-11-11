@@ -10,6 +10,9 @@ import Foundation
 public enum OfficeKind: Sendable, Hashable, RawRepresentable, Codable {
     case usPresident, usSenate, usHouse, governor, lieutenantGovernor, attorneyGeneral, secretaryOfState, statewide
     case stateSenate, stateHouse, countyExecutive, countyBoard, mayor, cityCouncil, schoolBoard, partyOffice, other
+    /// Community titles (the API's `PersonOffice::TITLES`): a pageant crown, an Imperial Court reign, a club title
+    /// (Mr. Leather), a chapter's lead (a DEF CON Group's point of contact). See ``isTitle``.
+    case pageantTitle, courtTitle, clubTitle, chapterLead
     case unknown(String)
 
     public init(rawValue: String) {
@@ -31,6 +34,10 @@ public enum OfficeKind: Sendable, Hashable, RawRepresentable, Codable {
         case "SCHOOL_BOARD": self = .schoolBoard
         case "PARTY_OFFICE": self = .partyOffice
         case "OTHER": self = .other
+        case "PAGEANT_TITLE": self = .pageantTitle
+        case "COURT_TITLE": self = .courtTitle
+        case "CLUB_TITLE": self = .clubTitle
+        case "CHAPTER_LEAD": self = .chapterLead
         default: self = .unknown(rawValue)
         }
     }
@@ -54,7 +61,19 @@ public enum OfficeKind: Sendable, Hashable, RawRepresentable, Codable {
         case .schoolBoard: "SCHOOL_BOARD"
         case .partyOffice: "PARTY_OFFICE"
         case .other: "OTHER"
+        case .pageantTitle: "PAGEANT_TITLE"
+        case .courtTitle: "COURT_TITLE"
+        case .clubTitle: "CLUB_TITLE"
+        case .chapterLead: "CHAPTER_LEAD"
         case let .unknown(value): value
+        }
+    }
+
+    /// Whether it's a community title rather than a civic office. Titles never widen a Soapbox push's reach.
+    public var isTitle: Bool {
+        switch self {
+        case .pageantTitle, .courtTitle, .clubTitle, .chapterLead: true
+        default: false
         }
     }
 
@@ -266,6 +285,20 @@ extension Queries {
         }
         """
     }
+
+    static func personTitles(_ shape: SchemaShape) -> String {
+        guard shape.has("Person", "offices") else { return "query PersonTitles { id }" }
+        return """
+        query PersonTitles($id: ID!) {
+          node(id: $id) { ... on Person { id offices { \(officeFields) } } }
+        }
+        """
+    }
+}
+
+struct PersonTitlesResponse: Decodable, Sendable {
+    struct Holder: Decodable, Sendable { var offices: [PersonOffice]? }
+    var node: Holder?
 }
 
 struct OfficesResponse: Decodable, Sendable { var offices: [PersonOffice]? }
@@ -304,27 +337,55 @@ struct OfficeHolderResponse: Decodable, Sendable {
     }
 }
 
+extension OfficeHolder {
+    /// Their community titles (crowns, reigns, club titles, chapter leads), reigning first.
+    public var titles: [PersonOffice] { offices.only(titles: true) }
+    /// Their civic offices.
+    public var civicOffices: [PersonOffice] { offices.only(titles: false) }
+}
+
+extension Array where Element == PersonOffice {
+    /// Only community titles (true), only civic offices (false), or all of them (nil).
+    public func only(titles: Bool?) -> [PersonOffice] {
+        guard let titles else { return self }
+        return filter { $0.office.isTitle == titles }
+    }
+}
+
 extension AudienceSession {
     /// Someone's representatives and candidates, most local first (their House seat, then their senators and
     /// statewide offices), the holder before those running: the offices on the districts a position lies in or on a
     /// locale, and on every locale above. Empty without either, or in an audience without offices.
     ///
-    /// - Parameter status: only these; incumbents and candidates when nil.
-    public func offices(at position: Coordinate? = nil, localeID: String? = nil, status: [OfficeStatus]? = nil)
-        async throws -> [PersonOffice]
+    /// - Parameters:
+    ///   - status: only these; incumbents and candidates when nil.
+    ///   - titles: only community titles (true, Hot Mess's crowns and reigns), only civic offices (false), or both
+    ///     (nil). Filtered here, so it works against an API from before titles too.
+    public func offices(at position: Coordinate? = nil, localeID: String? = nil, status: [OfficeStatus]? = nil,
+                        titles: Bool? = nil) async throws -> [PersonOffice]
     {
         guard position != nil || localeID != nil else { return [] }
         var variables: [String: GraphQLValue] = [:]
         if let position { variables["at"] = position.graphQLValue }
         if let localeID { variables["localeId"] = .string(localeID) }
         if let status { variables["status"] = .array(status.map { .string($0.rawValue) }) }
-        return try await graphQL(types: Queries.civicTypes, variables: variables, operationName: "Offices",
-                                 as: OfficesResponse.self, document: Queries.offices).offices ?? []
+        let offices = try await graphQL(types: Queries.civicTypes, variables: variables, operationName: "Offices",
+                                        as: OfficesResponse.self, document: Queries.offices).offices ?? []
+        return offices.only(titles: titles)
     }
 
     /// A representative's or candidate's page, or nil when there's no such person in the audience.
     public func officeHolder(id: String) async throws -> OfficeHolder? {
         try await graphQL(types: Queries.civicTypes, variables: ["id": .string(id)], operationName: "OfficeHolder",
                           as: OfficeHolderResponse.self, document: Queries.officeHolder).holder
+    }
+
+    /// The community titles someone holds or has held (a pageant crown, an Imperial Court reign, a chapter lead),
+    /// for a performer's or member's page. Lighter than ``officeHolder(id:)``; empty in an audience without offices.
+    public func titles(personID: String) async throws -> [PersonOffice] {
+        let response = try await graphQL(types: Queries.civicTypes, variables: ["id": .string(personID)],
+                                         operationName: "PersonTitles", as: PersonTitlesResponse.self,
+                                         document: Queries.personTitles)
+        return (response.node?.offices ?? []).only(titles: true)
     }
 }

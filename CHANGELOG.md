@@ -3,11 +3,33 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
-## 0.55.0 (2026-11-11)
+## 0.57.0 (2026-11-11)
 
 - `StaffApp.velvet(venueID:audienceID:eventID:)` (and `velvet(venueId, audienceId, eventId)` on Android) links to an
   event at a venue: `audiencekit-velvet://venue?id=<venue>&audience=<audience>&event=<event>`. Velvet 1.10 opens the
   venue and then the event's page, so Hot Mess can say "Open in Velvet" on events at venues the person manages.
+
+## 0.56.0 (2026-11-11)
+
+- Community titles (Rick, 2026-11-11: titles reuse offices, audience_kit_api #518). `OfficeKind` gains
+  `pageantTitle`, `courtTitle`, `clubTitle` and `chapterLead`, with `isTitle`: a Hot Mess crown or Imperial Court
+  reign, a club title (Mr. Leather), a Hack Different chapter lead. `offices(at:localeID:status:titles:)` keeps only
+  titles (true) or only civic offices (false), filtered in the SDK so it works against an API from before titles;
+  `OfficeHolder.titles` and `civicOffices` split a person's page; `[PersonOffice].only(titles:)`.
+  `titles(personID:)` reads just someone's titles (a `PersonTitles` query), for a performer's page in Hot Mess.
+- graphql/schema.graphql is copied again from the API's next (the title kinds and `titles:` arguments).
+
+## 0.55.0 (2026-11-11)
+
+- Community chats (Rick, 2026-11-11: link Hack Different's hackerspaces and conferences to the chats they use).
+  `SocialLink.isCommunityChat` picks out `discord`, `matrix`, `irc` and `mailing_list` links, `networkName` names the
+  network ("Matrix", "IRC", "Mailing list"), and `communityChats` on `Event` and `VenueDetail` lists them. Events
+  carry their own links (`Event.socialLinks`, the API's new `Event.socialLinks`, such as DEF CON's Discord or 40C3's
+  Matrix space): `event(id:)` asks for them, lists leave them out to keep their cost down, and an API without the
+  field gets the query again without it.
+- `CommunityChatLinks` (AudienceKitUI): "Join on Discord", "Join on Matrix", "Join on IRC" and "Mailing list" buttons
+  that open each chat.
+- `graphql/schema.graphql` updated from the API.
 
 ## 0.54.0 (2026-11-11)
 

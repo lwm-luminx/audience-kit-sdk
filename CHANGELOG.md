@@ -5,6 +5,9 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
 
 ## Unreleased
 
+- CI checks the documents the SDK builds from a `SchemaShape` (events, locales, offices, Soapbox and others) against
+  the API schema too: `RenderedDocumentsTests` writes them out and the graphql job validates them. The source check
+  skipped all 16 of them, including every query the DNC demo app reads.
 - License 1.2 (Rick, 2026-11-08): no license of any kind is granted beyond the express grant (no implied, estoppel or
   trademark rights); misrepresenting the SDK or Love Wins Media's work (authorship, origin, notices, endorsement) is
   expressly prohibited and a material breach; Modifications may be made only in a fork of the repository, after

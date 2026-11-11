@@ -285,6 +285,20 @@ extension Queries {
         }
         """
     }
+
+    static func personTitles(_ shape: SchemaShape) -> String {
+        guard shape.has("Person", "offices") else { return "query PersonTitles { id }" }
+        return """
+        query PersonTitles($id: ID!) {
+          node(id: $id) { ... on Person { id offices { \(officeFields) } } }
+        }
+        """
+    }
+}
+
+struct PersonTitlesResponse: Decodable, Sendable {
+    struct Holder: Decodable, Sendable { var offices: [PersonOffice]? }
+    var node: Holder?
 }
 
 struct OfficesResponse: Decodable, Sendable { var offices: [PersonOffice]? }
@@ -364,5 +378,14 @@ extension AudienceSession {
     public func officeHolder(id: String) async throws -> OfficeHolder? {
         try await graphQL(types: Queries.civicTypes, variables: ["id": .string(id)], operationName: "OfficeHolder",
                           as: OfficeHolderResponse.self, document: Queries.officeHolder).holder
+    }
+
+    /// The community titles someone holds or has held (a pageant crown, an Imperial Court reign, a chapter lead),
+    /// for a performer's or member's page. Lighter than ``officeHolder(id:)``; empty in an audience without offices.
+    public func titles(personID: String) async throws -> [PersonOffice] {
+        let response = try await graphQL(types: Queries.civicTypes, variables: ["id": .string(personID)],
+                                         operationName: "PersonTitles", as: PersonTitlesResponse.self,
+                                         document: Queries.personTitles)
+        return (response.node?.offices ?? []).only(titles: true)
     }
 }

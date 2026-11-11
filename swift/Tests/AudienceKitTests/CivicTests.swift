@@ -174,3 +174,25 @@ private let officeJSON = #"""
     #expect(holder.titles == [crown])
     #expect(holder.civicOffices == [seat])
 }
+
+@Test func aPersonsTitlesLeaveOutCivicOffices() async throws {
+    let crown = officeJSON.replacingOccurrences(of: "\"o-1\"", with: "\"o-3\"")
+        .replacingOccurrences(of: "US_HOUSE", with: "COURT_TITLE")
+    let stub = Stub { request in
+        if request.query.contains("__type") {
+            let pattern = try! NSRegularExpression(pattern: #"(t\d+): __type"#)
+            let query = request.query
+            let entries = pattern.matches(in: query, range: NSRange(query.startIndex..., in: query)).map { match in
+                let alias = String(query[Range(match.range(at: 1), in: query)!])
+                return #""\#(alias)":{"fields":[{"name":"id"},{"name":"offices"}]}"#
+            }
+            return .json(status: 200, body: #"{"data":{"# + entries.joined(separator: ",") + "}}")
+        }
+        return .json(status: 200, body: #"{"data":{"node":{"id":"p-1","offices":["# + officeJSON + "," + crown + "]}}}")
+    }
+
+    let titles = try await civicClient(stub).titles(personID: "p-1")
+
+    #expect(titles.map(\.id) == ["o-3"])
+    #expect(stub.requests.last?.query.contains("PersonTitles") == true)
+}

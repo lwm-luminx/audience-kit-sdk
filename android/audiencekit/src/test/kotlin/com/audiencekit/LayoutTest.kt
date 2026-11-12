@@ -82,6 +82,23 @@ class LayoutTest {
     }
 
     @Test
+    fun readsTheLocalNewsCardsLocale() = runTest {
+        val json = """
+            {"data":{"layout":{"id":"lay-2","refreshAfter":60,"cards":[
+              {"id":"articles.locale:l-1","kind":"articles.locale","rank":1,"title":"Local news","event":null,
+               "venue":null,"locale":{"id":"l-1"}}
+            ]}}}
+        """
+        val stub = StubTransport { StubTransport.json(200, json) }
+        val layout = layoutClient(stub).layout(LayoutScreen.NOW, listOf(CardKind.ARTICLES_LOCALE))
+
+        val news = layout.card(CardKind.ARTICLES_LOCALE)
+        assertEquals("l-1", news?.localeId)
+        assertEquals("Local news", news?.title)
+        assertEquals("articles.locale", CardKind.ARTICLES_LOCALE)
+    }
+
+    @Test
     fun layoutClientSkipsKindsTheAppDidNotList() = runTest {
         val stub = StubTransport { StubTransport.json(200, LAYOUT) }
         val layout = LayoutClient(

@@ -39,6 +39,12 @@ public object CardKind {
     public const val NOW_SMALL_TALK: String = "now.smallTalk"
     public const val POSTS_TONIGHT: String = "posts.tonight"
     public const val POSTS_LOCALE: String = "posts.locale"
+
+    /**
+     * The locale's news on Now: a few recent articles from the publishers covering it (localeId). Load them with
+     * articlesAbout(ArticleTopic.Locale(localeId), first = 3); a teaser opens the publisher's own site.
+     */
+    public const val ARTICLES_LOCALE: String = "articles.locale"
     public const val EVENTS_UPCOMING: String = "events.upcoming"
     public const val VENUES_NEARBY: String = "venues.nearby"
     public const val VENUES_FRIENDS: String = "venues.friends"

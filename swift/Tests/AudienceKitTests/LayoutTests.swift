@@ -76,6 +76,21 @@ private let layoutJSON = """
         #expect(client["appVersion"] as? String == "2.3.0")
     }
 
+    @Test func readsTheLocalNewsCardsLocale() async throws {
+        let json = """
+        {"data":{"layout":{"id":"lay-2","refreshAfter":60,"cards":[
+          {"id":"articles.locale:l-1","kind":"articles.locale","rank":1,"title":"Local news","event":null,
+           "venue":null,"locale":{"id":"l-1"}}
+        ]}}}
+        """
+        let stub = Stub { _ in .json(status: 200, body: json) }
+        let layout = try await layoutClient(stub).layout(screen: .now, cardKinds: [CardKind.articlesLocale])
+
+        let news = try #require(layout.card(CardKind.articlesLocale))
+        #expect(news.localeID == "l-1" && news.title == "Local news")
+        #expect(CardKind.articlesLocale == "articles.locale")
+    }
+
     @Test func layoutClientSkipsKindsTheAppDidNotList() async throws {
         let stub = Stub { _ in .json(status: 200, body: layoutJSON) }
         let client = LayoutClient(session: layoutClient(stub), screen: .now,

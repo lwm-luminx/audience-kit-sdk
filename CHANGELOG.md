@@ -3,6 +3,15 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.58.0 (2026-11-12)
+
+- Local news on Now (Rick, 2026-11-12: "a few articles from publishers cards into now for your locale").
+  `CardKind.articlesLocale` (`ARTICLES_LOCALE` on Android) is the API's new `articles.locale` card: when the viewer's
+  locale has recent articles from its publishers (Soapbox, including teasers from publishers' RSS feeds), the Now
+  layout ranks a "Local news" card after Coming up. It arrives as a `PostsCard` with the locale's id
+  (`LayoutCard.localeID`), so the layout query is unchanged and works against any API; load the articles with
+  `articles(about: .locale(id), first: 3)` (`articlesAbout(ArticleTopic.Locale(id), first = 3)` on Android). An API without the kind never sends it.
+
 ## 0.57.0 (2026-11-11)
 
 - `StaffApp.velvet(venueID:audienceID:eventID:)` (and `velvet(venueId, audienceId, eventId)` on Android) links to an

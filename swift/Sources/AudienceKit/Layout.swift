@@ -29,6 +29,9 @@ public enum CardKind {
     public static let nowSmallTalk = "now.smallTalk"
     public static let postsTonight = "posts.tonight"
     public static let postsLocale = "posts.locale"
+    /// The locale's news on Now: a few recent articles from the publishers covering it (``LayoutCard/localeID``).
+    /// Load them with `articles(about: .locale(localeID), first: 3)`; a teaser opens the publisher's own site.
+    public static let articlesLocale = "articles.locale"
     public static let eventsUpcoming = "events.upcoming"
     public static let venuesNearby = "venues.nearby"
     public static let venuesFriends = "venues.friends"

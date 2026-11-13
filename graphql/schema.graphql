@@ -1533,6 +1533,11 @@ type Audience implements IRelay & Node {
   fieldPermissions: [FieldPermission!]!
 
   """
+  The instance's IAudienceGithub mixin. Left out of the schema where its module isn't installed.
+  """
+  github: IAudienceGithub! @endpoint(in: [AUDIENCE, STAFF])
+
+  """
   Unique identifier.
   """
   id: ID!
@@ -2244,6 +2249,52 @@ type AudienceFacebook implements IAudienceFacebook {
   The audience's own Facebook Page. Its managers can run the audience's console.
   """
   page: Page
+}
+
+"""
+The organization as the audience's GitHub App reads it (GithubCommunity).
+"""
+type AudienceGithubView implements IAudienceGithub {
+  """
+  Items on the open public projects assigned to the signed-in member's connected
+  GitHub account (me.githubUsername); empty without one.
+  """
+  myItems: [GithubProjectItem!]!
+
+  """
+  The organization, or null when GitHub is unreachable or the app isn't installed.
+  """
+  organization: GithubOrganization
+
+  """
+  A public project with its items, by number; null when there is none.
+  """
+  project(
+    """
+    The project's number in the organization.
+    """
+    number: Int!
+  ): GithubProject
+
+  """
+  Open public projects, most recently updated first, without their items.
+  """
+  projects: [GithubProject!]!
+
+  """
+  Public, unarchived repositories, most recently pushed first.
+  """
+  repositories(
+    """
+    How many, up to 100.
+    """
+    first: Int = 30
+  ): [GithubRepository!]!
+
+  """
+  The signed-in member's connected GitHub login (myItems are theirs), or null when they have not connected GitHub.
+  """
+  viewerLogin: String
 }
 
 """
@@ -3006,10 +3057,10 @@ type BasicCard implements ICard {
 
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
-  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
-  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
-  did not list in cardKinds is never sent.
+  articles.locale, events.upcoming, venues.nearby, venues.friends,
+  venues.tonight, venues.all, venues.thinCity, locales.showcase,
+  people.playingThisWeek, people.basedHere, people.everyone, pings, web or
+  promo.slot. New kinds are added; a kind the app did not list in cardKinds is never sent.
   """
   kind: String!
 
@@ -3439,6 +3490,11 @@ type ChatAccount {
   channels: [ChatChannel!]!
 
   """
+  The event whose own community it is; null for the audience's and venues'.
+  """
+  eventId: ID
+
+  """
   The community's ID on the provider, e.g. a Discord server ID.
   """
   externalId: String!
@@ -3587,10 +3643,10 @@ type ChatCard implements ICard {
 
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
-  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
-  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
-  did not list in cardKinds is never sent.
+  articles.locale, events.upcoming, venues.nearby, venues.friends,
+  venues.tonight, venues.all, venues.thinCity, locales.showcase,
+  people.playingThisWeek, people.basedHere, people.everyone, pings, web or
+  promo.slot. New kinds are added; a kind the app did not list in cardKinds is never sent.
   """
   kind: String!
 
@@ -3883,6 +3939,12 @@ interface ChatMessage implements HasTribes {
   The ID of the message.
   """
   id: ID!
+
+  """
+  Whether only one person sees it: a private nudge from the AI host, which apps
+  show as "Only you can see this". Nobody else in the room gets it.
+  """
+  isPrivate: Boolean!
 
   """
   What the message is.
@@ -4424,10 +4486,15 @@ type ChatPromptStarterSet {
 
 """
 A chat provider an audience's rooms can run on (Chat::Provider), and what
-AudienceKit can do with it: AudienceKit (its own) or Discord. Apps offer only
-what the provider supports.
+AudienceKit can do with it: AudienceKit (its own), Discord, Matrix or IRC. Apps
+offer only what the provider supports.
 """
 type ChatProvider implements IProvider {
+  """
+  How its bridge can run: "on" carries lines both ways, "read" only brings the provider's in (connectChat readOnly).
+  """
+  bridgeModes: [String!]!
+
   """
   Whether a bot can bridge its rooms with the apps' own (ChatAccount.bridge).
   """
@@ -6279,6 +6346,11 @@ type Event implements HasBanner & HasTags & HasTaskTemplates & Node {
   chat: IEventChat @requires(permissions: ["events:write:mine", "events:write:my_troupes", "events:write:venue"])
 
   """
+  Its own chat community (a conference's Discord server), where the apps send people from it; null without one.
+  """
+  chatCommunity: EventChatCommunity
+
+  """
   Description of the event.
   """
   description: String
@@ -6506,6 +6578,27 @@ type EventAttendeeEdge {
   The item at the end of the edge.
   """
   node: EventAttendee
+}
+
+"""
+An event's own chat community, e.g. a conference's Discord server, made from its
+chat link (promoteChatLink). The apps send people there from the event.
+"""
+type EventChatCommunity {
+  """
+  The community's name on its provider, e.g. the Discord server's.
+  """
+  name: String
+
+  """
+  Who runs it: Discord, Matrix or IRC.
+  """
+  provider: ChatProvider!
+
+  """
+  Where the apps send people to it, e.g. the server's invite.
+  """
+  url: String
 }
 
 """
@@ -7654,10 +7747,10 @@ type EventsCard implements ICard {
 
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
-  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
-  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
-  did not list in cardKinds is never sent.
+  articles.locale, events.upcoming, venues.nearby, venues.friends,
+  venues.tonight, venues.all, venues.thinCity, locales.showcase,
+  people.playingThisWeek, people.basedHere, people.everyone, pings, web or
+  promo.slot. New kinds are added; a kind the app did not list in cardKinds is never sent.
   """
   kind: String!
 
@@ -8293,6 +8386,292 @@ scalar GeoJSON
 A geographic point or boundary.
 """
 scalar Geography
+
+"""
+What a GitHub Project item is.
+"""
+enum GithubItemType {
+  """
+  A draft on the project itself, with no repository yet.
+  """
+  DRAFT_ISSUE
+
+  """
+  An issue in one of the repositories.
+  """
+  ISSUE
+
+  """
+  A pull request in one of the repositories.
+  """
+  PULL_REQUEST
+}
+
+"""
+A label on an issue or pull request.
+"""
+type GithubLabel {
+  """
+  Its color, as six hex digits without #.
+  """
+  color: String
+
+  """
+  Its name.
+  """
+  name: String!
+}
+
+"""
+The community's GitHub organization (GithubCommunity::Organization).
+"""
+type GithubOrganization {
+  """
+  Its avatar's URL.
+  """
+  avatarUrl: String
+
+  """
+  What it says about itself.
+  """
+  description: String
+
+  """
+  Its login, e.g. hack-different.
+  """
+  login: String!
+
+  """
+  Its display name.
+  """
+  name: String
+
+  """
+  Its page on GitHub.
+  """
+  url: String!
+
+  """
+  The website it links to.
+  """
+  websiteUrl: String
+}
+
+"""
+A GitHub account, as an assignee (GithubCommunity::Person).
+"""
+type GithubPerson {
+  """
+  Their avatar's URL.
+  """
+  avatarUrl: String
+
+  """
+  Their GitHub login.
+  """
+  login: String!
+
+  """
+  Their page on GitHub.
+  """
+  url: String
+}
+
+"""
+One of the community organization's public GitHub Projects (Projects v2, GithubCommunity::Project).
+"""
+type GithubProject {
+  """
+  How many items it has.
+  """
+  itemCount: Int!
+
+  """
+  Its items in the order the project keeps them (the first 100), ones in private
+  repositories left out. Only on github.project(number:); null in lists.
+  """
+  items: [GithubProjectItem!]
+
+  """
+  Its number in the organization, for github.project(number:).
+  """
+  number: Int!
+
+  """
+  Its README, in Markdown. Only on github.project(number:).
+  """
+  readme: String
+
+  """
+  Its short description.
+  """
+  shortDescription: String
+
+  """
+  Its Status columns, in order; empty when it has no Status field.
+  """
+  statuses: [GithubStatusOption!]!
+
+  """
+  Its title.
+  """
+  title: String!
+
+  """
+  When it last changed.
+  """
+  updatedAt: ISO8601DateTime
+
+  """
+  Its page on GitHub.
+  """
+  url: String!
+}
+
+"""
+An item on a GitHub Project: an issue, pull request or draft, with its Status (GithubCommunity::Item).
+"""
+type GithubProjectItem {
+  """
+  Who it is assigned to.
+  """
+  assignees: [GithubPerson!]!
+
+  """
+  GitHub's ID for the item.
+  """
+  id: String!
+
+  """
+  Its labels; none for drafts.
+  """
+  labels: [GithubLabel!]!
+
+  """
+  Its issue or pull request number; null for drafts.
+  """
+  number: Int
+
+  """
+  owner/name of its repository; null for drafts.
+  """
+  repository: String
+
+  """
+  OPEN, CLOSED or MERGED (pull requests) as GitHub says; null for drafts.
+  """
+  state: String
+
+  """
+  The name of its Status column (GithubProject.statuses), or null when unset.
+  """
+  status: String
+
+  """
+  Its title.
+  """
+  title: String!
+
+  """
+  Whether it is an issue, pull request or draft.
+  """
+  type: GithubItemType!
+
+  """
+  When the item last changed.
+  """
+  updatedAt: ISO8601DateTime
+
+  """
+  Its page on GitHub; null for drafts.
+  """
+  url: String
+}
+
+"""
+One of the community organization's public repositories (GithubCommunity::Repository).
+"""
+type GithubRepository {
+  """
+  Whether it is archived (read-only).
+  """
+  archived: Boolean!
+
+  """
+  What it says it is.
+  """
+  description: String
+
+  """
+  How many forks it has.
+  """
+  forks: Int!
+
+  """
+  Its main language.
+  """
+  language: String
+
+  """
+  Its name, e.g. hack_different_mobile.
+  """
+  name: String!
+
+  """
+  owner/name.
+  """
+  nameWithOwner: String!
+
+  """
+  How many issues are open.
+  """
+  openIssues: Int!
+
+  """
+  When it was last pushed to.
+  """
+  pushedAt: ISO8601DateTime
+
+  """
+  How many stars it has.
+  """
+  stars: Int!
+
+  """
+  Its topics.
+  """
+  topics: [String!]!
+
+  """
+  Its page on GitHub.
+  """
+  url: String!
+}
+
+"""
+One of a GitHub Project's Status columns (Todo, In Progress, Done), in the project's order.
+"""
+type GithubStatusOption {
+  """
+  GitHub's name for its color (GRAY, BLUE, GREEN...).
+  """
+  color: String
+
+  """
+  What the column means, when the project says.
+  """
+  description: String
+
+  """
+  GitHub's ID for the option.
+  """
+  id: String!
+
+  """
+  Its name, which items show as their status.
+  """
+  name: String!
+}
 
 """
 An act's curtain call go/no-go: the venue, the talent the curtain rises on and
@@ -8949,6 +9328,55 @@ interface IAudienceFacebook @mixin(extensionKey: "facebook", field: "facebook", 
 }
 
 """
+The github module's root lookups: the community's GitHub organization, its
+public repositories and its public GitHub Projects with their items, read by the
+audience's GitHub App (doc/GITHUB.md). Only audiences with a GitHub App on an
+organization have it (GithubAppKeys).
+"""
+interface IAudienceGithub @mixin(extensionKey: "github", field: "github", null: false, on: ["Audience"]) @endpoint(in: [AUDIENCE, STAFF]) {
+  """
+  Items on the open public projects assigned to the signed-in member's connected
+  GitHub account (me.githubUsername); empty without one.
+  """
+  myItems: [GithubProjectItem!]!
+
+  """
+  The organization, or null when GitHub is unreachable or the app isn't installed.
+  """
+  organization: GithubOrganization
+
+  """
+  A public project with its items, by number; null when there is none.
+  """
+  project(
+    """
+    The project's number in the organization.
+    """
+    number: Int!
+  ): GithubProject
+
+  """
+  Open public projects, most recently updated first, without their items.
+  """
+  projects: [GithubProject!]!
+
+  """
+  Public, unarchived repositories, most recently pushed first.
+  """
+  repositories(
+    """
+    How many, up to 100.
+    """
+    first: Int = 30
+  ): [GithubRepository!]!
+
+  """
+  The signed-in member's connected GitHub login (myItems are theirs), or null when they have not connected GitHub.
+  """
+  viewerLogin: String
+}
+
+"""
 The karaoke module's root lookups.
 """
 interface IAudienceKaraoke @mixin(extensionKey: "karaoke", field: "karaoke", null: false, on: ["Audience"]) @endpoint(in: [AUDIENCE, STAFF]) {
@@ -9412,10 +9840,10 @@ interface ICard {
 
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
-  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
-  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
-  did not list in cardKinds is never sent.
+  articles.locale, events.upcoming, venues.nearby, venues.friends,
+  venues.tonight, venues.all, venues.thinCity, locales.showcase,
+  people.playingThisWeek, people.basedHere, people.everyone, pings, web or
+  promo.slot. New kinds are added; a kind the app did not list in cardKinds is never sent.
   """
   kind: String!
 
@@ -13309,6 +13737,12 @@ type LocaleMessage implements ChatMessage & HasTribes & Node {
   id: ID!
 
   """
+  Whether only one person sees it: a private nudge from the AI host, which apps
+  show as "Only you can see this". Nobody else in the room gets it.
+  """
+  isPrivate: Boolean!
+
+  """
   What the message is.
   """
   kind: ChatKind!
@@ -15542,10 +15976,10 @@ type PeopleCard implements ICard {
 
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
-  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
-  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
-  did not list in cardKinds is never sent.
+  articles.locale, events.upcoming, venues.nearby, venues.friends,
+  venues.tonight, venues.all, venues.thinCity, locales.showcase,
+  people.playingThisWeek, people.basedHere, people.everyone, pings, web or
+  promo.slot. New kinds are added; a kind the app did not list in cardKinds is never sent.
   """
   kind: String!
 
@@ -17035,7 +17469,9 @@ enum PostVisibility {
 }
 
 """
-Posts: the venue's and event's tonight (posts.tonight), or the locale's (posts.locale).
+Posts: the venue's and event's tonight (posts.tonight), or the locale's
+(posts.locale). Also the locale's news (articles.locale): a few recent Soapbox
+articles, which the app loads with Locale.articles.
 """
 type PostsCard implements ICard {
   """
@@ -17050,15 +17486,15 @@ type PostsCard implements ICard {
 
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
-  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
-  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
-  did not list in cardKinds is never sent.
+  articles.locale, events.upcoming, venues.nearby, venues.friends,
+  venues.tonight, venues.all, venues.thinCity, locales.showcase,
+  people.playingThisWeek, people.basedHere, people.everyone, pings, web or
+  promo.slot. New kinds are added; a kind the app did not list in cardKinds is never sent.
   """
   kind: String!
 
   """
-  The locale, for its posts.
+  The locale, for its posts or news.
   """
   locale: Locale
 
@@ -17313,10 +17749,10 @@ type PromoSlotCard implements ICard {
 
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
-  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
-  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
-  did not list in cardKinds is never sent.
+  articles.locale, events.upcoming, venues.nearby, venues.friends,
+  venues.tonight, venues.all, venues.thinCity, locales.showcase,
+  people.playingThisWeek, people.basedHere, people.everyone, pings, web or
+  promo.slot. New kinds are added; a kind the app did not list in cardKinds is never sent.
   """
   kind: String!
 
@@ -19857,10 +20293,10 @@ type StageCard implements ICard {
 
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
-  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
-  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
-  did not list in cardKinds is never sent.
+  articles.locale, events.upcoming, venues.nearby, venues.friends,
+  venues.tonight, venues.all, venues.thinCity, locales.showcase,
+  people.playingThisWeek, people.basedHere, people.everyone, pings, web or
+  promo.slot. New kinds are added; a kind the app did not list in cardKinds is never sent.
   """
   kind: String!
 
@@ -22596,6 +23032,12 @@ type VenueMessage implements ChatMessage & HasTribes & Node {
   id: ID!
 
   """
+  Whether only one person sees it: a private nudge from the AI host, which apps
+  show as "Only you can see this". Nobody else in the room gets it.
+  """
+  isPrivate: Boolean!
+
+  """
   What the message is.
   """
   kind: ChatKind!
@@ -23286,10 +23728,10 @@ type VenuesCard implements ICard {
 
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
-  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
-  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
-  did not list in cardKinds is never sent.
+  articles.locale, events.upcoming, venues.nearby, venues.friends,
+  venues.tonight, venues.all, venues.thinCity, locales.showcase,
+  people.playingThisWeek, people.basedHere, people.everyone, pings, web or
+  promo.slot. New kinds are added; a kind the app did not list in cardKinds is never sent.
   """
   kind: String!
 
@@ -23370,10 +23812,10 @@ type WebCard implements ICard & IPromoContent {
 
   """
   What it is: now.stage, now.chat, now.smallTalk, posts.tonight, posts.locale,
-  events.upcoming, venues.nearby, venues.friends, venues.tonight, venues.all,
-  venues.thinCity, locales.showcase, people.playingThisWeek, people.basedHere,
-  people.everyone, pings, web or promo.slot. New kinds are added; a kind the app
-  did not list in cardKinds is never sent.
+  articles.locale, events.upcoming, venues.nearby, venues.friends,
+  venues.tonight, venues.all, venues.thinCity, locales.showcase,
+  people.playingThisWeek, people.basedHere, people.everyone, pings, web or
+  promo.slot. New kinds are added; a kind the app did not list in cardKinds is never sent.
   """
   kind: String!
 

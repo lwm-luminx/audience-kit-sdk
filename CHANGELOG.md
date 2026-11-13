@@ -3,6 +3,16 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.59.0 (2026-11-13)
+
+- GitHub and GitHub Projects (Rick, 2026-11-13: "integrate github sdk and projects into hack different"). The API's
+  new `github` module reads the community's GitHub organization with the audience's own GitHub App: its public
+  repositories and its public Projects (v2) with each item's Status. `gitHubCommunity(repositories:)` reads the
+  organization, repositories and projects for a GitHub tab; `gitHubProject(number:)` reads one project's README and
+  items, which `GitHubProject.columns` groups into a board by Status; `myGitHubItems()` lists the items assigned to
+  the signed-in person's connected GitHub account. `GitHubCopy` has the shared words. Audiences without a GitHub App
+  get nil/empty, so apps can call them unconditionally. Needs audience_kit_api with the github module.
+
 ## 0.58.0 (2026-11-12)
 
 - Local news on Now (Rick, 2026-11-12: "a few articles from publishers cards into now for your locale").

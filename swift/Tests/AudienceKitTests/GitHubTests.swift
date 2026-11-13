@@ -66,7 +66,7 @@ private let draftJSON = #"""
 
 @Test func aProjectGroupsItsItemsByStatus() async throws {
     let project = #"{"number":1,"title":"Roadmap","shortDescription":null,"url":"u","itemCount":2,"updatedAt":null,"#
-        + #""readme":"# Roadmap","statuses":"# + statusesJSON + #","items":["# + itemJSON + "," + draftJSON + "]}"
+        + ##""readme":"# Roadmap","statuses":"## + statusesJSON + #","items":["# + itemJSON + "," + draftJSON + "]}"
     let stub = Stub { _ in .json(status: 200, body: #"{"data":{"github":{"project":"# + project + "}}}") }
 
     let board = try #require(try await gitHubClient(stub).gitHubProject(number: 1))

@@ -28,6 +28,9 @@ struct RenderedDocumentsTests {
             ("Publication", Queries.publication(shape)),
             ("MyOpEds", Queries.myOpEds(shape)),
             ("Layout", Queries.layout(shape)),
+            ("GitHubCommunity", Queries.gitHubCommunity(shape)),
+            ("GitHubProject", Queries.gitHubProject(shape)),
+            ("MyGitHubItems", Queries.myGitHubItems(shape)),
         ] + [ArticleTopic.venue("v"), .event("e"), .person("p"), .locale("l")].map { topic in
             ("ArticlesAbout\(Queries.articles(about: topic).type)", Queries.articles(about: topic).document(shape))
         }

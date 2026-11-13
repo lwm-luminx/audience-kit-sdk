@@ -2290,6 +2290,11 @@ type AudienceGithubView implements IAudienceGithub {
     """
     first: Int = 30
   ): [GithubRepository!]!
+
+  """
+  The signed-in member's connected GitHub login (myItems are theirs), or null when they have not connected GitHub.
+  """
+  viewerLogin: String
 }
 
 """
@@ -9364,6 +9369,11 @@ interface IAudienceGithub @mixin(extensionKey: "github", field: "github", null: 
     """
     first: Int = 30
   ): [GithubRepository!]!
+
+  """
+  The signed-in member's connected GitHub login (myItems are theirs), or null when they have not connected GitHub.
+  """
+  viewerLogin: String
 }
 
 """

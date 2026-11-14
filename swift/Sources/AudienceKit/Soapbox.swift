@@ -30,13 +30,18 @@ public struct PublicationSummary: Codable, Sendable, Hashable, Identifiable {
     public let photoUrl: String?
     public let trusted: Bool
     public let acceptsOpEds: Bool
+    /// Whether readers can tip it to read it without ads (``AdFreeTips``). Nil from an API without it.
+    public let adFreeOffered: Bool?
 
-    public init(id: String, name: String, photoUrl: String? = nil, trusted: Bool = false, acceptsOpEds: Bool = false) {
+    public init(id: String, name: String, photoUrl: String? = nil, trusted: Bool = false, acceptsOpEds: Bool = false,
+                adFreeOffered: Bool? = nil)
+    {
         self.id = id
         self.name = name
         self.photoUrl = photoUrl
         self.trusted = trusted
         self.acceptsOpEds = acceptsOpEds
+        self.adFreeOffered = adFreeOffered
     }
 }
 
@@ -68,10 +73,20 @@ public struct Publication: Codable, Sendable, Hashable, Identifiable {
     public let opEdGuidelines: String?
     public let locale: ArticleSubject?
     public let person: ArticleSubject?
+    /// Tip to read without ads (``AdFreeTips``): whether readers can now, the least tip that does it, in cents, and
+    /// for how many days. Nil from an API without it.
+    public let adFreeOffered: Bool?
+    public let adFreeTipCents: Int?
+    public let adFreeDays: Int?
+    /// Whether the signed-in reader reads it without ads now, and until when. Nil from an API without it.
+    public let viewerAdFree: Bool?
+    public let viewerAdFreeUntil: Date?
 
     public init(id: String, name: String, masthead: String? = nil, about: String? = nil, websiteUrl: String? = nil,
                 photoUrl: String? = nil, trusted: Bool = false, acceptsOpEds: Bool = false,
-                opEdGuidelines: String? = nil, locale: ArticleSubject? = nil, person: ArticleSubject? = nil)
+                opEdGuidelines: String? = nil, locale: ArticleSubject? = nil, person: ArticleSubject? = nil,
+                adFreeOffered: Bool? = nil, adFreeTipCents: Int? = nil, adFreeDays: Int? = nil,
+                viewerAdFree: Bool? = nil, viewerAdFreeUntil: Date? = nil)
     {
         self.id = id
         self.name = name
@@ -84,6 +99,11 @@ public struct Publication: Codable, Sendable, Hashable, Identifiable {
         self.opEdGuidelines = opEdGuidelines
         self.locale = locale
         self.person = person
+        self.adFreeOffered = adFreeOffered
+        self.adFreeTipCents = adFreeTipCents
+        self.adFreeDays = adFreeDays
+        self.viewerAdFree = viewerAdFree
+        self.viewerAdFreeUntil = viewerAdFreeUntil
     }
 }
 
@@ -118,6 +138,9 @@ public struct Article: Codable, Sendable, Hashable, Identifiable {
     public let status: ArticleStatus?
     public let reviewNote: String?
     public let submittedAt: Date?
+    /// Whether the signed-in reader tipped its publication to read it without ads: show no ads or sponsored spots
+    /// with it. Nil from an API without it.
+    public let viewerAdFree: Bool?
 
     public init(id: String, slug: String = "", title: String, summary: String? = nil, body: String? = nil,
                 byline: String = "", kind: ArticleKind = .article, publishedAt: Date? = nil, edited: Bool = false,
@@ -125,7 +148,7 @@ public struct Article: Codable, Sendable, Hashable, Identifiable {
                 heroPhotoUrl: String? = nil, heroAltText: String? = nil, publication: PublicationSummary,
                 venues: [ArticleSubject]? = nil, events: [ArticleSubject]? = nil, people: [ArticleSubject]? = nil,
                 locales: [ArticleSubject]? = nil, status: ArticleStatus? = nil, reviewNote: String? = nil,
-                submittedAt: Date? = nil)
+                submittedAt: Date? = nil, viewerAdFree: Bool? = nil)
     {
         self.id = id
         self.slug = slug
@@ -150,7 +173,11 @@ public struct Article: Codable, Sendable, Hashable, Identifiable {
         self.status = status
         self.reviewNote = reviewNote
         self.submittedAt = submittedAt
+        self.viewerAdFree = viewerAdFree
     }
+
+    /// Whether to leave ads and sponsored spots out around it: the reader tipped its publication.
+    public var showsWithoutAds: Bool { viewerAdFree == true }
 
     /// Whether to show it as an op-ed ("Op-ed" label, the writer's byline).
     public var isOpEd: Bool { kind == .opEd }
@@ -167,7 +194,7 @@ public enum ArticleTopic: Sendable, Hashable {
 
 extension Queries {
     /// The types the Soapbox documents depend on: the root's `soapbox` and each listing's `articles`.
-    static let soapboxTypes = ["Audience", "Venue", "Event", "Person", "Locale"]
+    static let soapboxTypes = ["Audience", "Venue", "Event", "Person", "Locale", "Article", "Publication"]
 
     static let publicationSummaryFields = "id name photoUrl trusted acceptsOpEds"
     static let articleFields = """
@@ -180,6 +207,20 @@ extension Queries {
     person { id name }
     """
 
+    /// The article fields this audience's API has: tip to read without ads came later (``AdFreeTips``).
+    static func articleFieldsFor(_ shape: SchemaShape) -> String {
+        guard shape.has("Article", "viewerAdFree"), shape.has("Publication", "adFreeOffered") else {
+            return articleFields
+        }
+        return articleFields.replacingOccurrences(of: publicationSummaryFields,
+                                                  with: publicationSummaryFields + " adFreeOffered") + " viewerAdFree"
+    }
+
+    static func publicationFieldsFor(_ shape: SchemaShape) -> String {
+        guard shape.has("Publication", "adFreeOffered") else { return publicationFields }
+        return publicationFields + " adFreeOffered adFreeTipCents adFreeDays viewerAdFree viewerAdFreeUntil"
+    }
+
     /// The document when the audience has no Soapbox: asks for nothing the helpers decode, under the operation's name.
     static func noSoapbox(_ name: String) -> String { "query \(name) { id }" }
 
@@ -188,7 +229,9 @@ extension Queries {
         return """
         query Articles($localeId: ID, $publicationId: ID, $first: Int) {
           soapbox {
-            articles(localeId: $localeId, publicationId: $publicationId, first: $first) { nodes { \(articleFields) } }
+            articles(localeId: $localeId, publicationId: $publicationId, first: $first) {
+              nodes { \(articleFieldsFor(shape)) }
+            }
           }
         }
         """
@@ -198,19 +241,19 @@ extension Queries {
         guard shape.has("Audience", "soapbox") else { return noSoapbox("Article") }
         return """
         query Article($id: ID!) {
-          soapbox { article(id: $id) { \(articleFields) body \(articleSubjectFields) } }
+          soapbox { article(id: $id) { \(articleFieldsFor(shape)) body \(articleSubjectFields) } }
         }
         """
     }
 
     static func publications(_ shape: SchemaShape) -> String {
         guard shape.has("Audience", "soapbox") else { return noSoapbox("Publications") }
-        return "query Publications { soapbox { publications { \(publicationFields) } } }"
+        return "query Publications { soapbox { publications { \(publicationFieldsFor(shape)) } } }"
     }
 
     static func publication(_ shape: SchemaShape) -> String {
         guard shape.has("Audience", "soapbox") else { return noSoapbox("Publication") }
-        return "query Publication($id: ID!) { soapbox { publication(id: $id) { \(publicationFields) } } }"
+        return "query Publication($id: ID!) { soapbox { publication(id: $id) { \(publicationFieldsFor(shape)) } } }"
     }
 
     static func myOpEds(_ shape: SchemaShape) -> String {
@@ -233,7 +276,7 @@ extension Queries {
             guard shape.has(type, "articles") else { return noSoapbox("ArticlesAbout") }
             return """
             query ArticlesAbout($id: ID!, $first: Int) {
-              \(path("articles { list(first: $first) { nodes { \(articleFields) } } }"))
+              \(path("articles { list(first: $first) { nodes { \(articleFieldsFor(shape)) } } }"))
             }
             """
         })

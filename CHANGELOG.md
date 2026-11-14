@@ -3,6 +3,17 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.67.1 (2026-11-14)
+
+- Tests and CI only, no change to the SDK's behavior. Every AudienceKitUI view (the lineup strip, karaoke queue and
+  signup, song requests, the trivia card, the host row, avatars, the update sheet, screen and banner, the calendar
+  menu, community chat links, the credit footer, Delete Account, Connect Discord, Check the app, staff app links and
+  the theme presets) is hosted in a window in its states, light and dark and at a large accessibility text size
+  (`swift/Tests/AudienceKitTests/UI`). The views that call the API talk to a `GraphQLStub`. AudienceKitUI's line
+  coverage on macOS goes from 0.2% to 77%. These tests need SwiftUI and AppKit, so Linux builds them to nothing and
+  its 85% floor is unchanged. Run them with `swift test` on a Mac (the `apple` CI job should run it too; that
+  workflow change follows separately).
+
 ## 0.67.0 (2026-11-14)
 
 - Reporting an intimate image shared without consent (regulatory review, 2026-11-14). `ReportCopy.reasons` /

@@ -224,6 +224,25 @@ class ChatQueriesTest {
     }
 
     @Test
+    fun aJoinSaysWhenTheRoomOnlyMirrorsDiscord() {
+        fun decode(json: String) = ChatRoomEvent.decode(Json.parseToJsonElement(json).jsonObject)
+
+        val mirrored = assertIs<ChatRoomEvent.Joined>(
+            decode(
+                """{"__typename":"ChatJoined","outOfRange":false,"readOnly":true,""" +
+                    """"replyUrl":"https://discord.com/channels/1/2","history":[]}""",
+            ),
+        )
+        assertTrue(mirrored.readOnly)
+        assertEquals("https://discord.com/channels/1/2", mirrored.replyUrl)
+
+        val open = assertIs<ChatRoomEvent.Joined>(decode("""{"__typename":"ChatJoined","history":[]}"""))
+        assertFalse(open.readOnly)
+        assertNull(open.replyUrl)
+        assertTrue(Queries.chatRoom(ChatRoom.Venue("v-1")).contains("readOnly"))
+    }
+
+    @Test
     fun everyChatRoomEventDecodes() {
         fun decode(json: String) = ChatRoomEvent.decode(Json.parseToJsonElement(json).jsonObject)
         val message = ChatMessage(id = "m-1", body = "hi", message = "hi", name = "Ada L.", userId = "u-2", sentAt = "2026-11-06T18:00:00Z")

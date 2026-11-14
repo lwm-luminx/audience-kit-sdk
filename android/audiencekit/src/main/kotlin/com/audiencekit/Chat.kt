@@ -66,6 +66,13 @@ public sealed interface ChatRoomEvent {
         val pinned: ChatMessage?,
         /** True when the signed-in user isn't at the venue, so they can read but not post. */
         val outOfRange: Boolean,
+        /**
+         * True when the room mirrors a provider's channel (a read-only Discord bridge, say): signed-in people read and
+         * report its messages here, but sending fails. Hide the composer and offer [replyUrl] to reply there.
+         */
+        val readOnly: Boolean = false,
+        /** The room's channel on the provider (Discord), to reply there, when [readOnly]. */
+        val replyUrl: String? = null,
     ) : ChatRoomEvent
 
     public data class Posted(val message: ChatMessage) : ChatRoomEvent
@@ -103,6 +110,8 @@ public sealed interface ChatRoomEvent {
                     history = (room["history"] as? JsonArray).orEmpty().mapNotNull(::posted),
                     pinned = posted(room["pinnedMessage"]),
                     outOfRange = bool("outOfRange") ?: false,
+                    readOnly = bool("readOnly") ?: false,
+                    replyUrl = string("replyUrl"),
                 )
                 "ChatMessagePosted" -> message(room["message"])?.let(::Posted)
                 "ChatMessageUpdated" -> message(room["message"])?.let(::Updated)
@@ -227,6 +236,8 @@ public fun Queries.chatRoom(room: ChatRoom, watch: Boolean = false): String = ""
         __typename
         ... on ChatJoined {
           outOfRange
+          readOnly
+          replyUrl
           roster { people { userId name avatarUrl friend } }
           history { message { ...Line } }
           pinnedMessage { message { ...Line } }

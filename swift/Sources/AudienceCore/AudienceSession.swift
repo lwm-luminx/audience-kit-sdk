@@ -354,6 +354,33 @@ public actor AudienceSession {
         return try Self.decode(Branding.self, from: data)
     }
 
+    // MARK: - Device attestation notice
+
+    /// The warning to show on the login screen when this device can't attest, or nil when it can or the audience
+    /// doesn't check. Call it when the login screen appears, before anyone taps a sign-in button, and show
+    /// ``DeviceAttestationNotice/message``; when ``DeviceAttestationNotice/blocksSignIn`` is true the sign-in will be
+    /// refused, so say so instead of letting it fail.
+    ///
+    /// The device's side comes from the session's ``deviceAttestor`` (none at all counts as unable); the audience's
+    /// from `GET /v1/token/methods`. When the API can't be reached or is too old to say, a device that can't attest
+    /// still gets a notice that doesn't claim sign-in is blocked.
+    public func deviceAttestationNotice(host: String? = nil) async -> DeviceAttestationNotice? {
+        let reason: String?
+        if let deviceAttestor { reason = await deviceAttestor.unsupportedReason() } else { reason = "no_attestor" }
+        guard let reason else { return nil }
+
+        var queryItems: [URLQueryItem] = []
+        if let host = host ?? configuration.host { queryItems.append(URLQueryItem(name: "host", value: host)) }
+        let request = APIRequest(path: "/v1/token/methods", queryItems: queryItems, authenticated: false)
+        guard let (data, response) = try? await perform(request), (200 ..< 300).contains(response.statusCode),
+              let policy = try? Self.decode(DeviceAttestationPolicy.self, from: data).deviceAttestation
+        else { return DeviceAttestationNotice(reason: reason, blocksSignIn: false) }
+
+        guard policy.mode != "off" else { return nil }
+        return DeviceAttestationNotice(reason: reason, blocksSignIn: policy.required ?? (policy.mode == "enforce"),
+                                       message: policy.warning)
+    }
+
     // MARK: - Audience
 
     /// The audience this client queries: the stored credential's `audienceId`, else the configured ID, else the

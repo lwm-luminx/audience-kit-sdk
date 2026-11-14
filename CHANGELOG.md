@@ -3,6 +3,16 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.66.0 (2026-11-14)
+
+- No silent attestation failures (Rick, 2026-11-14: "build out warnings about no SafetyNet or DeviceCheck and that
+  it prevents login on the login paths so no silent errors"). `deviceAttestationNotice()` on iOS and Android answers
+  the warning a login screen shows when the device can't attest (no App Attest, no Play Integrity, or no attestor
+  at all): a `DeviceAttestationNotice` with `reason`, `blocksSignIn`, `title` and `message`. It reads the audience's
+  policy from `GET /v1/token/methods` (`deviceAttestation`, audience_kit_api security hardening PR); the message
+  says outright when sign-in is blocked. Nil when the device can attest or the audience doesn't check. A refused
+  sign-in still throws `deviceNotTrusted`, whose message from the API now says why and what to do.
+
 ## 0.65.0 (2026-11-14)
 
 - Sessions expire (Rick, 2026-11-14: "build in exp to tokens"). The API now puts an `exp` on session tokens (90 days

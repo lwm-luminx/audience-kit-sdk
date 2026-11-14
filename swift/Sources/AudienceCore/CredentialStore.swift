@@ -102,7 +102,9 @@ public struct KeychainCredentialStore: CredentialStore {
     public func save(_ credential: Credential) throws {
         let attributes: [String: Any] = [
             kSecValueData as String: try CredentialEnvelope.encode(credential),
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+            // This device only: the session token stays out of encrypted backups restored to another device and
+            // device-to-device transfers, so a migrated phone signs in again instead of carrying a live session.
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
         ]
 
         let status = SecItemUpdate(baseQuery as CFDictionary, attributes as CFDictionary)

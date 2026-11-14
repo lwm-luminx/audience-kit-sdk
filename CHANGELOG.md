@@ -3,6 +3,19 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.65.0 (2026-11-14)
+
+- Sessions expire (Rick, 2026-11-14: "build in exp to tokens"). The API now puts an `exp` on session tokens (90 days
+  for a member, 30 for staff; audience_kit_api security hardening PR) and `expiresAt` is no longer null. On iOS the
+  SDK refreshes by itself: before a call, when the token has under 30 days left or ran out up to 30 days ago, it
+  trades it at `POST /v1/token/refresh` and stores the new credential (no `SessionEvent`; it retries at most hourly
+  when offline). `refreshSession()` does it on demand. Venue device credentials are left alone, they end with their
+  grant. Android has `refreshSession()` already but does not yet call it by itself; that is a follow-up, and tokens
+  minted before this are good until 2027-02-15.
+- The iOS Keychain item is now `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`, so a session token is not carried
+  to another device by a backup restore or device transfer. Existing items change the next time the credential is
+  saved (a sign-in or a refresh).
+
 ## 0.64.0 (2026-11-14)
 
 - Publisher ads are the publisher's (Rick, 2026-11-14: "when showing soapbox content the user will acknowledge that

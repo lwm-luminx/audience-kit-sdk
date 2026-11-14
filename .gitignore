@@ -15,3 +15,6 @@ local.properties
 # Copied from the root LICENSE when the npm and Python packages are built.
 /node/LICENSE
 /python/LICENSE
+# npm installs (CI installs graphql@16 for scripts/graphql/check.mjs); node/ keeps its own.
+node_modules/
+*.orig

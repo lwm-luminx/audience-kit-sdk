@@ -3,7 +3,7 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
-## 0.60.0 (2026-11-14)
+## 0.61.0 (2026-11-14)
 
 - Flagged messages for Velvet (Rick, 2026-11-14: "build some amount of the message flag / decision UX into velvet for
   message that are flagged (simplified)"). `FlaggedMessage`, `FlaggedMessageAction` (Dismiss, Remove, Warn, Cooldown,
@@ -11,6 +11,16 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   and `FlaggedMessageCopy`, in AudienceCore on iOS and `com.audiencekit` on Android, word for word. They run on the
   staff endpoint, so StaffKit sends them; `availableActions` leaves only Dismiss and Escalate for the room's own
   people. Needs audience_kit_api #544.
+
+## 0.60.0 (2026-11-14)
+
+- Android parity with Hot Mess iOS 2.7 (Rick, 2026-11-14: "fill the gaps"). Kotlin `titles(personId)` reads a
+  performer's community titles (pageant crowns, Imperial Court reigns, club titles, chapter leads; the API's
+  `PersonOffice::TITLES`), reigning first, as the Swift `titles(personID:)` does; `PersonOffice.detail` is the place
+  and years under each. Kotlin `AppCheck` and `GraphQLOperationLog` port "Check the app" from Swift: the same steps,
+  OK/EMPTY/FAIL/SKIP marks and plain-text report, with the client's recent failed requests (the log is a
+  `GraphQLMonitor` and can pass events on to another; the Android `AudienceKitClient(context, …)` factory now takes a
+  `monitor`). Compose apps draw their own screen from `AppCheck.state`.
 
 ## 0.59.0 (2026-11-13)
 

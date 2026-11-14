@@ -87,5 +87,6 @@ class ModerationTest {
     @Test
     fun theCopyOffersReasons() {
         assertTrue(ReportCopy.REASONS.contains("Spam"))
+        assertTrue(ReportCopy.REASONS.contains("Intimate image shared without consent"))
     }
 }

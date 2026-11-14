@@ -31,6 +31,6 @@ struct PublisherAdsAcknowledgementTests {
         #expect(body.contains("Hot Mess takes no cut"))
         #expect(body.contains("keep paying writers"))
         #expect(body.contains("never shares your data with a publisher's advertisers"))
-        #expect(body.contains("marked Promoted"))
+        #expect(body.contains("marked Sponsored"))
     }
 }

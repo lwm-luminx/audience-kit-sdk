@@ -12,7 +12,7 @@ class PublisherAdsCopyTest {
         assertTrue("Hot Mess takes no cut" in body)
         assertTrue("keep paying writers" in body)
         assertTrue("never shares your data with a publisher's advertisers" in body)
-        assertTrue("marked Promoted" in body)
+        assertTrue("marked Sponsored" in body)
     }
 
     @Test

@@ -15,7 +15,7 @@ public object PublisherAdsCopy {
             "them: that ad relationship is the publisher's own, and it's there so they can keep paying writers and " +
             "making the work you read.\n\n" +
             "$appName takes no cut, just as it takes none from performers' tips. $appName's own sponsored spots are " +
-            "separate and always marked Promoted, and $appName never shares your data with a publisher's advertisers."
+            "separate and always marked Sponsored, and $appName never shares your data with a publisher's advertisers."
 
     public const val ACCEPT: String = "I understand"
     public const val DECLINE: String = "Not now"

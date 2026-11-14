@@ -14,7 +14,7 @@ public enum PublisherAdsCopy {
         the work you read.
 
         \(appName) takes no cut, just as it takes none from performers' tips. \(appName)'s own sponsored spots are \
-        separate and always marked Promoted, and \(appName) never shares your data with a publisher's advertisers.
+        separate and always marked Sponsored, and \(appName) never shares your data with a publisher's advertisers.
         """
     }
 

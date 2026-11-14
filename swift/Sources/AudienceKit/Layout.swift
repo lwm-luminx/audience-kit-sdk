@@ -245,6 +245,35 @@ public struct CardLayout: Sendable, Hashable {
 
 /// A category of promoted card, from the audience's published list, for the app's "Cards you see" settings. Show the
 /// label and description as sent.
+/// Whether an audience's apps show promoted (paid) cards (API doc/ADVERTISING.md). An ad-free audience's layouts carry
+/// no promoted cards (the server leaves them out); apps can say so in "Cards you see", thanking ``adFreeSponsor``.
+public struct AudienceAdvertising: Codable, Sendable, Hashable {
+    public enum Mode: String, Codable, Sendable, Hashable {
+        /// Open to sponsors: promoted cards show, labelled, placed by context only.
+        case open = "OPEN"
+        /// Ad-free: only AudienceKit's own cards, free charity cards and announcements.
+        case adFree = "AD_FREE"
+    }
+
+    public let mode: Mode
+    /// Who pays for it to be ad-free (an organization covering its members), to thank; nil when nobody is named.
+    public let adFreeSponsor: String?
+
+    public var isAdFree: Bool { mode == .adFree }
+
+    /// What "Cards you see" can say, e.g. "Ad-free, thanks to The Community Fund"; nil when open to sponsors.
+    public var adFreeNote: String? {
+        guard isAdFree else { return nil }
+        guard let adFreeSponsor, !adFreeSponsor.isEmpty else { return "Ad-free" }
+        return "Ad-free, thanks to \(adFreeSponsor)"
+    }
+
+    public init(mode: Mode, adFreeSponsor: String? = nil) {
+        self.mode = mode
+        self.adFreeSponsor = adFreeSponsor
+    }
+}
+
 public struct CardCategory: Codable, Sendable, Hashable, Identifiable {
     /// The category cards carry: venue, health, charity, ...
     public let key: String
@@ -476,6 +505,13 @@ extension Queries {
     }
     """
 
+    static let advertising = """
+    query Advertising {
+      advertising
+      adFreeSponsor
+    }
+    """
+
     static let recordCardViews = """
     mutation RecordCardViews($promoIds: [ID!]!, $layoutId: ID) {
       recordCardViews(input: { promoIds: $promoIds, layoutId: $layoutId }) { recorded }
@@ -494,6 +530,11 @@ struct LayoutResponse: Decodable, Sendable {
 
 struct CardCategoriesResponse: Decodable, Sendable {
     var cardCategories: [CardCategory]
+}
+
+struct AdvertisingResponse: Decodable, Sendable {
+    var advertising: String
+    var adFreeSponsor: String?
 }
 
 struct RecordCardViewsResponse: Decodable, Sendable {
@@ -523,6 +564,16 @@ extension AudienceSession {
     public func cardCategories() async throws -> [CardCategory] {
         try await graphQL(Queries.cardCategories, operationName: "CardCategories",
                           as: CardCategoriesResponse.self).cardCategories
+    }
+
+    /// Whether the audience is open to sponsors or ad-free, and who pays for ad-free. Needs an API with
+    /// `Audience.advertising` (audience_kit_api #560); older servers throw, so treat a failure as open.
+    public func advertising() async throws -> AudienceAdvertising {
+        let response = try await graphQL(Queries.advertising, operationName: "Advertising",
+                                         as: AdvertisingResponse.self)
+        // A mode this SDK doesn't know yet reads as open.
+        return AudienceAdvertising(mode: AudienceAdvertising.Mode(rawValue: response.advertising) ?? .open,
+                                   adFreeSponsor: response.adFreeSponsor)
     }
 
     /// Says which promoted cards were on screen (send only those actually shown, at most 10). Signed in only.

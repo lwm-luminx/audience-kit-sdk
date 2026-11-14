@@ -190,4 +190,24 @@ class LayoutTest {
         assertEquals(listOf("pp-1", "pp-2"), variables["promoIds"]!!.jsonArray.map { it.jsonPrimitive.content })
         assertEquals("lay-1", variables["layoutId"]!!.jsonPrimitive.content)
     }
+
+    @Test
+    fun readsWhetherTheAudienceIsAdFree() = runTest {
+        val stub = StubTransport {
+            StubTransport.json(200, """{"data":{"advertising":"AD_FREE","adFreeSponsor":"The Community Fund"}}""")
+        }
+        val advertising = layoutClient(stub).advertising()
+
+        assertEquals(AudienceAdvertising(AudienceAdvertising.Mode.AD_FREE, "The Community Fund"), advertising)
+        assertEquals("Ad-free, thanks to The Community Fund", advertising.adFreeNote)
+        assertEquals("Advertising", stub.requests.last().jsonBody()["operationName"]!!.jsonPrimitive.content)
+        assertEquals(null, AudienceAdvertising(AudienceAdvertising.Mode.OPEN).adFreeNote)
+        assertEquals("Ad-free", AudienceAdvertising(AudienceAdvertising.Mode.AD_FREE).adFreeNote)
+    }
+
+    @Test
+    fun readsAnUnknownAdvertisingModeAsOpen() = runTest {
+        val stub = StubTransport { StubTransport.json(200, """{"data":{"advertising":"MEMBERS_ONLY"}}""") }
+        assertEquals(AudienceAdvertising.Mode.OPEN, layoutClient(stub).advertising().mode)
+    }
 }

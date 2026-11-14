@@ -3,6 +3,15 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.63.0 (2026-11-14)
+
+- Ad-free audiences (Rick, 2026-11-14: "begin building advertising"). `advertising()` reads whether the audience is
+  open to sponsors or ad-free (`AudienceAdvertising`, `.open` / `.adFree`, `OPEN` / `AD_FREE` on Android) and who
+  pays for it (`adFreeSponsor`). `adFreeNote` gives what "Cards you see" can say ("Ad-free, thanks to …"). An ad-free
+  audience's layouts already come without promoted cards, so the apps don't filter anything themselves. Needs
+  audience_kit_api #560; older servers throw, so treat a failure as open. An unknown mode reads as open. Same on iOS
+  and Android.
+
 ## 0.62.0 (2026-11-14)
 
 - Readable text on an audience's accent (Rick, 2026-11-14: "the lime color of hack different has white (low contrast

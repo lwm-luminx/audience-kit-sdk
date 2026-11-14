@@ -73,5 +73,10 @@ public enum ReportCopy {
     public static let blockDetail = "You'll stop seeing each other's messages. You can unblock them later."
     public static let reported = "Thanks. The admins will look at it."
     public static let blocked = "Blocked."
-    public static let reasons = ["Spam", "Harassment or hate", "Sexual content", "Scam or fraud", "Other"]
+    /// The reason for an intimate image shared without the consent of the person in it. The API gives a report
+    /// with this reason a 48-hour deadline (the US Take It Down Act), so keep the wording.
+    public static let intimateImage = "Intimate image shared without consent"
+    public static let reasons = [
+        "Spam", "Harassment or hate", "Sexual content", intimateImage, "Scam or fraud", "Other",
+    ]
 }

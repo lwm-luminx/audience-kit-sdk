@@ -3,6 +3,13 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.67.0 (2026-11-14)
+
+- Reporting an intimate image shared without consent (regulatory review, 2026-11-14). `ReportCopy.reasons` /
+  `REASONS` gain "Intimate image shared without consent" (`ReportCopy.intimateImage` / `INTIMATE_IMAGE`). The API
+  gives a report with that reason a 48-hour deadline and tells the admins so, which is what the US Take It Down
+  Act asks of an app that hosts people's photos. Apps that list `ReportCopy.reasons` show it with no change.
+
 ## 0.66.0 (2026-11-14)
 
 - No silent attestation failures (Rick, 2026-11-14: "build out warnings about no SafetyNet or DeviceCheck and that

@@ -194,6 +194,24 @@ private let layoutJSON = """
         #expect(variables["promoIds"] as? [String] == ["pp-1", "pp-2"] && variables["layoutId"] as? String == "lay-1")
     }
 
+    @Test func readsWhetherTheAudienceIsAdFree() async throws {
+        let stub = Stub { _ in
+            .json(status: 200, body: #"{"data":{"advertising":"AD_FREE","adFreeSponsor":"The Community Fund"}}"#)
+        }
+        let advertising = try await layoutClient(stub).advertising()
+
+        #expect(advertising == AudienceAdvertising(mode: .adFree, adFreeSponsor: "The Community Fund"))
+        #expect(advertising.adFreeNote == "Ad-free, thanks to The Community Fund")
+        #expect(try #require(stub.requests.first).layoutOperation == "Advertising")
+        #expect(AudienceAdvertising(mode: .open).adFreeNote == nil)
+        #expect(AudienceAdvertising(mode: .adFree).adFreeNote == "Ad-free")
+    }
+
+    @Test func readsAnUnknownAdvertisingModeAsOpen() async throws {
+        let stub = Stub { _ in .json(status: 200, body: #"{"data":{"advertising":"MEMBERS_ONLY","adFreeSponsor":null}}"#) }
+        #expect(try await layoutClient(stub).advertising().mode == .open)
+    }
+
     @Test func preferencesKeepHiddenCategoriesOnTheDevice() throws {
         let defaults = try #require(UserDefaults(suiteName: "layout-tests-\(UUID().uuidString)"))
         let preferences = CardPreferences(defaults: defaults, cloud: false)

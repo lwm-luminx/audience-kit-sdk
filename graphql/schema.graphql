@@ -338,6 +338,23 @@ enum AdmissionStatus {
 }
 
 """
+Whether an audience's apps show paid cards. See doc/ADVERTISING.md.
+"""
+enum AdvertisingMode {
+  """
+  Ad-free: no promoted cards. Only AudienceKit's own cards, free charity cards
+  and the audience's announcements show. adFreeSponsor names who pays for it.
+  """
+  AD_FREE
+
+  """
+  Open to sponsors: venues, events and local sponsors can book promoted cards,
+  shown labelled, contextually and in fair rotation.
+  """
+  OPEN
+}
+
+"""
 What an iOS app's update prompts tell installs from one StoreKit 2 environment
 (TestFlight or the App Store): the build to offer and the oldest one that still
 works. Null fields mean no opinion.
@@ -1423,6 +1440,17 @@ type ArticlesView implements IArticles {
 An audience: its listings, members and configuration. On an audience's endpoints it is the query root.
 """
 type Audience implements IRelay & Node {
+  """
+  When ad-free, who pays for it (e.g. an organization covering its members), for
+  the apps to thank; null when nobody is named.
+  """
+  adFreeSponsor: String @endpoint(in: [AUDIENCE, STAFF])
+
+  """
+  Whether its apps show promoted (paid) cards: OPEN to sponsors or AD_FREE.
+  """
+  advertising: AdvertisingMode! @endpoint(in: [AUDIENCE, STAFF])
+
   """
   App Review settings: period end time and reusable review code.
   """

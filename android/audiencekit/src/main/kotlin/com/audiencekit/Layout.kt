@@ -173,6 +173,34 @@ public data class CardLayout(
 }
 
 /**
+ * Whether an audience's apps show promoted (paid) cards (API doc/ADVERTISING.md). An ad-free audience's layouts carry
+ * no promoted cards (the server leaves them out); apps can say so in "Cards you see", thanking [adFreeSponsor].
+ */
+public data class AudienceAdvertising(
+    public val mode: Mode,
+    /** Who pays for it to be ad-free (an organization covering its members), to thank; null when nobody is named. */
+    public val adFreeSponsor: String? = null,
+) {
+    public enum class Mode {
+        /** Open to sponsors: promoted cards show, labelled, placed by context only. */
+        OPEN,
+
+        /** Ad-free: only AudienceKit's own cards, free charity cards and announcements. */
+        AD_FREE,
+    }
+
+    public val isAdFree: Boolean get() = mode == Mode.AD_FREE
+
+    /** What "Cards you see" can say, e.g. "Ad-free, thanks to The Community Fund"; null when open to sponsors. */
+    public val adFreeNote: String?
+        get() = when {
+            !isAdFree -> null
+            adFreeSponsor.isNullOrEmpty() -> "Ad-free"
+            else -> "Ad-free, thanks to $adFreeSponsor"
+        }
+}
+
+/**
  * A category of promoted card, from the audience's published list, for the app's "Cards you see" settings. Show the
  * label and description as sent.
  */
@@ -377,6 +405,13 @@ internal object LayoutQueries {
         }
     """.trimIndent()
 
+    val advertising: String = """
+        query Advertising {
+          advertising
+          adFreeSponsor
+        }
+    """.trimIndent()
+
     val recordCardViews: String = """
         mutation RecordCardViews(${'$'}promoIds: [ID!]!, ${'$'}layoutId: ID) {
           recordCardViews(input: { promoIds: ${'$'}promoIds, layoutId: ${'$'}layoutId }) { recorded }
@@ -466,6 +501,9 @@ internal data class LayoutResponse(val layout: LayoutWire)
 internal data class CardCategoriesResponse(val cardCategories: List<CardCategory> = emptyList())
 
 @Serializable
+internal data class AdvertisingResponse(val advertising: String = "OPEN", val adFreeSponsor: String? = null)
+
+@Serializable
 internal data class RecordCardViewsPayload(val recorded: Int = 0)
 
 @Serializable
@@ -510,6 +548,18 @@ public suspend fun AudienceKitClient.layout(
 public suspend fun AudienceKitClient.cardCategories(): List<CardCategory> =
     graphQL(LayoutQueries.cardCategories, CardCategoriesResponse.serializer(), operationName = "CardCategories")
         .cardCategories
+
+/**
+ * Whether the audience is open to sponsors or ad-free, and who pays for ad-free. Needs an API with
+ * `Audience.advertising` (audience_kit_api #560); older servers throw, so treat a failure as open. An unknown mode
+ * reads as open.
+ */
+public suspend fun AudienceKitClient.advertising(): AudienceAdvertising {
+    val response = graphQL(LayoutQueries.advertising, AdvertisingResponse.serializer(), operationName = "Advertising")
+    val mode = AudienceAdvertising.Mode.entries.firstOrNull { it.name == response.advertising }
+        ?: AudienceAdvertising.Mode.OPEN
+    return AudienceAdvertising(mode, response.adFreeSponsor)
+}
 
 /** Says which promoted cards were on screen (send only those actually shown, at most 10). Signed in only. */
 public suspend fun AudienceKitClient.recordCardViews(promoIds: List<String>, layoutId: String?): Int {

@@ -456,6 +456,35 @@ public class AudienceKitClient(
         return decode(Branding.serializer(), response.text, decodeJson)
     }
 
+    /**
+     * The warning to show on the login screen when this device can't attest, or null when it can or the audience
+     * doesn't check. Call it when the login screen appears and show [DeviceAttestationNotice.message]; when
+     * [DeviceAttestationNotice.blocksSignIn] is true the sign-in will be refused, so say so instead of letting it fail.
+     *
+     * The device's side comes from [deviceAttestor] (none at all counts as unable); the audience's from
+     * `GET /v1/token/methods`. When the API can't be reached or is too old to say, a device that can't attest still
+     * gets a notice that doesn't claim sign-in is blocked.
+     */
+    public suspend fun deviceAttestationNotice(host: String? = null): DeviceAttestationNotice? {
+        val attestor = deviceAttestor
+        val reason = (if (attestor == null) "no_attestor" else attestor.unsupportedReason()) ?: return null
+
+        val noticeHost = host ?: configuration.host
+        val request = APIRequest(
+            path = "/v1/token/methods",
+            queryItems = if (noticeHost != null) listOf("host" to noticeHost) else emptyList(),
+            authenticated = false,
+        )
+        val policy = runCatching {
+            val response = perform(request)
+            if (response.status !in 200..299) null
+            else decodeJson.decodeFromString(DeviceAttestationPolicyEnvelope.serializer(), response.text).deviceAttestation
+        }.getOrNull() ?: return DeviceAttestationNotice.of(reason, blocksSignIn = false)
+
+        if (policy.mode == "off") return null
+        return DeviceAttestationNotice.of(reason, policy.required ?: (policy.mode == "enforce"), policy.warning)
+    }
+
     // endregion
 
     // region Audience

@@ -52,6 +52,47 @@ public struct DeviceAttestation: Codable, Sendable, Hashable {
     }
 }
 
+/// What a login screen shows when this device can't prove it is genuine (no App Attest on iOS, no Play Integrity on
+/// Android), so nobody finds out only when a sign-in fails. ``AudienceSession/deviceAttestationNotice(host:)`` builds
+/// it from what the device can do and what the audience requires.
+public struct DeviceAttestationNotice: Sendable, Hashable {
+    /// Why the device can't attest, a short word: `simulator`, `unsupported`, `no_attestor`.
+    public let reason: String
+    /// Whether the audience refuses sign-ins without attestation. When true, signing in on this device will fail.
+    public let blocksSignIn: Bool
+    /// A short heading for the warning.
+    public let title: String
+    /// What to tell the person, from the API when it sent a warning.
+    public let message: String
+
+    public init(reason: String, blocksSignIn: Bool, message: String? = nil) {
+        self.reason = reason
+        self.blocksSignIn = blocksSignIn
+        title = blocksSignIn ? "Sign-in is blocked on this device" : "This device can't be verified"
+        self.message = message ?? Self.defaultMessage(blocksSignIn: blocksSignIn)
+    }
+
+    /// The same words the API sends, for when it couldn't be reached.
+    public static func defaultMessage(blocksSignIn: Bool) -> String {
+        let cause = "This device can't prove it's a genuine phone running the real app "
+            + "(Apple's App Attest or Google's Play Integrity isn't available on it)"
+        return blocksSignIn ? cause + ", so sign-in is blocked here. Try another phone."
+            : cause + ". You can still sign in for now."
+    }
+}
+
+/// `deviceAttestation` in `GET /v1/token/methods`: whether the audience checks devices, and what to say to one that
+/// can't attest.
+struct DeviceAttestationPolicy: Decodable, Sendable {
+    struct Policy: Decodable, Sendable {
+        let mode: String
+        let required: Bool?
+        let warning: String?
+    }
+
+    let deviceAttestation: Policy?
+}
+
 /// Signs a sign-in challenge on this device. ``AudienceSession`` asks for a challenge, hands it here and sends the
 /// result with the sign-in; when the API says it doesn't know the key, it calls ``forgetKey()`` and tries once more.
 public protocol DeviceAttestor: Sendable {

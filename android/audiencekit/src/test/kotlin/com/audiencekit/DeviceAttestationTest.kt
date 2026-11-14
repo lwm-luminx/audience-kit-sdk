@@ -168,4 +168,49 @@ class DeviceAttestationTest {
         assertNull(attestor.unsupportedReason())
         attestor.forgetKey()
     }
+
+    private fun methodsJson(mode: String, required: Boolean, warning: String?) =
+        """{"methods":["google"],"warnings":{},"deviceAttestation":{"mode":"$mode","required":$required,"warning":${warning?.let { "\"$it\"" } ?: "null"}}}"""
+
+    @Test
+    fun warnsThatSignInIsBlockedWhenTheDeviceCannotAttestAndTheAudienceEnforces() = runTest {
+        val stub = StubTransport { StubTransport.json(200, methodsJson("enforce", true, "Blocked here.")) }
+
+        val notice = client(stub, FakeIntegrity(reason = "emulator")).deviceAttestationNotice()!!
+
+        assertTrue(notice.blocksSignIn)
+        assertEquals("Blocked here.", notice.message)
+        assertEquals("Sign-in is blocked on this device", notice.title)
+        assertEquals("/v1/token/methods", stub.requests.first().path)
+    }
+
+    @Test
+    fun warnsWithoutBlockingInReportModeAndWhenThereIsNoAttestorAtAll() = runTest {
+        val stub = StubTransport { StubTransport.json(200, methodsJson("report", false, null)) }
+
+        val notice = client(stub, null).deviceAttestationNotice()!!
+
+        assertEquals("no_attestor", notice.reason)
+        assertFalse(notice.blocksSignIn)
+        assertEquals(DeviceAttestationNotice.defaultMessage(false), notice.message)
+    }
+
+    @Test
+    fun saysNothingWhenTheDeviceCanAttestOrTheAudienceDoesNotCheck() = runTest {
+        val off = StubTransport { StubTransport.json(200, methodsJson("off", false, null)) }
+
+        assertNull(client(off, FakeIntegrity(reason = "emulator")).deviceAttestationNotice())
+        assertNull(client(off, FakeIntegrity()).deviceAttestationNotice())
+        assertEquals(1, off.requests.size)
+    }
+
+    @Test
+    fun stillWarnsWhenTheApiCannotSay() = runTest {
+        val old = StubTransport { StubTransport.json(200, """{"methods":["google"]}""") }
+
+        val notice = client(old, FakeIntegrity(reason = "unsupported")).deviceAttestationNotice()!!
+
+        assertFalse(notice.blocksSignIn)
+        assertTrue(DeviceAttestationNotice.defaultMessage(true).contains("sign-in is blocked"))
+    }
 }

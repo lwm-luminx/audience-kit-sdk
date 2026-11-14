@@ -11,8 +11,7 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   the theme presets) is hosted in a window in its states, light and dark and at a large accessibility text size
   (`swift/Tests/AudienceKitTests/UI`). The views that call the API talk to a `GraphQLStub`. AudienceKitUI's line
   coverage on macOS goes from 0.2% to 77%. These tests need SwiftUI and AppKit, so Linux builds them to nothing and
-  its 85% floor is unchanged. Run them with `swift test` on a Mac (the `apple` CI job should run it too; that
-  workflow change follows separately).
+  its 85% floor is unchanged. Run them with `swift test` on a Mac; the `apple` CI job now runs it too.
 
 ## 0.67.0 (2026-11-14)
 

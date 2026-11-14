@@ -3,6 +3,16 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.62.0 (2026-11-14)
+
+- Readable text on an audience's accent (Rick, 2026-11-14: "the lime color of hack different has white (low contrast
+  text on it)"). `Branding.Theme.onAccent(dark:)` and `foreground(on:dark:)` give the color for text and icons on an
+  `accent` (or any `token`) fill: the theme's `on-<token>` when it reaches WCAG AA 4.5:1 on that fill, otherwise
+  near-black (#111411, `RGBAColor.inkOnLight` / `INK_ON_LIGHT`) or white, whichever has more contrast. `RGBAColor`
+  gains `relativeLuminance`, `contrastRatio(with:)` and `readableForeground`. Apps that skin from `/v1/branding`
+  should use these instead of white on the accent: on Hack Different's lime (#c5f467) white is 1.3:1 and the derived
+  dark text is 14.6:1. Same on iOS and Android.
+
 ## 0.61.0 (2026-11-14)
 
 - Flagged messages for Velvet (Rick, 2026-11-14: "build some amount of the message flag / decision UX into velvet for

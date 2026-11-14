@@ -45,6 +45,26 @@ public struct Branding: Codable, Sendable, Hashable {
             let hex = isDark ? (dark[token] ?? light[token]) : light[token]
             return hex.flatMap(RGBAColor.init(hex:))
         }
+
+        /// The color for text and icons on a `token` fill, such as `accent` or `spectrum-3`: the theme's
+        /// `on-<token>` when it reaches WCAG AA (4.5:1) on that fill, otherwise near-black or white, whichever reads
+        /// better. A light accent (Hack Different's lime) gets dark text even when the theme leaves `on-accent` out.
+        /// `nil` when the theme has no `token`; fall back to the preset's own pair then.
+        public func foreground(on token: String, dark isDark: Bool = false) -> RGBAColor? {
+            guard let fill = color(token, dark: isDark) else { return nil }
+            if let given = color("on-\(token)", dark: isDark),
+               given.contrastRatio(with: fill) >= RGBAColor.minimumTextContrast
+            {
+                return given
+            }
+            return fill.readableForeground
+        }
+
+        /// Text and icons on `accent` fills (primary buttons, own chat bubbles, selected chips).
+        /// See ``foreground(on:dark:)``.
+        public func onAccent(dark isDark: Bool = false) -> RGBAColor? {
+            foreground(on: "accent", dark: isDark)
+        }
     }
 
     public var audience: AudienceSummary
@@ -114,5 +134,36 @@ public struct RGBAColor: Sendable, Hashable {
             blue: Double((rgba >> 8) & 0xFF) / 255,
             alpha: Double(rgba & 0xFF) / 255
         )
+    }
+}
+
+// MARK: - Contrast
+
+public extension RGBAColor {
+    /// WCAG AA for body text: 4.5:1.
+    static let minimumTextContrast = 4.5
+
+    /// The near-black the design system puts on light fills (`on-spectrum-N`), #111411.
+    static let inkOnLight = RGBAColor(red: 0x11 / 255.0, green: 0x14 / 255.0, blue: 0x11 / 255.0)
+    static let white = RGBAColor(red: 1, green: 1, blue: 1)
+
+    /// WCAG 2 relative luminance, from 0 (black) to 1 (white). Alpha is ignored.
+    var relativeLuminance: Double {
+        func linear(_ channel: Double) -> Double {
+            let c = min(max(channel, 0), 1)
+            return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
+    }
+
+    /// WCAG 2 contrast ratio with `other`, from 1 to 21.
+    func contrastRatio(with other: RGBAColor) -> Double {
+        let (a, b) = (relativeLuminance, other.relativeLuminance)
+        return (max(a, b) + 0.05) / (min(a, b) + 0.05)
+    }
+
+    /// ``inkOnLight`` or ``white``, whichever has more contrast on this color as a fill.
+    var readableForeground: RGBAColor {
+        contrastRatio(with: .inkOnLight) >= contrastRatio(with: .white) ? .inkOnLight : .white
     }
 }

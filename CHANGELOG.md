@@ -3,7 +3,7 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
-## 0.65.0 (2026-11-14)
+## 0.68.0 (2026-11-14)
 
 - Tip to read without ads (Rick, 2026-11-14: "we should build tip to remove all ads to soapbox content"). A reader
   tips a Soapbox publication, all of it the publisher's (no cut, like performers' tips), and a tip of at least
@@ -16,6 +16,46 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   when they come back. Offer it only where `AdFreeTips.isOffered(_:storefrontCountryCode:)` says so: US storefronts
   only. `AdFreeTips` has the words, the same on iOS and Android. Needs API next (audience_kit_api, "Tip a Soapbox
   publication to read it without ads").
+
+## 0.67.1 (2026-11-14)
+
+- Tests and CI only, no change to the SDK's behavior. Every AudienceKitUI view (the lineup strip, karaoke queue and
+  signup, song requests, the trivia card, the host row, avatars, the update sheet, screen and banner, the calendar
+  menu, community chat links, the credit footer, Delete Account, Connect Discord, Check the app, staff app links and
+  the theme presets) is hosted in a window in its states, light and dark and at a large accessibility text size
+  (`swift/Tests/AudienceKitTests/UI`). The views that call the API talk to a `GraphQLStub`. AudienceKitUI's line
+  coverage on macOS goes from 0.2% to 77%. These tests need SwiftUI and AppKit, so Linux builds them to nothing and
+  its 85% floor is unchanged. Run them with `swift test` on a Mac; the `apple` CI job now runs it too.
+
+## 0.67.0 (2026-11-14)
+
+- Reporting an intimate image shared without consent (regulatory review, 2026-11-14). `ReportCopy.reasons` /
+  `REASONS` gain "Intimate image shared without consent" (`ReportCopy.intimateImage` / `INTIMATE_IMAGE`). The API
+  gives a report with that reason a 48-hour deadline and tells the admins so, which is what the US Take It Down
+  Act asks of an app that hosts people's photos. Apps that list `ReportCopy.reasons` show it with no change.
+
+## 0.66.0 (2026-11-14)
+
+- No silent attestation failures (Rick, 2026-11-14: "build out warnings about no SafetyNet or DeviceCheck and that
+  it prevents login on the login paths so no silent errors"). `deviceAttestationNotice()` on iOS and Android answers
+  the warning a login screen shows when the device can't attest (no App Attest, no Play Integrity, or no attestor
+  at all): a `DeviceAttestationNotice` with `reason`, `blocksSignIn`, `title` and `message`. It reads the audience's
+  policy from `GET /v1/token/methods` (`deviceAttestation`, audience_kit_api security hardening PR); the message
+  says outright when sign-in is blocked. Nil when the device can attest or the audience doesn't check. A refused
+  sign-in still throws `deviceNotTrusted`, whose message from the API now says why and what to do.
+
+## 0.65.0 (2026-11-14)
+
+- Sessions expire (Rick, 2026-11-14: "build in exp to tokens"). The API now puts an `exp` on session tokens (90 days
+  for a member, 30 for staff; audience_kit_api security hardening PR) and `expiresAt` is no longer null. On iOS the
+  SDK refreshes by itself: before a call, when the token has under 30 days left or ran out up to 30 days ago, it
+  trades it at `POST /v1/token/refresh` and stores the new credential (no `SessionEvent`; it retries at most hourly
+  when offline). `refreshSession()` does it on demand. Venue device credentials are left alone, they end with their
+  grant. Android has `refreshSession()` already but does not yet call it by itself; that is a follow-up, and tokens
+  minted before this are good until 2027-02-15.
+- The iOS Keychain item is now `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`, so a session token is not carried
+  to another device by a backup restore or device transfer. Existing items change the next time the credential is
+  saved (a sign-in or a refresh).
 
 ## 0.64.0 (2026-11-14)
 

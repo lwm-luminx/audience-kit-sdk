@@ -73,5 +73,6 @@ private func moderationClient(_ stub: Stub) -> AudienceKitClient {
 
 @Test func theReportCopyOffersReasons() {
     #expect(ReportCopy.reasons.contains("Spam"))
+    #expect(ReportCopy.reasons.contains("Intimate image shared without consent"))
     #expect(ReportTarget.allCases.count == 7)
 }

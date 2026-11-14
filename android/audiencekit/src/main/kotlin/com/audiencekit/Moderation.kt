@@ -76,7 +76,13 @@ public object ReportCopy {
     public const val BLOCK_DETAIL: String = "You'll stop seeing each other's messages. You can unblock them later."
     public const val REPORTED: String = "Thanks. The admins will look at it."
     public const val BLOCKED: String = "Blocked."
-    public val REASONS: List<String> = listOf("Spam", "Harassment or hate", "Sexual content", "Scam or fraud", "Other")
+    /**
+     * The reason for an intimate image shared without the consent of the person in it. The API gives a report with
+     * this reason a 48-hour deadline (the US Take It Down Act), so keep the wording.
+     */
+    public const val INTIMATE_IMAGE: String = "Intimate image shared without consent"
+    public val REASONS: List<String> =
+        listOf("Spam", "Harassment or hate", "Sexual content", INTIMATE_IMAGE, "Scam or fraud", "Other")
 }
 
 @Serializable

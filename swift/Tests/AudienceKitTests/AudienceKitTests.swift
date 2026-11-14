@@ -299,6 +299,51 @@ private func makeClient(
         #expect(request.header("Authorization") == "Bearer device-token")
     }
 
+    @Test func refreshesATokenThatIsAboutToExpireBeforeUsingIt() async throws {
+        let stub = Stub { request in
+            if request.path == "/v1/token/refresh" {
+                let endpoint = endpointURL(on: apiBase(of: request), audienceId: audienceID).absoluteString
+                return .json(status: 200, body: #"{"token":"fresh-token","userId":"u-1","audienceId":"\#(audienceID)","#
+                    + #""role":"member","endpoint":"\#(endpoint)","venueDeviceId":null,"#
+                    + #""expiresAt":"2030-01-01T00:00:00Z"}"#)
+            }
+            return .json(status: 200, body: #"{"data":{"venues":{"list":{"nodes":[]}}}}"#)
+        }
+        let (client, store) = makeClient(stub, token: nil)
+        let old = makeCredential(baseURL: stub.baseURL, token: "old-token")
+        let expiring = Credential(token: old.token, userId: old.userId, audienceId: old.audienceId, role: old.role,
+                                  endpoint: old.endpoint, expiresAt: Date().addingTimeInterval(24 * 60 * 60))
+        try store.save(expiring)
+
+        _ = try await client.venues()
+        _ = try await client.venues()
+
+        #expect(stub.requests.map(\.path) == ["/v1/token/refresh", "/v1/audience/\(audienceID)/graphql",
+                                              "/v1/audience/\(audienceID)/graphql"])
+        #expect(stub.requests.map { $0.header("Authorization") }
+            == ["Bearer old-token", "Bearer fresh-token", "Bearer fresh-token"])
+        #expect(try store.load()?.token == "fresh-token")
+    }
+
+    @Test func keepsATokenWithTimeLeftAndUsesTheOldOneWhenRefreshFails() async throws {
+        let stub = Stub { request in
+            request.path == "/v1/token/refresh"
+                ? .json(status: 503, body: "{}")
+                : .json(status: 200, body: #"{"data":{"venues":{"list":{"nodes":[]}}}}"#)
+        }
+        let (client, store) = makeClient(stub, token: nil)
+        let old = makeCredential(baseURL: stub.baseURL, token: "old-token")
+        try store.save(Credential(token: old.token, userId: old.userId, audienceId: old.audienceId, role: old.role,
+                                  endpoint: old.endpoint, expiresAt: Date().addingTimeInterval(24 * 60 * 60)))
+
+        _ = try await client.venues()
+        _ = try await client.venues()
+
+        // One failed try, then the calls go out with the token it has; the next try waits an hour.
+        #expect(stub.requests.filter { $0.path == "/v1/token/refresh" }.count == 1)
+        #expect(try store.load()?.token == "old-token")
+    }
+
     @Test func sendsATrustedInstancesCredentialToTheConfiguredAPI() async throws {
         let stub = Stub { _ in .json(status: 200, body: #"{"data":{"venues":{"list":{"nodes":[]}}}}"#) }
         // Production issued the credential; the app is on Next, which takes production's sign-ins.

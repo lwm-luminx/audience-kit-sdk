@@ -237,6 +237,45 @@ public actor AudienceSession {
         return credential
     }
 
+    // MARK: - Refresh
+
+    static let refreshPath = "/v1/token/refresh"
+    /// Refresh once the token has this long left, or has run out (the API still trades an expired one for 30 days).
+    static let refreshWindow: TimeInterval = 30 * 24 * 60 * 60
+    /// How long to wait after a refresh that didn't work (offline, say) before trying again.
+    static let refreshRetryInterval: TimeInterval = 60 * 60
+    private var refreshAttemptedAt: Date?
+
+    /// Trades the session token for a new one with a later ``Credential/expiresAt`` (`POST /v1/token/refresh`) and
+    /// stores it. The session and the person stay the same, so no ``SessionEvent`` is sent. The SDK does this by
+    /// itself before a call when the token is within 30 days of expiring, so apps rarely need to. A 401 means the
+    /// session ended, like any other call.
+    @discardableResult
+    public func refreshSession() async throws -> Credential {
+        guard let current = try? credentialStore.load() else { throw AudienceKitError.notSignedIn }
+        let data = try await data(for: APIRequest(method: "POST", path: Self.refreshPath),
+                                  baseURL: configuration.apiBase(for: current))
+        let credential = try Self.decode(Credential.self, from: data)
+        do {
+            try credentialStore.save(credential)
+        } catch {
+            throw AudienceKitError.storage(String(describing: error))
+        }
+        return credential
+    }
+
+    /// Whether `credential` should be refreshed before it is used: it expires (older servers' sessions don't), it
+    /// isn't a venue device's (those end with their grant), it is inside the refresh window, and a refresh hasn't
+    /// just been tried.
+    private func refreshIsDue(for credential: Credential, now: Date = Date()) -> Bool {
+        guard let expiresAt = credential.expiresAt, credential.venueDeviceId == nil else { return false }
+        guard expiresAt.timeIntervalSince(now) < Self.refreshWindow else { return false }
+        if let attempted = refreshAttemptedAt, now.timeIntervalSince(attempted) < Self.refreshRetryInterval {
+            return false
+        }
+        return true
+    }
+
     /// Saves a credential as the session and announces it.
     private func store(_ credential: Credential) throws {
         do {
@@ -313,6 +352,33 @@ public actor AudienceSession {
         }
 
         return try Self.decode(Branding.self, from: data)
+    }
+
+    // MARK: - Device attestation notice
+
+    /// The warning to show on the login screen when this device can't attest, or nil when it can or the audience
+    /// doesn't check. Call it when the login screen appears, before anyone taps a sign-in button, and show
+    /// ``DeviceAttestationNotice/message``; when ``DeviceAttestationNotice/blocksSignIn`` is true the sign-in will be
+    /// refused, so say so instead of letting it fail.
+    ///
+    /// The device's side comes from the session's ``deviceAttestor`` (none at all counts as unable); the audience's
+    /// from `GET /v1/token/methods`. When the API can't be reached or is too old to say, a device that can't attest
+    /// still gets a notice that doesn't claim sign-in is blocked.
+    public func deviceAttestationNotice(host: String? = nil) async -> DeviceAttestationNotice? {
+        let reason: String?
+        if let deviceAttestor { reason = await deviceAttestor.unsupportedReason() } else { reason = "no_attestor" }
+        guard let reason else { return nil }
+
+        var queryItems: [URLQueryItem] = []
+        if let host = host ?? configuration.host { queryItems.append(URLQueryItem(name: "host", value: host)) }
+        let request = APIRequest(path: "/v1/token/methods", queryItems: queryItems, authenticated: false)
+        guard let (data, response) = try? await perform(request), (200 ..< 300).contains(response.statusCode),
+              let policy = try? Self.decode(DeviceAttestationPolicy.self, from: data).deviceAttestation
+        else { return DeviceAttestationNotice(reason: reason, blocksSignIn: false) }
+
+        guard policy.mode != "off" else { return nil }
+        return DeviceAttestationNotice(reason: reason, blocksSignIn: policy.required ?? (policy.mode == "enforce"),
+                                       message: policy.warning)
     }
 
     // MARK: - Audience
@@ -466,7 +532,11 @@ public actor AudienceSession {
     private func data(for request: APIRequest, baseURL: URL) async throws -> Data {
         var token: String?
         if request.authenticated {
-            guard let stored = try? credentialStore.load() else { throw AudienceKitError.notSignedIn }
+            guard var stored = try? credentialStore.load() else { throw AudienceKitError.notSignedIn }
+            if request.path != Self.refreshPath, refreshIsDue(for: stored) {
+                refreshAttemptedAt = Date()
+                if let fresh = try? await refreshSession() { stored = fresh }
+            }
             token = stored.token
         }
 

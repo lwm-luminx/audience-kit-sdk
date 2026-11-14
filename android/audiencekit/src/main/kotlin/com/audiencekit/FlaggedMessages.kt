@@ -117,15 +117,24 @@ public object FlaggedMessages {
     /** The longest cooldown the API takes. */
     public const val COOLDOWN_MAX_MINUTES: Int = 30
 
-    public const val FIELDS: String = "id messageId text sentAt senderId senderName senderRunsRoom reason category " +
-        "categoryTitle ruling confidence suggestedAction doneActions removed review reviewedAt reviewedByName analyzedAt"
+    /** The fields [QUERY] and [REVIEW_MUTATION] read of a flagged message. */
+    public const val FLAGGED_MESSAGE_FIELDS: String = "id messageId text sentAt senderId senderName senderRunsRoom reason category categoryTitle ruling confidence suggestedAction doneActions removed review reviewedAt reviewedByName analyzedAt"
 
-    public const val QUERY: String = "query VelvetFlaggedMessages(\$id: ID!, \$includeReviewed: Boolean) { venues { " +
-        "venue(id: \$id) { flaggedMessages(first: 50, includeReviewed: \$includeReviewed) { totalCount nodes { " +
-        FIELDS + " } } } } }"
+    public const val QUERY: String = """
+        # endpoint: staff
+        query VelvetFlaggedMessages(${'$'}id: ID!, ${'$'}includeReviewed: Boolean) {
+          venues { venue(id: ${'$'}id) { flaggedMessages(first: 50, includeReviewed: ${'$'}includeReviewed) {
+            totalCount nodes { $FLAGGED_MESSAGE_FIELDS }
+          } } }
+        }
+    """
 
-    public const val REVIEW_MUTATION: String = "mutation VelvetReviewFlaggedMessage(\$input: FlaggedMessageReviewInput!) " +
-        "{ reviewFlaggedMessage(input: \$input) { flaggedMessage { " + FIELDS + " } } }"
+    public const val REVIEW_MUTATION: String = """
+        # endpoint: staff
+        mutation VelvetReviewFlaggedMessage(${'$'}input: FlaggedMessageReviewInput!) {
+          reviewFlaggedMessage(input: ${'$'}input) { flaggedMessage { $FLAGGED_MESSAGE_FIELDS } }
+        }
+    """
 
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 

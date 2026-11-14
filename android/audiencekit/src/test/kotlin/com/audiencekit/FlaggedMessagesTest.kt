@@ -61,9 +61,10 @@ class FlaggedMessagesTest {
     @Test
     fun theQueryAndReviewAskForTheSameFields() {
         assertTrue(FlaggedMessages.QUERY.contains("flaggedMessages(first: 50, includeReviewed: \$includeReviewed)"))
-        assertTrue(FlaggedMessages.QUERY.contains(FlaggedMessages.FIELDS))
+        assertTrue(FlaggedMessages.QUERY.contains("# endpoint: staff"))
+        assertTrue(FlaggedMessages.QUERY.contains(FlaggedMessages.FLAGGED_MESSAGE_FIELDS))
         assertTrue(FlaggedMessages.REVIEW_MUTATION.contains("reviewFlaggedMessage(input: \$input)"))
-        assertTrue(FlaggedMessages.REVIEW_MUTATION.contains(FlaggedMessages.FIELDS))
+        assertTrue(FlaggedMessages.REVIEW_MUTATION.contains(FlaggedMessages.FLAGGED_MESSAGE_FIELDS))
         assertEquals(
             mapOf("id" to JsonPrimitive("v-1"), "includeReviewed" to JsonPrimitive(false)),
             FlaggedMessages.queryVariables("v-1"),

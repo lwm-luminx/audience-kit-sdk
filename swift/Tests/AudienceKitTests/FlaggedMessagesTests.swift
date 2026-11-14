@@ -33,9 +33,9 @@ private func decode<T: Decodable>(_ type: T.Type, _ json: String) throws -> T {
 
 @Test func theQueryAndReviewAskForTheSameFields() {
     #expect(FlaggedMessages.query.contains("flaggedMessages(first: 50, includeReviewed: $includeReviewed)"))
-    #expect(FlaggedMessages.query.contains(FlaggedMessages.fields))
+    #expect(FlaggedMessages.query.contains(FlaggedMessages.flaggedMessageFields))
     #expect(FlaggedMessages.reviewMutation.contains("reviewFlaggedMessage(input: $input)"))
-    #expect(FlaggedMessages.reviewMutation.contains(FlaggedMessages.fields))
+    #expect(FlaggedMessages.reviewMutation.contains(FlaggedMessages.flaggedMessageFields))
     #expect(FlaggedMessages.queryVariables(venueID: "v-1")
         == ["id": .string("v-1"), "includeReviewed": .bool(false)])
 }

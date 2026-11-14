@@ -148,19 +148,21 @@ public enum FlaggedMessages {
     /// The longest cooldown the API takes.
     public static let cooldownMaxMinutes = 30
 
-    public static let fields = """
+    public static let flaggedMessageFields = """
         id messageId text sentAt senderId senderName senderRunsRoom reason category categoryTitle ruling confidence \
         suggestedAction doneActions removed review reviewedAt reviewedByName analyzedAt
         """
 
     public static let query = """
+        # endpoint: staff
         query VelvetFlaggedMessages($id: ID!, $includeReviewed: Boolean) { venues { venue(id: $id) { \
-        flaggedMessages(first: 50, includeReviewed: $includeReviewed) { totalCount nodes { \(fields) } } } } }
+        flaggedMessages(first: 50, includeReviewed: $includeReviewed) { totalCount nodes { \(flaggedMessageFields) } } } } }
         """
 
     public static let reviewMutation = """
+        # endpoint: staff
         mutation VelvetReviewFlaggedMessage($input: FlaggedMessageReviewInput!) { \
-        reviewFlaggedMessage(input: $input) { flaggedMessage { \(fields) } } }
+        reviewFlaggedMessage(input: $input) { flaggedMessage { \(flaggedMessageFields) } } }
         """
 
     /// The variables for ``query``.

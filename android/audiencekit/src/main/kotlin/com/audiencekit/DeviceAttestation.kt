@@ -52,6 +52,46 @@ public interface DeviceAttestor {
     public suspend fun forgetKey() {}
 }
 
+/**
+ * What a login screen shows when this device can't prove it is genuine (no Play Integrity on Android, no App Attest
+ * on iOS), so nobody finds out only when a sign-in fails. [AudienceKitClient.deviceAttestationNotice] builds it from
+ * what the device can do and what the audience requires.
+ *
+ * [reason] is a short word (`emulator`, `unsupported`, `no_attestor`). When [blocksSignIn] is true the audience
+ * refuses sign-ins without attestation, so signing in on this device will fail: say so.
+ */
+public data class DeviceAttestationNotice(
+    val reason: String,
+    val blocksSignIn: Boolean,
+    val title: String,
+    val message: String,
+) {
+    public companion object {
+        public fun of(reason: String, blocksSignIn: Boolean, message: String? = null): DeviceAttestationNotice =
+            DeviceAttestationNotice(
+                reason = reason,
+                blocksSignIn = blocksSignIn,
+                title = if (blocksSignIn) "Sign-in is blocked on this device" else "This device can't be verified",
+                message = message ?: defaultMessage(blocksSignIn),
+            )
+
+        /** The same words the API sends, for when it couldn't be reached. */
+        public fun defaultMessage(blocksSignIn: Boolean): String {
+            val cause = "This device can't prove it's a genuine phone running the real app " +
+                "(Apple's App Attest or Google's Play Integrity isn't available on it)"
+            return if (blocksSignIn) "$cause, so sign-in is blocked here. Try another phone."
+            else "$cause. You can still sign in for now."
+        }
+    }
+}
+
+/** `deviceAttestation` in `GET /v1/token/methods`. */
+@Serializable
+internal data class DeviceAttestationPolicyEnvelope(val deviceAttestation: DeviceAttestationPolicy? = null)
+
+@Serializable
+internal data class DeviceAttestationPolicy(val mode: String, val required: Boolean? = null, val warning: String? = null)
+
 /** `POST /v1/token/attestation`'s answer. */
 @Serializable
 internal data class AttestationChallenge(val challenge: String, val mode: String? = null)

@@ -197,6 +197,59 @@ private func client(_ stub: Stub, attestor: (any DeviceAttestor)?) -> AudienceKi
 }
 
 /// A thread-safe counter for stub handlers: 1, 2, 3…
+private func methodsJSON(mode: String, required: Bool, warning: String?) -> String {
+    let text = warning.map { "\"\($0)\"" } ?? "null"
+    return #"{"methods":["apple"],"warnings":{},"deviceAttestation":{"mode":"\#(mode)","required":\#(required),"warning":\#(text)}}"#
+}
+
+@Suite struct DeviceAttestationNoticeTests {
+    private func unsupported() -> AppAttestAttestor {
+        let service = FakeAppAttest()
+        service.supported = false
+        return AppAttestAttestor(service: service, keyStore: MemoryKeyStore())
+    }
+
+    @Test func warnsThatSignInIsBlockedWhenTheDeviceCannotAttestAndTheAudienceEnforces() async throws {
+        let stub = Stub { _ in .json(status: 200, body: methodsJSON(mode: "enforce", required: true, warning: "Blocked here.")) }
+
+        let notice = try #require(await client(stub, attestor: unsupported()).deviceAttestationNotice())
+
+        #expect(notice.blocksSignIn)
+        #expect(notice.message == "Blocked here.")
+        #expect(notice.title == "Sign-in is blocked on this device")
+        #expect(stub.requests.first?.path == "/v1/token/methods")
+    }
+
+    @Test func warnsWithoutBlockingInReportModeAndWhenThereIsNoAttestorAtAll() async throws {
+        let stub = Stub { _ in .json(status: 200, body: methodsJSON(mode: "report", required: false, warning: nil)) }
+
+        let notice = try #require(await client(stub, attestor: nil).deviceAttestationNotice())
+
+        #expect(notice.reason == "no_attestor")
+        #expect(!notice.blocksSignIn)
+        #expect(notice.message == DeviceAttestationNotice.defaultMessage(blocksSignIn: false))
+    }
+
+    @Test func saysNothingWhenTheDeviceCanAttestOrTheAudienceDoesNotCheck() async {
+        let off = Stub { _ in .json(status: 200, body: methodsJSON(mode: "off", required: false, warning: nil)) }
+        let able = AppAttestAttestor(service: FakeAppAttest(), keyStore: MemoryKeyStore())
+
+        #expect(await client(off, attestor: unsupported()).deviceAttestationNotice() == nil)
+        #expect(await client(off, attestor: able).deviceAttestationNotice() == nil)
+        // A device that can attest never asks the API.
+        #expect(off.requests.count == 1)
+    }
+
+    @Test func stillWarnsWhenTheAPICannotSay() async throws {
+        let old = Stub { _ in .json(status: 200, body: #"{"methods":["apple"]}"#) }
+
+        let notice = try #require(await client(old, attestor: unsupported()).deviceAttestationNotice())
+
+        #expect(!notice.blocksSignIn)
+        #expect(DeviceAttestationNotice.defaultMessage(blocksSignIn: true).contains("sign-in is blocked"))
+    }
+}
+
 private final class Counter: @unchecked Sendable {
     private let lock = NSLock()
     private var value = 0

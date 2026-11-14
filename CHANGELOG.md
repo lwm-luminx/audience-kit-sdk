@@ -10,7 +10,8 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   `PersonOffice::TITLES`), reigning first, as the Swift `titles(personID:)` does; `PersonOffice.detail` is the place
   and years under each. Kotlin `AppCheck` and `GraphQLOperationLog` port "Check the app" from Swift: the same steps,
   OK/EMPTY/FAIL/SKIP marks and plain-text report, with the client's recent failed requests (the log is a
-  `GraphQLMonitor` and can pass events on to another). Compose apps draw their own screen from `AppCheck.state`.
+  `GraphQLMonitor` and can pass events on to another; the Android `AudienceKitClient(context, …)` factory now takes a
+  `monitor`). Compose apps draw their own screen from `AppCheck.state`.
 
 ## 0.59.0 (2026-11-13)
 

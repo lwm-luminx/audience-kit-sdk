@@ -10,6 +10,7 @@ import com.audiencekit.AudienceKitClient
 import com.audiencekit.AudienceKitConfiguration
 import com.audiencekit.DeviceAttestor
 import com.audiencekit.DeviceDescription
+import com.audiencekit.GraphQLMonitor
 import com.audiencekit.HttpTransport
 import com.audiencekit.UrlConnectionTransport
 import java.util.UUID
@@ -50,15 +51,17 @@ public fun installationIdentifier(context: Context): String {
 
 /**
  * An [AudienceKitClient] that keeps its session in a [KeystoreTokenStore] and proves its sign-ins with Play Integrity
- * ([PlayIntegrityAttestor]; pass null to send none).
+ * ([PlayIntegrityAttestor]; pass null to send none). A [monitor] (a `GraphQLOperationLog` for "Check the app", say) is
+ * told about each GraphQL operation.
  */
 public fun AudienceKitClient(
     context: Context,
     configuration: AudienceKitConfiguration,
     transport: HttpTransport = UrlConnectionTransport(),
     deviceAttestor: DeviceAttestor? = PlayIntegrityAttestor(context),
+    monitor: GraphQLMonitor? = null,
 ): AudienceKitClient =
-    AudienceKitClient(configuration, KeystoreTokenStore(context), transport, deviceAttestor = deviceAttestor)
+    AudienceKitClient(configuration, KeystoreTokenStore(context), transport, monitor = monitor, deviceAttestor = deviceAttestor)
 
 private fun deviceModel(): String {
     val manufacturer = Build.MANUFACTURER.replaceFirstChar { it.uppercase() }

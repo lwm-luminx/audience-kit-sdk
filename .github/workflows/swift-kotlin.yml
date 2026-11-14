@@ -129,6 +129,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: swift build
+      # The AudienceKitUI view tests (swift/Tests/AudienceKitTests/UI) host each view in a window, so they only run here.
+      - run: swift test
       - run: xcodebuild build -scheme AudienceKit-Package -destination 'generic/platform=iOS Simulator' -quiet
 
   version:

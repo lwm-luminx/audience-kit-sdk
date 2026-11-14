@@ -877,6 +877,34 @@ class ValuesTest {
     }
 
     @Test
+    fun measuresWCAGContrast() {
+        val black = RGBAColor.fromHex("#000000")!!
+        assertEquals(21.0, black.contrastRatio(RGBAColor.WHITE), 0.001)
+        assertEquals(1.0, RGBAColor.WHITE.contrastRatio(RGBAColor.WHITE), 0.001)
+        val lime = RGBAColor.fromHex("#c5f467")!!
+        // White on Hack Different's lime is the reported bug: about 1.3:1.
+        assertTrue(lime.contrastRatio(RGBAColor.WHITE) < 1.5)
+        assertEquals(RGBAColor.INK_ON_LIGHT, lime.readableForeground())
+        assertTrue(lime.readableForeground().contrastRatio(lime) >= RGBAColor.MINIMUM_TEXT_CONTRAST)
+        assertEquals(RGBAColor.WHITE, RGBAColor.fromHex("#3949ab")!!.readableForeground())
+    }
+
+    @Test
+    fun picksTextThatReadsOnTheAccent() {
+        // The theme's own on-accent wins when it passes AA.
+        val given = Branding.Theme(light = mapOf("accent" to "#c5f467", "on-accent" to "#171d10"))
+        assertEquals(RGBAColor.fromHex("#171d10"), given.onAccent())
+        // A failing on-accent (white on lime) is replaced, and a missing one is derived.
+        val failing = Branding.Theme(light = mapOf("accent" to "#c5f467", "on-accent" to "#ffffff"))
+        assertEquals(RGBAColor.INK_ON_LIGHT, failing.onAccent())
+        val missing = Branding.Theme(dark = mapOf("accent" to "#c5f467"))
+        assertEquals(RGBAColor.INK_ON_LIGHT, missing.onAccent(dark = true))
+        assertEquals(RGBAColor.WHITE, Branding.Theme(light = mapOf("accent" to "#1a47b8")).onAccent())
+        assertNull(Branding.Theme().onAccent())
+        assertNull(given.foreground("spectrum-2"))
+    }
+
+    @Test
     fun carriesDesignTokens() {
         assertEquals(RGBAColor.fromHex("#b8236f"), DesignTokens.hotMess.accent)
         assertEquals(RGBAColor.fromHex("#ff7ab6"), DesignTokens.hotMessDark.accent)

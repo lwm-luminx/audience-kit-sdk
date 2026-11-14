@@ -1198,6 +1198,33 @@ private func makeClient(
         #expect(RGBAColor(hex: "nope") == nil)
     }
 
+    @Test func measuresWCAGContrast() throws {
+        let black = try #require(RGBAColor(hex: "#000000"))
+        #expect(abs(black.contrastRatio(with: .white) - 21) < 0.001)
+        #expect(abs(RGBAColor.white.contrastRatio(with: .white) - 1) < 0.001)
+        let lime = try #require(RGBAColor(hex: "#c5f467"))
+        // White on Hack Different's lime is the reported bug: about 1.3:1.
+        #expect(lime.contrastRatio(with: .white) < 1.5)
+        #expect(lime.readableForeground == .inkOnLight)
+        #expect(lime.readableForeground.contrastRatio(with: lime) >= RGBAColor.minimumTextContrast)
+        let indigo = try #require(RGBAColor(hex: "#3949ab"))
+        #expect(indigo.readableForeground == .white)
+    }
+
+    @Test func picksTextThatReadsOnTheAccent() {
+        // The theme's own on-accent wins when it passes AA.
+        let given = Branding.Theme(preset: "default", light: ["accent": "#c5f467", "on-accent": "#171d10"])
+        #expect(given.onAccent() == RGBAColor(hex: "#171d10"))
+        // A failing on-accent (white on lime) is replaced, and a missing one is derived.
+        let failing = Branding.Theme(preset: "default", light: ["accent": "#c5f467", "on-accent": "#ffffff"])
+        #expect(failing.onAccent() == .inkOnLight)
+        let missing = Branding.Theme(preset: "default", dark: ["accent": "#c5f467"])
+        #expect(missing.onAccent(dark: true) == .inkOnLight)
+        #expect(Branding.Theme(preset: "default", light: ["accent": "#1a47b8"]).onAccent() == .white)
+        #expect(Branding.Theme(preset: "default").onAccent() == nil)
+        #expect(given.foreground(on: "spectrum-2") == nil)
+    }
+
     @Test func carriesDesignTokens() {
         #expect(DesignTokens.hotMess.accent == RGBAColor(hex: "#b8236f"))
         #expect(DesignTokens.hotMessDark.accent == RGBAColor(hex: "#ff7ab6"))

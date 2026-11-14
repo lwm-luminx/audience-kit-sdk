@@ -3,6 +3,17 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.64.0 (2026-11-14)
+
+- Publisher ads are the publisher's (Rick, 2026-11-14: "when showing soapbox content the user will acknowledge that
+  the publisher is responsible for their ad relationship"; "this relationship is to support the publishers and let
+  them continue to support writers and content"; "we take no cut like performers"). `PublisherAdsCopy` gives the
+  one-time note a reader acknowledges before their first Soapbox story (title, `body(appName:)`, "I understand" /
+  "Not now"), and `PublisherAdsAcknowledgement` remembers who acknowledged it by user ID: on iOS in `UserDefaults`
+  plus the private iCloud key-value store, on Android in private shared preferences
+  (`com.audiencekit.android.PublisherAdsAcknowledgement`). Nothing goes to the server; a guest is never recorded,
+  so they see it each time. Same words on iOS and Android.
+
 ## 0.63.0 (2026-11-14)
 
 - Ad-free audiences (Rick, 2026-11-14: "begin building advertising"). `advertising()` reads whether the audience is

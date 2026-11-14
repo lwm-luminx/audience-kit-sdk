@@ -3,6 +3,20 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.65.0 (2026-11-14)
+
+- Tip to read without ads (Rick, 2026-11-14: "we should build tip to remove all ads to soapbox content"). A reader
+  tips a Soapbox publication, all of it the publisher's (no cut, like performers' tips), and a tip of at least
+  `adFreeTipCents` reads that publication without ads for `adFreeDays`. `Publication` gains `adFreeOffered`,
+  `adFreeTipCents`, `adFreeDays`, `viewerAdFree` and `viewerAdFreeUntil`; `PublicationSummary` gains
+  `adFreeOffered`; `Article` gains `viewerAdFree` (`showsWithoutAds`: leave ads and sponsored spots out around it).
+  The fields are only asked for when the API has them. A tip tied to ads going away isn't a gift in the stores'
+  eyes, so it's paid on the web: `startAdFreeTip(publicationID:amountCents:)` returns `AdFreeTipCheckout` with a
+  `checkoutURL` to open in the reader's browser, then `confirmTip(id:)` (`TipConfirmation`, `readsAdFreeUntil`)
+  when they come back. Offer it only where `AdFreeTips.isOffered(_:storefrontCountryCode:)` says so: US storefronts
+  only. `AdFreeTips` has the words, the same on iOS and Android. Needs API next (audience_kit_api, "Tip a Soapbox
+  publication to read it without ads").
+
 ## 0.64.0 (2026-11-14)
 
 - Publisher ads are the publisher's (Rick, 2026-11-14: "when showing soapbox content the user will acknowledge that

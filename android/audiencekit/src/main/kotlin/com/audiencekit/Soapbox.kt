@@ -30,6 +30,8 @@ public data class PublicationSummary(
     val photoUrl: String? = null,
     val trusted: Boolean = false,
     val acceptsOpEds: Boolean = false,
+    /** Whether readers can tip it to read it without ads ([AdFreeTips]). Null from an API without it. */
+    val adFreeOffered: Boolean? = null,
 )
 
 /** A venue, event, person or locale an article is about, by name. */
@@ -54,6 +56,16 @@ public data class Publication(
     val opEdGuidelines: String? = null,
     val locale: ArticleSubject? = null,
     val person: ArticleSubject? = null,
+    /**
+     * Tip to read without ads ([AdFreeTips]): whether readers can now, the least tip that does it, in cents, and for
+     * how many days. Null from an API without it.
+     */
+    val adFreeOffered: Boolean? = null,
+    val adFreeTipCents: Int? = null,
+    val adFreeDays: Int? = null,
+    /** Whether the signed-in reader reads it without ads now, and until when (ISO 8601). */
+    val viewerAdFree: Boolean? = null,
+    val viewerAdFreeUntil: String? = null,
 )
 
 /** An article or op-ed. Lists leave out [body]; [article] reads it. */
@@ -90,7 +102,15 @@ public data class Article(
     val reviewNote: String? = null,
     /** ISO 8601. */
     val submittedAt: String? = null,
+    /**
+     * Whether the signed-in reader tipped its publication to read it without ads: show no ads or sponsored spots with
+     * it. Null from an API without it.
+     */
+    val viewerAdFree: Boolean? = null,
 ) {
+    /** Whether to leave ads and sponsored spots out around it: the reader tipped its publication. */
+    val showsWithoutAds: Boolean get() = viewerAdFree == true
+
     /** Whether to show it as an op-ed ("Op-ed" label, the writer's byline). */
     val isOpEd: Boolean get() = kind == ArticleKind.OP_ED
 }
@@ -212,7 +232,7 @@ public object SoapboxCopy {
 
 internal object SoapboxQueries {
     /** The types the documents depend on: the root's `soapbox` and each listing's `articles`. */
-    val TYPES: List<String> = listOf("Audience", "Venue", "Event", "Person", "Locale")
+    val TYPES: List<String> = listOf("Audience", "Venue", "Event", "Person", "Locale", "Article", "Publication")
 
     const val PUBLICATION_SUMMARY_FIELDS: String = "id name photoUrl trusted acceptsOpEds"
     const val ARTICLE_FIELDS: String = "id slug title summary byline kind publishedAt edited pinned teaser " +
@@ -222,30 +242,42 @@ internal object SoapboxQueries {
     const val PUBLICATION_FIELDS: String = "id name masthead about websiteUrl photoUrl trusted acceptsOpEds " +
         "opEdGuidelines locale { id name } person { id name }"
 
+    /** The article fields this audience's API has: tip to read without ads came later ([AdFreeTips]). */
+    fun articleFields(shape: SchemaShape): String =
+        if (!shape.has("Article", "viewerAdFree") || !shape.has("Publication", "adFreeOffered")) ARTICLE_FIELDS
+        else ARTICLE_FIELDS.replace(PUBLICATION_SUMMARY_FIELDS, "$PUBLICATION_SUMMARY_FIELDS adFreeOffered") +
+            " viewerAdFree"
+
+    fun publicationFields(shape: SchemaShape): String =
+        if (!shape.has("Publication", "adFreeOffered")) PUBLICATION_FIELDS
+        else "$PUBLICATION_FIELDS adFreeOffered adFreeTipCents adFreeDays viewerAdFree viewerAdFreeUntil"
+
     /** The document when the audience has no Soapbox: asks for nothing the helpers decode, under the operation's name. */
     fun noSoapbox(name: String): String = "query $name { id }"
 
     fun articles(shape: SchemaShape): String = if (!shape.has("Audience", "soapbox")) noSoapbox("Articles") else """
         query Articles(${'$'}localeId: ID, ${'$'}publicationId: ID, ${'$'}first: Int) {
           soapbox {
-            articles(localeId: ${'$'}localeId, publicationId: ${'$'}publicationId, first: ${'$'}first) { nodes { $ARTICLE_FIELDS } }
+            articles(localeId: ${'$'}localeId, publicationId: ${'$'}publicationId, first: ${'$'}first) {
+              nodes { ${articleFields(shape)} }
+            }
           }
         }
     """.trimIndent()
 
     fun article(shape: SchemaShape): String = if (!shape.has("Audience", "soapbox")) noSoapbox("Article") else """
         query Article(${'$'}id: ID!) {
-          soapbox { article(id: ${'$'}id) { $ARTICLE_FIELDS body $ARTICLE_SUBJECT_FIELDS } }
+          soapbox { article(id: ${'$'}id) { ${articleFields(shape)} body $ARTICLE_SUBJECT_FIELDS } }
         }
     """.trimIndent()
 
     fun publications(shape: SchemaShape): String =
         if (!shape.has("Audience", "soapbox")) noSoapbox("Publications")
-        else "query Publications { soapbox { publications { $PUBLICATION_FIELDS } } }"
+        else "query Publications { soapbox { publications { ${publicationFields(shape)} } } }"
 
     fun publication(shape: SchemaShape): String =
         if (!shape.has("Audience", "soapbox")) noSoapbox("Publication")
-        else "query Publication(${'$'}id: ID!) { soapbox { publication(id: ${'$'}id) { $PUBLICATION_FIELDS } } }"
+        else "query Publication(${'$'}id: ID!) { soapbox { publication(id: ${'$'}id) { ${publicationFields(shape)} } } }"
 
     fun myOpEds(shape: SchemaShape): String = if (!shape.has("Audience", "soapbox")) noSoapbox("MyOpEds") else """
         query MyOpEds {
@@ -261,7 +293,7 @@ internal object SoapboxQueries {
             is ArticleTopic.Locale -> "Locale"
         }
         if (!shape.has(type, "articles")) return noSoapbox("ArticlesAbout")
-        val articleList = "articles { list(first: ${'$'}first) { nodes { $ARTICLE_FIELDS } } }"
+        val articleList = "articles { list(first: ${'$'}first) { nodes { ${articleFields(shape)} } } }"
         val listing = when (topic) {
             is ArticleTopic.Venue -> "venues { venue(id: ${'$'}id) { $articleList } }"
             is ArticleTopic.Event -> "events { event(id: ${'$'}id) { $articleList } }"

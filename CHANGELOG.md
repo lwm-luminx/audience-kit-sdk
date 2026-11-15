@@ -3,6 +3,15 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.70.0 (2026-11-15)
+
+- Kotlin: when Play Integrity can't give a verdict, the sign-in now says why instead of `attest_failed`.
+  `DeviceAttestor.failureReason(error)` (default `attest_failed`) names the reason sent as `attestation.reason`;
+  `PlayIntegrityAttestor` answers Play's own error as `pi_<code>` (`pi_play_services_version_outdated`,
+  `pi_play_store_not_found`, `pi_play_store_account_not_found`, `pi_network_error`, …). The API turns these into
+  words the person can act on and records them for admins (Rick, 2026-11-15: "We need some info for android when
+  there are safety net failures").
+
 ## 0.69.1 (2026-11-14)
 
 - Android: `audiencekit-android` depends on `androidx.fragment:fragment` 1.8.9. Play Integrity pulls in Fragment 1.1.0

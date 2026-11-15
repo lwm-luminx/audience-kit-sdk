@@ -50,6 +50,13 @@ public interface DeviceAttestor {
 
     /** Forgets any key, so the next [attest] starts over. Play Integrity has none. */
     public suspend fun forgetKey() {}
+
+    /**
+     * The short reason sent to the API when [attest] threw [error], so the person can be told what to do and admins
+     * can see why: [PlayIntegrityAttestor] answers Play Integrity's error as `pi_<code>` (`pi_play_services_version_outdated`,
+     * `pi_play_store_not_found`, …). At most 40 characters of lowercase letters, digits and underscores.
+     */
+    public fun failureReason(error: Throwable): String = "attest_failed"
 }
 
 /**

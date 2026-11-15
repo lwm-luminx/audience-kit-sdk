@@ -5,6 +5,7 @@ import com.audiencekit.DeviceAttestation
 import com.audiencekit.DeviceAttestor
 import com.google.android.gms.tasks.Task
 import com.google.android.play.core.integrity.IntegrityManagerFactory
+import com.google.android.play.core.integrity.IntegrityServiceException
 import com.google.android.play.core.integrity.IntegrityTokenRequest
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
@@ -37,6 +38,42 @@ public class PlayIntegrityAttestor(
             challenge = challenge,
             packageName = appContext.packageName,
             token = response.token(),
+        )
+    }
+
+    /**
+     * Play Integrity's own error, as `pi_<code>`, so the API can tell the person what to do (update Play services, sign
+     * in to the Play Store, use a phone with Google Play) and admins can see it in New Relic.
+     */
+    override fun failureReason(error: Throwable): String {
+        val code = (error as? IntegrityServiceException)?.errorCode ?: return "attest_failed"
+        return "pi_" + (PLAY_INTEGRITY_ERRORS[code] ?: "error_${-code}")
+    }
+
+    private companion object {
+        /**
+         * Play Integrity's classic error codes (`IntegrityErrorCode`), by value: the constants live in a Java
+         * annotation, so they're spelled out here. An unknown one is sent as `error_<n>`.
+         */
+        val PLAY_INTEGRITY_ERRORS = mapOf(
+            -1 to "api_not_available",
+            -2 to "play_store_not_found",
+            -3 to "network_error",
+            -4 to "play_store_account_not_found",
+            -5 to "app_not_installed",
+            -6 to "play_services_not_found",
+            -7 to "app_uid_mismatch",
+            -8 to "too_many_requests",
+            -9 to "cannot_bind_to_service",
+            -10 to "nonce_too_short",
+            -11 to "nonce_too_long",
+            -12 to "google_server_unavailable",
+            -13 to "nonce_is_not_base64",
+            -14 to "play_store_version_outdated",
+            -15 to "play_services_version_outdated",
+            -16 to "cloud_project_number_is_invalid",
+            -18 to "client_transient_error",
+            -100 to "internal_error",
         )
     }
 }

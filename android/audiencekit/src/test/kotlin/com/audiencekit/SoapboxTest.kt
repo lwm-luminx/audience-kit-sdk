@@ -67,6 +67,38 @@ class SoapboxTest {
     }
 
     @Test
+    fun nationalNewsAsksForTheFeaturedArticles() = runTest {
+        val stub = StubTransport {
+            StubTransport.json(200, """{"data":{"soapbox":{"articles":{"nodes":[$ARTICLE_JSON]}}}}""")
+        }
+
+        val articles = soapboxClient(stub).nationalArticles(first = 5)
+
+        assertEquals(listOf("Pride 2027"), articles.map { it.title })
+        val request = stub.requests.single()
+        assertEquals("NationalArticles", request.operation())
+        assertTrue("articles(national: true" in request.document())
+        assertEquals("5", request.variable("first")!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun anAPIBeforeNationalNewsGetsNothing() = runTest {
+        val stub = StubTransport { request ->
+            when {
+                request.operation() == "SchemaFields" -> withoutSoapbox(request)
+                "national" in request.document() -> StubTransport.json(
+                    200,
+                    """{"errors":[{"message":"Field 'articles' doesn't accept argument 'national'","extensions":{"code":"argumentNotAccepted"}},{"message":"Field 'featuredNationally' doesn't exist on type 'Article'","extensions":{"code":"undefinedField"}}]}""",
+                )
+                else -> StubTransport.json(200, """{"data":{"id":"b0f8b66a-e636-495d-9475-0f5317ea08e2"}}""")
+            }
+        }
+
+        assertTrue(soapboxClient(stub).nationalArticles().isEmpty())
+        assertEquals("query NationalArticles { id }", stub.requests.last().document())
+    }
+
+    @Test
     fun anArticleReadsItsBodyAndSubjects() = runTest {
         val json = ARTICLE_JSON.trim().removeSuffix("}") +
             ""","body":"# Pride","venues":[{"id":"v-1","name":"Club Try-Angles"}],"events":[],"people":[],"locales":[]}"""

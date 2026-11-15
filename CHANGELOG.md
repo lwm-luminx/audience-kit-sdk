@@ -3,6 +3,15 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.70.0 (2026-11-15)
+
+- National news (Rick, 2026-11-15: "Arbiter needs new research task to determine what publisher articles should be
+  featured nationally"). `nationalArticles(localeID:first:)` (Swift) / `nationalArticles(localeId, first)` (Kotlin)
+  read the articles an audience's admins featured nationally in the last 14 days, most recently featured first:
+  Arbiter weighs the newest articles from trusted publications and a person decides each one. Empty for an audience
+  without Soapbox or an API without national news (no `Article.featuredNationally`). Needs API next
+  (audience_kit_api, "Soapbox national news").
+
 ## 0.69.1 (2026-11-14)
 
 - Android: `audiencekit-android` depends on `androidx.fragment:fragment` 1.8.9. Play Integrity pulls in Fragment 1.1.0

@@ -40,7 +40,7 @@ extension AudienceSession {
 }
 
 extension AudienceKitError {
-    /// The API refused the query because it asks for a field this audience's schema doesn't have: one a module adds
-    /// that the audience hasn't installed (or one from a newer API).
-    var isUndefinedField: Bool { errors.contains { $0.code == "undefinedField" } }
+    /// The API refused the query because it asks for a field (or a fragment type) this audience's schema doesn't have:
+    /// one a module adds that the audience hasn't installed (or one from a newer API).
+    var isUndefinedField: Bool { errors.contains { $0.code == "undefinedField" || $0.code == "undefinedType" } }
 }

@@ -58,6 +58,9 @@ public object CardKind {
     public const val PEOPLE_BASED_HERE: String = "people.basedHere"
     public const val PEOPLE_EVERYONE: String = "people.everyone"
     public const val PINGS: String = "pings"
+
+    /** The city's digital flyers (LayoutCard.flyers). */
+    public const val FLYERS: String = "flyers"
     public const val WEB: String = "web"
     public const val PROMO_SLOT: String = "promo.slot"
 }
@@ -135,6 +138,8 @@ public data class LayoutCard(
     val web: CardContent? = null,
     /** A promo slot's candidates, in the order to try them. */
     val candidates: List<PromoCard> = emptyList(),
+    /** A FLYERS card's flyers and disclosure. */
+    val flyers: FlyersCardContent? = null,
     /**
      * True for a card of the app's built-in order, used when the layout couldn't be fetched: it carries no ids, so
      * draw it from the app's own data.
@@ -377,6 +382,11 @@ internal object LayoutQueries {
     /** The layout, with each promo card's `staffApp` where the API has it (an older API doesn't). */
     fun layoutFor(shape: SchemaShape): String =
         layout.replace("sponsorName ", if (shape.has("PromoCard", "staffApp")) "sponsorName staffApp " else "sponsorName ")
+            // An API from before digital flyers has no FlyersCard type: asking for it would fail the whole layout.
+            .replace(
+                "#flyers",
+                if (shape.has("FlyersCard", "flyers")) "... on FlyersCard { locale { id } ${FlyerQueries.FLYER_FIELDS} }" else "",
+            )
 
     val layout: String = """
         query Layout(${'$'}screen: LayoutScreen!, ${'$'}client: LayoutClientInput!, ${'$'}position: CoordinatesInput, ${'$'}localeId: ID) {
@@ -394,6 +404,7 @@ internal object LayoutQueries {
               ... on PromoSlotCard {
                 candidates { id category label sponsorName $CARD_CONTENT_FIELDS venue { id } event { id } }
               }
+              #flyers
             }
           }
         }
@@ -471,6 +482,10 @@ internal data class LayoutCardWire(
     val linkLabel: String? = null,
     // Decoded one by one, so one bad candidate (a field a newer API changed) loses that candidate, not the slot.
     val candidates: List<JsonElement>? = null,
+    val disclosure: String? = null,
+    val explainerLabel: String? = null,
+    val explainerUrl: String? = null,
+    val flyers: List<JsonElement>? = null,
 ) {
     fun toCard() = LayoutCard(
         id = id,
@@ -487,6 +502,19 @@ internal data class LayoutCardWire(
         candidates = candidates.orEmpty().mapNotNull { element ->
             runCatching { AudienceKitClient.json.decodeFromJsonElement(PromoCardWire.serializer(), element) }
                 .getOrNull()?.toPromoCard()
+        },
+        flyers = if (disclosure != null && flyers != null) {
+            FlyersCardContent(
+                disclosure = disclosure,
+                explainerLabel = explainerLabel.orEmpty(),
+                explainerUrl = explainerUrl.orEmpty(),
+                flyers = flyers.mapNotNull { element ->
+                    runCatching { AudienceKitClient.json.decodeFromJsonElement(DigitalFlyer.serializer(), element) }
+                        .getOrNull()
+                },
+            )
+        } else {
+            null
         },
     )
 }
@@ -534,7 +562,7 @@ public suspend fun AudienceKitClient.layout(
         position?.let { put("position", it.toGraphQLValue()) }
         localeId?.let { put("localeId", JsonPrimitive(it)) }
     }
-    val wire = graphQL(listOf("PromoCard"), LayoutResponse.serializer(), variables, "Layout") { shape ->
+    val wire = graphQL(listOf("PromoCard", "FlyersCard"), LayoutResponse.serializer(), variables, "Layout") { shape ->
         LayoutQueries.layoutFor(shape)
     }.layout
     val cards = wire.cards.mapNotNull { element ->

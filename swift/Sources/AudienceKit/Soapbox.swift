@@ -237,6 +237,23 @@ extension Queries {
         """
     }
 
+    /// The audience's national news: the articles its admins featured nationally (Arbiter recommends them, a person
+    /// decides). An API from before national news has no `Article.featuredNationally`, and nothing comes back.
+    static func nationalArticles(_ shape: SchemaShape) -> String {
+        guard shape.has("Audience", "soapbox"), shape.has("Article", "featuredNationally") else {
+            return noSoapbox("NationalArticles")
+        }
+        return """
+        query NationalArticles($localeId: ID, $first: Int) {
+          soapbox {
+            articles(national: true, localeId: $localeId, first: $first) {
+              nodes { \(articleFieldsFor(shape)) featuredNationally }
+            }
+          }
+        }
+        """
+    }
+
     static func article(_ shape: SchemaShape) -> String {
         guard shape.has("Audience", "soapbox") else { return noSoapbox("Article") }
         return """
@@ -346,6 +363,18 @@ extension AudienceSession {
         if let first { variables["first"] = .int(first) }
         return try await graphQL(types: Queries.soapboxTypes, variables: variables, operationName: "Articles",
                                  as: SoapboxResponse.self, document: Queries.articles).soapbox?.articles?.nodes ?? []
+    }
+
+    /// The audience's national news: articles from any locale its admins featured nationally in the last 14 days,
+    /// most recently featured first (a locale's share of it, when given). Arbiter recommends which, and a person
+    /// decides. Empty when the audience doesn't have Soapbox, or its API has no national news yet.
+    public func nationalArticles(localeID: String? = nil, first: Int? = nil) async throws -> [Article] {
+        var variables: [String: GraphQLValue] = [:]
+        if let localeID { variables["localeId"] = .string(localeID) }
+        if let first { variables["first"] = .int(first) }
+        return try await graphQL(types: Queries.soapboxTypes, variables: variables, operationName: "NationalArticles",
+                                 as: SoapboxResponse.self, document: Queries.nationalArticles).soapbox?.articles?
+            .nodes ?? []
     }
 
     /// One article with its body and what it's about: a live one, or one the signed-in person may see before it is

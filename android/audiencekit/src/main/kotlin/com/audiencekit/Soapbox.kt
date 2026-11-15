@@ -145,6 +145,20 @@ public suspend fun AudienceKitClient.articles(
 ).soapbox?.articles?.items.orEmpty()
 
 /**
+ * The audience's national news: articles from any locale its admins featured nationally in the last 14 days, most
+ * recently featured first (a locale's share of it, when given). Arbiter recommends which, and a person decides. Empty
+ * when the audience doesn't have Soapbox, or its API has no national news yet.
+ */
+public suspend fun AudienceKitClient.nationalArticles(localeId: String? = null, first: Int? = null): List<Article> =
+    graphQL(
+        SoapboxQueries.TYPES,
+        SoapboxResponse.serializer(),
+        graphQLVariables("localeId" to localeId, "first" to first),
+        "NationalArticles",
+        SoapboxQueries::nationalArticles,
+    ).soapbox?.articles?.items.orEmpty()
+
+/**
  * One article with its body and what it's about: a live one, or one the signed-in person may see before it is (their
  * own op-ed). Null when there's no such article, or the audience doesn't have Soapbox.
  */
@@ -264,6 +278,22 @@ internal object SoapboxQueries {
           }
         }
     """.trimIndent()
+
+    /** National news; an API from before it has no `Article.featuredNationally`, and nothing comes back. */
+    fun nationalArticles(shape: SchemaShape): String =
+        if (!shape.has("Audience", "soapbox") || !shape.has("Article", "featuredNationally")) {
+            noSoapbox("NationalArticles")
+        } else {
+            """
+            query NationalArticles(${'$'}localeId: ID, ${'$'}first: Int) {
+              soapbox {
+                articles(national: true, localeId: ${'$'}localeId, first: ${'$'}first) {
+                  nodes { ${articleFields(shape)} featuredNationally }
+                }
+              }
+            }
+            """.trimIndent()
+        }
 
     fun article(shape: SchemaShape): String = if (!shape.has("Audience", "soapbox")) noSoapbox("Article") else """
         query Article(${'$'}id: ID!) {

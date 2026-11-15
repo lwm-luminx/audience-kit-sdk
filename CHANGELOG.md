@@ -5,6 +5,12 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
 
 ## 0.70.0 (2026-11-15)
 
+- National news (Rick, 2026-11-15: "Arbiter needs new research task to determine what publisher articles should be
+  featured nationally"). `nationalArticles(localeID:first:)` (Swift) / `nationalArticles(localeId, first)` (Kotlin)
+  read the articles an audience's admins featured nationally in the last 14 days, most recently featured first:
+  Arbiter weighs the newest articles from trusted publications and a person decides each one. Empty for an audience
+  without Soapbox or an API without national news (no `Article.featuredNationally`). Needs API next
+  (audience_kit_api, "Soapbox national news").
 - Kotlin: when Play Integrity can't give a verdict, the sign-in now says why instead of `attest_failed`.
   `DeviceAttestor.failureReason(error)` (default `attest_failed`) names the reason sent as `attestation.reason`;
   `PlayIntegrityAttestor` answers Play's own error as `pi_<code>` (`pi_play_services_version_outdated`,

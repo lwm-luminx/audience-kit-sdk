@@ -63,6 +63,34 @@ private func withoutSoapbox(_ request: RecordedRequest) -> StubResponse {
     #expect(request.variables["publicationId"] == nil)
 }
 
+@Test func nationalNewsAsksForTheFeaturedArticles() async throws {
+    let stub = Stub { _ in .json(status: 200, body: #"{"data":{"soapbox":{"articles":{"nodes":["# + articleJSON + "]}}}}") }
+
+    let articles = try await soapboxClient(stub).nationalArticles(first: 5)
+
+    #expect(articles.map(\.title) == ["Pride 2027"])
+    let request = try #require(stub.requests.first)
+    #expect(request.operationName == "NationalArticles")
+    #expect(request.query.contains("articles(national: true"))
+    #expect(request.variables["first"] as? Int == 5)
+    #expect(request.variables["localeId"] == nil)
+}
+
+@Test func anAPIBeforeNationalNewsGetsNothing() async throws {
+    let stub = Stub { request in
+        if request.operationName == "SchemaFields" { return withoutSoapbox(request) }
+        if request.query.contains("national") {
+            return .json(status: 200, body: #"""
+            {"errors":[{"message":"Field 'articles' doesn't accept argument 'national'","extensions":{"code":"argumentNotAccepted"}},{"message":"Field 'featuredNationally' doesn't exist on type 'Article'","extensions":{"code":"undefinedField"}}]}
+            """#)
+        }
+        return .json(status: 200, body: #"{"data":{"id":"00000000-0000-4000-8000-000000000071"}}"#)
+    }
+
+    #expect(try await soapboxClient(stub).nationalArticles().isEmpty)
+    #expect(stub.requests.last?.query == "query NationalArticles { id }")
+}
+
 @Test func anArticleReadsItsBodyAndSubjects() async throws {
     let json = "{" + articleFieldsJSON
         + ##","body":"# Pride","venues":[{"id":"v-1","name":"Club Try-Angles"}],"events":[],"people":[],"locales":[]}"##

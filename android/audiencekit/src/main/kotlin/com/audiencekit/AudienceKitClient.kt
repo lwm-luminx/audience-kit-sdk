@@ -382,8 +382,9 @@ public class AudienceKitClient(
                 attestor.attest(challenge.challenge)
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Exception) {
-                DeviceAttestation.unsupported(ATTESTATION_PLATFORM, "attest_failed")
+            } catch (e: Exception) {
+                val reason = runCatching { attestor.failureReason(e) }.getOrNull()?.takeIf { it.isNotBlank() }
+                DeviceAttestation.unsupported(ATTESTATION_PLATFORM, reason ?: "attest_failed")
             }
         val attestation = encodeJson.encodeToJsonElement(DeviceAttestation.serializer(), proof)
         return JsonObject(fields + ("attestation" to attestation)).toString().toByteArray()

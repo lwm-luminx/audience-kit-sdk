@@ -3,6 +3,26 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.71.0 (2026-11-15)
+
+- Digital flyers and community resources (Rick, 2026-11-15, "Digital Flyers & Safety Resources"). Needs API next
+  (audience_kit_api, "Digital flyers and community resources"); an older API has no `FlyersCard` type and the layout
+  simply leaves the fragment out.
+  - `CardKind.flyers` / `CardKind.FLYERS`: the city's flyers on Now, chosen by the server from the city and the time
+    only. `LayoutCard.flyers` carries the disclosure ("Based on your city and the time, nothing else."), the explainer
+    link and the pool. Each `DigitalFlyer` has a server-chosen `tone` (gentle, health, playful), a `category` and its
+    tone's `lines`.
+  - `FlyerDismissals`: dismiss one flyer or hide a category, on the phone only (Swift: `UserDefaults`, never iCloud;
+    Kotlin: a `FlyerDismissalStore`, `FlyerDismissalPreferences` on Android, to keep out of Auto Backup). Never sent.
+  - `FlyerLinePicker`: a random line per showing, never the same one twice in a row on that phone.
+  - `communityDirectory(localeID:)` / `communityDirectory(localeId)`: a city's whole resource directory, fetched
+    without the session token, filtered on the phone (`resources(for:)` / `resourcesFor(need)`), with neutral titles
+    and `sensitive` for DV and stalking resources. `flyerCopy()` reads the categories, "I need..." choices, advocacy
+    lines and quick-exit label.
+- An `undefinedType` error (a fragment on a type an older API lacks) now makes the SDK ask the schema and retry, like
+  `undefinedField`.
+- `graphql/schema.graphql` refreshed from the API.
+
 ## 0.70.0 (2026-11-15)
 
 - National news (Rick, 2026-11-15: "Arbiter needs new research task to determine what publisher articles should be

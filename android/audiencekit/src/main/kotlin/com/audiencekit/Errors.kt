@@ -59,8 +59,8 @@ public sealed class AudienceKitException(message: String, cause: Throwable? = nu
     /** The GraphQL operation returned errors. */
     public data class GraphQL(val errors: List<GraphQLError>) :
         AudienceKitException(errors.joinToString("\n") { it.message }) {
-        /** The query asks for a field this audience's schema doesn't have (a module it hasn't installed). */
-        public val isUndefinedField: Boolean get() = errors.any { it.code == "undefinedField" }
+        /** The query asks for a field (or fragment type) this audience's schema doesn't have (a module it hasn't installed). */
+        public val isUndefinedField: Boolean get() = errors.any { it.code == "undefinedField" || it.code == "undefinedType" }
     }
 
     /** The configuration is missing something this call needs, e.g. [AudienceKitConfiguration.host]. */

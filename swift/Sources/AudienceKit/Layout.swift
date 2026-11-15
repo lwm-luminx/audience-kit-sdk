@@ -156,6 +156,8 @@ public struct LayoutCard: Decodable, Sendable, Hashable, Identifiable {
     public let web: CardContent?
     /// A promo slot's candidates, in the order to try them.
     public let candidates: [PromoCard]
+    /// A ``CardKind/flyers`` card's flyers and disclosure.
+    public let flyers: FlyersCardContent?
     /// True for a card of the app's built-in order, used when the layout couldn't be fetched: it carries no ids, so
     /// draw it from the app's own data.
     public let isFallback: Bool
@@ -163,7 +165,7 @@ public struct LayoutCard: Decodable, Sendable, Hashable, Identifiable {
     public init(id: String, kind: String, rank: Int, title: String? = nil, venueID: String? = nil,
                 eventID: String? = nil, localeID: String? = nil, venueIDs: [String] = [], eventIDs: [String] = [],
                 personIDs: [String] = [], web: CardContent? = nil, candidates: [PromoCard] = [],
-                isFallback: Bool = false) {
+                flyers: FlyersCardContent? = nil, isFallback: Bool = false) {
         self.id = id
         self.kind = kind
         self.rank = rank
@@ -176,6 +178,7 @@ public struct LayoutCard: Decodable, Sendable, Hashable, Identifiable {
         self.personIDs = personIDs
         self.web = web
         self.candidates = candidates
+        self.flyers = flyers
         self.isFallback = isFallback
     }
 
@@ -186,6 +189,7 @@ public struct LayoutCard: Decodable, Sendable, Hashable, Identifiable {
 
     private enum CodingKeys: String, CodingKey {
         case id, kind, rank, title, venue, event, stageEvent, locale, venues, events, people, headline, candidates
+        case flyers
     }
 
     public init(from decoder: any Decoder) throws {
@@ -205,6 +209,7 @@ public struct LayoutCard: Decodable, Sendable, Hashable, Identifiable {
         // One bad candidate (a field a newer API changed) loses that candidate, not the slot.
         candidates = (try? container.decodeIfPresent([Lenient<PromoCard>].self, forKey: .candidates))?
             .compactMap(\.value) ?? []
+        flyers = container.contains(.flyers) ? try? FlyersCardContent(from: decoder) : nil
         isFallback = false
     }
 
@@ -475,7 +480,10 @@ extension Queries {
     /// doesn't).
     static func layout(_ shape: SchemaShape) -> String {
         let promoFields = shape.has("PromoCard", "staffApp") ? "staffApp " : ""
+        // An API from before digital flyers has no FlyersCard type: asking for it would fail the whole layout.
+        let flyers = shape.has("FlyersCard", "flyers") ? "... on FlyersCard { locale { id } \(flyerFields) }" : ""
         return layoutTemplate.replacingOccurrences(of: "sponsorName ", with: "sponsorName \(promoFields)")
+            .replacingOccurrences(of: "#flyers", with: flyers)
     }
 
     static let layoutTemplate = """
@@ -494,6 +502,7 @@ extension Queries {
           ... on PromoSlotCard {
             candidates { id category label sponsorName \(cardContentFields) venue { id } event { id } }
           }
+          #flyers
         }
       }
     }
@@ -554,7 +563,7 @@ extension AudienceSession {
         if let position { variables["position"] = position.coordinatesInput(beaconMajor: beaconMajor) }
         if let localeID { variables["localeId"] = .string(localeID) }
 
-        let payload = try await graphQL(types: ["PromoCard"], variables: variables, operationName: "Layout",
+        let payload = try await graphQL(types: ["PromoCard", "FlyersCard"], variables: variables, operationName: "Layout",
                                         as: LayoutResponse.self, document: Queries.layout).layout
         return CardLayout(id: payload.id, cards: payload.cards.compactMap(\.value).sorted { $0.rank < $1.rank },
                       refreshAfter: payload.refreshAfter)

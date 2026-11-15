@@ -486,6 +486,23 @@ public class AudienceKitClient(
         return DeviceAttestationNotice.of(reason, policy.required ?: (policy.mode == "enforce"), policy.warning)
     }
 
+    /**
+     * A city's whole community resource directory, `GET /v1/audience/<id>/community_resources?locale_id=<id>`, sent
+     * without the session token so it says nothing about who asked. Fetch it whenever the city is known, whether or
+     * not anyone opens it, and keep it: needs and resource pages then work from it without another request.
+     */
+    public suspend fun communityDirectory(localeId: String): CommunityDirectory {
+        val request = APIRequest(
+            path = "/v1/audience/${audienceId()}/community_resources",
+            queryItems = listOf("locale_id" to localeId),
+            authenticated = false,
+        )
+        val response = perform(request)
+        if (response.status !in 200..299) throw errorForStatus(response.status)
+
+        return decode(CommunityDirectory.serializer(), response.text, decodeJson)
+    }
+
     // endregion
 
     // region Audience

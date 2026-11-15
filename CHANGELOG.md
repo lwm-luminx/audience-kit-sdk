@@ -3,6 +3,11 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.69.1 (2026-11-14)
+
+- Android: `audiencekit-android` depends on `androidx.fragment:fragment` 1.8.9. Play Integrity pulls in Fragment 1.1.0
+  through Play services, and Play Console flags that as an outdated SDK (Hack Different 1.1.0 in production).
+
 ## 0.69.0 (2026-11-14)
 
 - Kotlin: read-only rooms, as Swift already has. `ChatRoomEvent.Joined` gains `readOnly` and `replyUrl`: when a room

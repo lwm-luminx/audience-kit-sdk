@@ -31,6 +31,9 @@ kotlin {
 dependencies {
     api(project(":audiencekit"))
     implementation(libs.play.integrity)
+    // Play Integrity brings androidx.fragment 1.1.0 (through Play services), which Play Console flags as outdated.
+    // A current Fragment wins dependency resolution in every app that uses this library.
+    implementation(libs.androidx.fragment)
 }
 
 publishing {

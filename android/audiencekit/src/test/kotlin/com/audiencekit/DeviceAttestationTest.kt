@@ -137,6 +137,24 @@ class DeviceAttestationTest {
     }
 
     @Test
+    fun sendsTheAttestorsReasonWhenItThrows() = runTest {
+        val stub = StubTransport { request ->
+            if (request.path == "/v1/token/attestation") StubTransport.json(200, challengeJson("c"))
+            else StubTransport.json(200, TOKEN_JSON)
+        }
+        val attestor = object : DeviceAttestor {
+            override suspend fun attest(challenge: String): DeviceAttestation = error("Play services are too old")
+            override fun failureReason(error: Throwable) = "pi_play_services_version_outdated"
+        }
+
+        client(stub, attestor).signIn(facebookAccessToken = "fb", device = device)
+
+        val proof = stub.requests.last().attestation()!!
+        assertTrue(proof["unsupported"]!!.jsonPrimitive.boolean)
+        assertEquals("pi_play_services_version_outdated", proof["reason"]?.jsonPrimitive?.content)
+    }
+
+    @Test
     fun skipsTheWorkWhenOffOrOnAnOlderAPIOrWithoutAnAttestor() = runTest {
         val off = StubTransport { request ->
             if (request.path == "/v1/token/attestation") StubTransport.json(200, challengeJson("c", mode = "off"))

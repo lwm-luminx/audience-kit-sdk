@@ -11,6 +11,12 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   Arbiter weighs the newest articles from trusted publications and a person decides each one. Empty for an audience
   without Soapbox or an API without national news (no `Article.featuredNationally`). Needs API next
   (audience_kit_api, "Soapbox national news").
+- Kotlin: when Play Integrity can't give a verdict, the sign-in now says why instead of `attest_failed`.
+  `DeviceAttestor.failureReason(error)` (default `attest_failed`) names the reason sent as `attestation.reason`;
+  `PlayIntegrityAttestor` answers Play's own error as `pi_<code>` (`pi_play_services_version_outdated`,
+  `pi_play_store_not_found`, `pi_play_store_account_not_found`, `pi_network_error`, …). The API turns these into
+  words the person can act on and records them for admins (Rick, 2026-11-15: "We need some info for android when
+  there are safety net failures").
 
 ## 0.69.1 (2026-11-14)
 

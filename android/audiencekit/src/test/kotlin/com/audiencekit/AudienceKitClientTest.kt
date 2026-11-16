@@ -826,6 +826,8 @@ class BrandingTest {
                 200,
                 """{"audience":{"id":"a-1","name":"Hot Mess","subdomain":"hotmess"},
                  "facebook_app_id":"713525445368431","facebook_login_config_id":"4085560021745660",
+                 "facebook_scopes":{"production":["public_profile","openid"],
+                                    "non_production":["public_profile","openid","email","user_friends"]},
                  "theme":{"preset":"hot_mess","tagline":"Queer nights out","light":{"accent":"#9c1c62"},"dark":{}}}""",
             )
         }
@@ -841,6 +843,11 @@ class BrandingTest {
         assertEquals("Hot Mess", branding.audience.name)
         assertEquals("713525445368431", branding.facebookAppId)
         assertEquals("4085560021745660", branding.facebookLoginConfigId)
+        assertEquals(listOf("public_profile", "openid"), branding.facebookScopes?.scopes(nonProduction = false))
+        assertEquals(
+            listOf("public_profile", "openid", "email", "user_friends"),
+            branding.facebookScopes?.scopes(nonProduction = true),
+        )
         assertEquals("hot_mess", branding.theme.preset)
         assertEquals(RGBAColor.fromHex("#9c1c62"), branding.theme.color("accent"))
         assertEquals(RGBAColor.fromHex("#9c1c62"), branding.theme.color("accent", dark = true))

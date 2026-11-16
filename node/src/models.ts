@@ -578,6 +578,11 @@ export interface Branding {
   facebook_app_id?: string | null;
   /** The Facebook Login for Business configuration to open the login dialog with, as `config_id`. */
   facebook_login_config_id?: string | null;
+  /**
+   * The Facebook permissions the audience's apps ask for at sign-in: `production` for store builds,
+   * `non_production` for debug and simulator builds.
+   */
+  facebook_scopes?: { production: string[]; non_production: string[] } | null;
   theme?: BrandingTheme;
 }
 

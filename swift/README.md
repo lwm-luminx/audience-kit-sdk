@@ -334,6 +334,35 @@ try await client.requestSong(venueID: venueID, title: "Dancing Queen", artist: "
 the venue's reason while closed) and the user's requests with Withdraw. The
 user is pushed when their song plays (`kind: song_request_playing`).
 
+## Find friends from contacts
+
+People prove their number with a text code, their phone turns each contact into a scrambled code
+(`ContactHashing`), and people who have each other saved are suggested to each other. Names and numbers never leave
+the phone. The app adds `NSContactsUsageDescription` to its Info.plist.
+
+```swift
+@StateObject private var friends = ContactMatchingModel(client: client, audienceID: audienceID)
+
+// On the home screen: the offer, and requests waiting on an answer.
+FindFriendsCard(model: friends) { finding = true }
+FriendRequestCards(model: friends)
+    .task { await friends.load() }
+    .sheet(isPresented: $finding) {
+        FindFriendsFlow(model: friends, appName: "Hot Mess", firstName: me.firstName, lastName: me.lastName) {
+            finding = false
+        }
+    }
+
+// In settings.
+NavigationLink("Contacts") { ContactMatchingSettings(model: friends, appName: "Hot Mess") { finding = true } }
+```
+
+`FindFriendsCard` draws nothing once matching is on, after "Not now" (for 30 days), or while the platform can't text
+codes (`ContactMatching.textCodesAvailable`). Without the views, the same calls are on the session:
+`contactMatching()`, `startContactPhoneVerification(phoneNumber:firstName:lastName:)`, `verifyContactPhone(code:)`,
+`checkContacts(_:names:)` with a `ContactHashing.batch(_:region:)`, `sendFriendRequest(userID:)`,
+`respondToFriendRequest(id:accept:)`, `setContactMatchName(firstName:lastName:)` and `disableContactMatching(names:)`.
+
 ## Update prompts
 
 TestFlight testers and App Store users on an old build hear about the new one, and builds the API no longer

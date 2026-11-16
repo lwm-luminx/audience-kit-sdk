@@ -31,6 +31,14 @@ struct RenderedDocumentsTests {
             ("GitHubCommunity", Queries.gitHubCommunity(shape)),
             ("GitHubProject", Queries.gitHubProject(shape)),
             ("MyGitHubItems", Queries.myGitHubItems(shape)),
+            ("ContactMatching", Queries.contactMatching(shape)),
+            ("StartContactPhoneVerification", Queries.startContactPhoneVerification(shape)),
+            ("VerifyContactPhone", Queries.verifyContactPhone(shape)),
+            ("CheckContacts", Queries.checkContacts(shape)),
+            ("SetContactMatchName", Queries.setContactMatchName(shape)),
+            ("DisableContactMatching", Queries.disableContactMatching(shape)),
+            ("SendFriendRequest", Queries.sendFriendRequest(shape)),
+            ("RespondToFriendRequest", Queries.respondToFriendRequest(shape)),
         ] + [ArticleTopic.venue("v"), .event("e"), .person("p"), .locale("l")].map { topic in
             ("ArticlesAbout\(Queries.articles(about: topic).type)", Queries.articles(about: topic).document(shape))
         }

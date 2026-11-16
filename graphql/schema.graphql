@@ -5929,6 +5929,13 @@ Someone on the app the viewer has saved in their contacts, who has the viewer's 
 """
 type ContactMatch {
   """
+  Which of the hashes just sent found them, so the phone can show the name it
+  has them saved under. Only on the answer to checkContacts: hashes are not
+  kept, so it is null everywhere else.
+  """
+  contactHash: String
+
+  """
   The request between them while one is waiting for an answer, whichever of them sent it.
   """
   request: FriendRequest
@@ -6065,6 +6072,12 @@ type ContactMatching {
   Whether they proved their number by text.
   """
   phoneVerified: Boolean!
+
+  """
+  Whether a code can be texted right now. False until the platform has a text
+  provider set up; apps hide the offer to turn matching on.
+  """
+  textCodesAvailable: Boolean!
 }
 
 """
@@ -6197,7 +6210,7 @@ type ContactsCheckPayload {
   contactMatching: ContactMatching!
 
   """
-  Everyone found, as contactMatching.matches.
+  Everyone found, as contactMatching.matches, each with the contactHash that found them.
   """
   matches: [ContactMatch!]!
 }

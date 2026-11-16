@@ -16,8 +16,23 @@ public data class Branding(
      * A Business-type Facebook app refuses a login that asks for permissions without one.
      */
     @SerialName("facebook_login_config_id") val facebookLoginConfigId: String? = null,
+    /**
+     * The Facebook permissions the audience's apps ask for at sign-in, so they change without a new build; `null`
+     * from an API that doesn't send them, when the app's built-in lists apply.
+     */
+    @SerialName("facebook_scopes") val facebookScopes: FacebookScopes? = null,
     val theme: Theme = Theme(),
 ) {
+    /** What sign-in asks Facebook for: [production] for store builds, [nonProduction] for debug and emulator builds. */
+    @Serializable
+    public data class FacebookScopes(
+        val production: List<String> = emptyList(),
+        @SerialName("non_production") val nonProduction: List<String> = emptyList(),
+    ) {
+        /** The list for a build: [nonProduction] for debug and emulator builds, else [production]. */
+        public fun scopes(nonProduction: Boolean): List<String> = if (nonProduction) this.nonProduction else production
+    }
+
     @Serializable
     public data class AudienceSummary(val id: String, val name: String, val subdomain: String)
 

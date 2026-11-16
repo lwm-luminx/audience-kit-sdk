@@ -3,6 +3,13 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.72.0 (2026-11-16)
+
+- `Branding.facebookScopes` (`facebook_scopes`): the Facebook permissions an audience's apps ask for at sign-in,
+  `production` for store builds and `nonProduction` for debug and simulator builds, so they change without a new app
+  build (Rick, 2026-11-16). `scopes(nonProduction:)` picks one. `nil` from an older API; apps keep built-in lists for
+  that. Needs audience_kit_api #667.
+
 ## 0.71.0 (2026-11-15)
 
 - Digital flyers and community resources (Rick, 2026-11-15, "Digital Flyers & Safety Resources"). Needs API next

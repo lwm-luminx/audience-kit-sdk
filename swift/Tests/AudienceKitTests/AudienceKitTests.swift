@@ -1171,6 +1171,8 @@ private func makeClient(
             .json(status: 200, body: #"""
             {"audience":{"id":"a-1","name":"Hot Mess","subdomain":"hotmess"},
              "facebook_app_id":"100000000000002","facebook_login_config_id":"200000000000001",
+             "facebook_scopes":{"production":["public_profile","openid"],
+                                "non_production":["public_profile","openid","email","user_friends"]},
              "theme":{"preset":"hot_mess","tagline":"Queer nights out","light":{"accent":"#9c1c62"},"dark":{}}}
             """#)
         }
@@ -1186,6 +1188,8 @@ private func makeClient(
         #expect(branding.audience.name == "Hot Mess")
         #expect(branding.facebookAppID == "100000000000002")
         #expect(branding.facebookLoginConfigID == "200000000000001")
+        #expect(branding.facebookScopes?.scopes(nonProduction: false) == ["public_profile", "openid"])
+        #expect(branding.facebookScopes?.scopes(nonProduction: true) == ["public_profile", "openid", "email", "user_friends"])
         #expect(branding.theme.preset == "hot_mess")
         #expect(branding.theme.color("accent") == RGBAColor(hex: "#9c1c62"))
         #expect(branding.theme.color("accent", dark: true) == RGBAColor(hex: "#9c1c62"))

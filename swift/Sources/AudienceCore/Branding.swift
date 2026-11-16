@@ -67,11 +67,35 @@ public struct Branding: Codable, Sendable, Hashable {
         }
     }
 
+    /// The Facebook permissions the audience's apps ask for at sign-in (`facebook_scopes`), so they change without a
+    /// new build: `production` for store builds, `nonProduction` for debug and simulator builds.
+    public struct FacebookScopes: Codable, Sendable, Hashable {
+        public var production: [String]
+        public var nonProduction: [String]
+
+        enum CodingKeys: String, CodingKey {
+            case production
+            case nonProduction = "non_production"
+        }
+
+        public init(production: [String], nonProduction: [String]) {
+            self.production = production
+            self.nonProduction = nonProduction
+        }
+
+        /// The list for a build: `nonProduction` for debug and simulator builds, else `production`.
+        public func scopes(nonProduction isNonProduction: Bool) -> [String] {
+            isNonProduction ? nonProduction : production
+        }
+    }
+
     public var audience: AudienceSummary
     public var facebookAppID: String?
     /// The Facebook Login for Business configuration to open the login dialog with, as `config_id`. A
     /// Business-type Facebook app refuses a login that asks for permissions without one.
     public var facebookLoginConfigID: String?
+    /// What sign-in asks Facebook for; `nil` from an API that doesn't send it, when the app's built-in lists apply.
+    public var facebookScopes: FacebookScopes?
     public var theme: Theme
     /// The calling app's release config (`app_release`), when branding was asked for with `app=<bundle id>` and the
     /// API knows the app: the same as ``AudienceSession/appRelease(app:)``.
@@ -81,16 +105,18 @@ public struct Branding: Codable, Sendable, Hashable {
         case audience
         case facebookAppID = "facebook_app_id"
         case facebookLoginConfigID = "facebook_login_config_id"
+        case facebookScopes = "facebook_scopes"
         case theme
         case appRelease = "app_release"
     }
 
     public init(audience: AudienceSummary, facebookAppID: String? = nil, facebookLoginConfigID: String? = nil,
-                theme: Theme, appRelease: AppRelease? = nil)
+                facebookScopes: FacebookScopes? = nil, theme: Theme, appRelease: AppRelease? = nil)
     {
         self.audience = audience
         self.facebookAppID = facebookAppID
         self.facebookLoginConfigID = facebookLoginConfigID
+        self.facebookScopes = facebookScopes
         self.theme = theme
         self.appRelease = appRelease
     }
@@ -100,6 +126,8 @@ public struct Branding: Codable, Sendable, Hashable {
         audience = try container.decode(AudienceSummary.self, forKey: .audience)
         facebookAppID = try container.decodeIfPresent(String.self, forKey: .facebookAppID)
         facebookLoginConfigID = try container.decodeIfPresent(String.self, forKey: .facebookLoginConfigID)
+        // Lists the SDK can't read leave the app on its built-in ones rather than costing it its branding.
+        facebookScopes = (try? container.decodeIfPresent(FacebookScopes.self, forKey: .facebookScopes)) ?? nil
         theme = try container.decode(Theme.self, forKey: .theme)
         // A release config the SDK can't read never costs the app its branding.
         appRelease = (try? container.decodeIfPresent(AppRelease.self, forKey: .appRelease)) ?? nil

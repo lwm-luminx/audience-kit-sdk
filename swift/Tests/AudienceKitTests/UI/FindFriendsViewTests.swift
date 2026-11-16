@@ -108,6 +108,10 @@ struct FindFriendsViewTests {
         await friends.addAll()
         #expect(friends.state?.matches.first?.status == .requested)
         #expect(friends.error == nil)
+
+        friends.forget()
+        #expect(friends.state == nil && friends.lastBatch == nil)
+        #expect(friends.savedName(for: "u-2") == nil)
     }
 
     @Test("Refused contacts says so and sends nothing")

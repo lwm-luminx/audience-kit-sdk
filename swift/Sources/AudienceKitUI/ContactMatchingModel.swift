@@ -71,6 +71,15 @@ public final class ContactMatchingModel: ObservableObject {
         if let loaded = try? await client.contactMatching() { state = loaded }
     }
 
+    /// Sign-out: drops what was loaded and the saved names on this phone. Nothing changes on the API.
+    public func forget() {
+        state = nil
+        lastBatch = nil
+        error = nil
+        contactsDenied = false
+        names.removeAll()
+    }
+
     /// "Not now" on the card: hides it for ``cardHiddenFor``.
     public func hideCard() {
         defaults.set(Date().addingTimeInterval(Self.cardHiddenFor).timeIntervalSince1970, forKey: hiddenKey)

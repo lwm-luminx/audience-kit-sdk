@@ -3,6 +3,32 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.74.0 (2026-11-16)
+
+- Friend matching from contacts (Swift and Kotlin; Rick, 2026-11-16, "build out the friend matching with twilio sms
+  verification"). The API has had it since audience_kit_api #22; this is the client side. Needs audience_kit_api
+  #684 for `textCodesAvailable` and `contactHash`; against an older API the SDK asks without them.
+  - `ContactHashing` (AudienceCore; `com.audiencekit.ContactHashing`): the hashing spec from the API's
+    doc/CONTACT_FRIEND_MATCHING.md. `normalizeName`, `e164(_:region:)` (a saved number to E.164, using the phone's
+    region for numbers without a country code), `hash(firstName:lastName:e164:)` and `batch(_:region:limit:)`, which
+    turns `DeviceContact`s into a `ContactHashBatch`: the shuffled hashes to send, how many contacts they cover, how
+    many were skipped and why, and the saved name behind each hash, which stays on the phone. Swift and Kotlin are
+    tested against the same vectors.
+  - `ContactMatching` (`me.contactMatching`), `ContactMatch`, `FriendRequest`, and on the session/client:
+    `contactMatching()`, `startContactPhoneVerification`, `verifyContactPhone`, `checkContacts`,
+    `setContactMatchName`, `disableContactMatching`, `sendFriendRequest`, `respondToFriendRequest`.
+    `ContactMatching.canOffer` is false while the platform can't text codes.
+  - `ContactMatchNames`: what each match is saved as ("In your contacts as Jordan Park"), kept on the phone only
+    (`UserDefaults`; on Android a `ContactMatchNameStore`, with `contactMatchNames(context, audienceId)` in
+    audiencekit-android).
+  - `ContactMatchingCopy`: the shared words.
+  - AudienceKitUI (Swift): `ContactMatchingModel`, `FindFriendsCard`, `FindFriendsFlow` (what happens, name and
+    number, the code, the contacts prompt, the check, the matches), `ContactMatchesView`, `FriendRequestCards`,
+    `ContactMatchingSettings`, and `ContactsReader`, which reads only names and numbers. Apps add
+    `NSContactsUsageDescription`.
+  - audiencekit-android: `DeviceContacts.read(context)` reads names and numbers from the phone's contacts
+    (the app declares and asks for `READ_CONTACTS`), and `DeviceContacts.region(context)` gives the phone's region.
+
 ## 0.73.0 (2026-11-16)
 
 - On-device GraphQL cache (Swift and Kotlin; Rick, 2026-11-15, "build our local cache for data so we get less errors if data is

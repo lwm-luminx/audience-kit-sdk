@@ -268,6 +268,29 @@ val code = admission.passCode()   // HMC1.<id>.<window>.<signature>, or null wit
 refunds one while `isRefundable`. Working a door (scanning passes) is staff work, in
 StaffKit for Android.
 
+## Find friends from contacts
+
+People prove their number with a text code, their phone turns each contact into a scrambled code
+(`ContactHashing`), and people who have each other saved are suggested to each other. Names and numbers never leave
+the phone. The app declares `android.permission.READ_CONTACTS` and asks for it first.
+
+```kotlin
+val state = client.contactMatching()                      // me.contactMatching; state.canOffer says whether to offer it
+client.startContactPhoneVerification(ContactHashing.e164(typed, region)!!, firstName, lastName)
+client.verifyContactPhone(code)
+
+val names = contactMatchNames(context, audienceId)        // what each match is saved as, on this phone only
+val batch = ContactHashing.batch(DeviceContacts.read(context), DeviceContacts.region(context))
+val result = client.checkContacts(batch, names)           // turns matching on; once a day
+result.matches.forEach { names.name(it.user.id) }         // "In your contacts as Jordan Park"
+
+client.sendFriendRequest(userId)
+client.respondToFriendRequest(requestId, accept = true)
+client.disableContactMatching(names)
+```
+
+`ContactMatchingCopy` has the words both platforms use.
+
 ## REST endpoints
 
 For anything GraphQL doesn't cover, send the request through the client so it

@@ -1276,9 +1276,9 @@ type ArbiterModerationSettings {
   evaluationTypes: [String!]!
 
   """
-  Whether Glam answers from the backend (an Anthropic model picked for the
-  hosting AI capability): Arbiter then hosts nothing itself and reviews Glam's
-  outputs (glam.output events).
+  Whether Glam answers from the backend (a model picked for the hosting AI
+  capability): Arbiter then hosts nothing itself and reviews Glam's outputs
+  (glam.output events).
   """
   glamFastLane: Boolean!
 
@@ -2046,6 +2046,11 @@ type Audience implements IRelay & Node {
   me: UserState @endpoint(in: [AUDIENCE, STAFF])
 
   """
+  The instance's IAudienceMedia mixin. Left out of the schema where its module isn't installed.
+  """
+  media: IAudienceMedia! @endpoint(in: [AUDIENCE, STAFF])
+
+  """
   People who have signed in on the audience's console or apps, with their latest
   activity and whether they're banned, oldest member first. Admins only; empty
   for everyone else.
@@ -2786,6 +2791,66 @@ type AudienceKitProvider implements IProvider {
   Its name, e.g. KaraFun.
   """
   name: String!
+}
+
+"""
+Media titles stored in AudienceKit (MediaTitle).
+"""
+type AudienceMediaView implements IAudienceMedia {
+  """
+  The list sections, most titles first.
+  """
+  collections: [MediaLabel!]!
+
+  """
+  Every tag on a listed title, most used first.
+  """
+  tags: [MediaLabel!]!
+
+  """
+  A title by its UUID or IMDb id; null when there is none.
+  """
+  title(
+    """
+    Its UUID.
+    """
+    id: ID
+
+    """
+    IMDb's id for it, e.g. tt0109045.
+    """
+    imdbId: String
+  ): MediaTitle
+
+  """
+  Listed titles by title, all of them: a list is a few hundred at most. Filters narrow it; all must match.
+  """
+  titles(
+    """
+    Only titles in this collection.
+    """
+    collection: String
+
+    """
+    Staff only: hidden ones too.
+    """
+    includeHidden: Boolean = false
+
+    """
+    Only these kinds.
+    """
+    kinds: [MediaKind!]
+
+    """
+    Words in its title, or its IMDb id.
+    """
+    search: String
+
+    """
+    Only titles with every one of these tags.
+    """
+    tags: [String!]
+  ): [MediaTitle!]!
 }
 
 """
@@ -4449,6 +4514,13 @@ interface ChatMessage implements HasTribes {
   isPrivate: Boolean!
 
   """
+  Whether it is a moderation test: a test phrase someone typed, or the AI host's
+  answer to one (config/moderation/test_phrases.yml). Apps mark it as a test,
+  and reporting it files nothing.
+  """
+  isTest: Boolean!
+
+  """
   What the message is.
   """
   kind: ChatKind!
@@ -4688,6 +4760,13 @@ input ChatMessageReportInput {
   What's wrong with it.
   """
   reason: String
+
+  """
+  A test report (the apps' Send test report): checked like any other, but
+  nothing is filed and nobody is blocked. A moderation test phrase's line
+  (isTest) is always reported as a test, and may be your own.
+  """
+  test: Boolean = false
 }
 
 """
@@ -4708,6 +4787,12 @@ type ChatMessageReportPayload {
   Whether the report was filed.
   """
   reported: Boolean!
+
+  """
+  Whether it was a test report: it went through every check but filed nothing
+  and blocked nobody, so it never reaches the moderators' queue.
+  """
+  test: Boolean!
 }
 
 """
@@ -5844,6 +5929,13 @@ Someone on the app the viewer has saved in their contacts, who has the viewer's 
 """
 type ContactMatch {
   """
+  Which of the hashes just sent found them, so the phone can show the name it
+  has them saved under. Only on the answer to checkContacts: hashes are not
+  kept, so it is null everywhere else.
+  """
+  contactHash: String
+
+  """
   The request between them while one is waiting for an answer, whichever of them sent it.
   """
   request: FriendRequest
@@ -5980,6 +6072,12 @@ type ContactMatching {
   Whether they proved their number by text.
   """
   phoneVerified: Boolean!
+
+  """
+  Whether a code can be texted right now. False until the platform has a text
+  provider set up; apps hide the offer to turn matching on.
+  """
+  textCodesAvailable: Boolean!
 }
 
 """
@@ -6112,7 +6210,7 @@ type ContactsCheckPayload {
   contactMatching: ContactMatching!
 
   """
-  Everyone found, as contactMatching.matches.
+  Everyone found, as contactMatching.matches, each with the contactHash that found them.
   """
   matches: [ContactMatch!]!
 }
@@ -6165,6 +6263,12 @@ type ContentReportPayload {
   Whether the report was filed.
   """
   reported: Boolean!
+
+  """
+  Whether it was a test report: it went through every check but filed nothing
+  and blocked nobody, so it never reaches the moderators' queue.
+  """
+  test: Boolean!
 }
 
 """
@@ -10252,6 +10356,68 @@ interface IAudienceKaraoke @mixin(extensionKey: "karaoke", field: "karaoke", nul
     """
     last: Int
   ): KaraokeProviderConnection!
+}
+
+"""
+The media module's root lookups: films and television the audience recommends,
+each linked to its IMDb page, with the tags and collections to filter them by
+(doc/MEDIA.md). Load the whole list and filter on the phone.
+"""
+interface IAudienceMedia @mixin(extensionKey: "media", field: "media", null: false, on: ["Audience"]) @endpoint(in: [AUDIENCE, STAFF]) {
+  """
+  The list sections, most titles first.
+  """
+  collections: [MediaLabel!]!
+
+  """
+  Every tag on a listed title, most used first.
+  """
+  tags: [MediaLabel!]!
+
+  """
+  A title by its UUID or IMDb id; null when there is none.
+  """
+  title(
+    """
+    Its UUID.
+    """
+    id: ID
+
+    """
+    IMDb's id for it, e.g. tt0109045.
+    """
+    imdbId: String
+  ): MediaTitle
+
+  """
+  Listed titles by title, all of them: a list is a few hundred at most. Filters narrow it; all must match.
+  """
+  titles(
+    """
+    Only titles in this collection.
+    """
+    collection: String
+
+    """
+    Staff only: hidden ones too.
+    """
+    includeHidden: Boolean = false
+
+    """
+    Only these kinds.
+    """
+    kinds: [MediaKind!]
+
+    """
+    Words in its title, or its IMDb id.
+    """
+    search: String
+
+    """
+    Only titles with every one of these tags.
+    """
+    tags: [String!]
+  ): [MediaTitle!]!
 }
 
 """
@@ -14714,6 +14880,13 @@ type LocaleMessage implements ChatMessage & HasTribes & Node {
   isPrivate: Boolean!
 
   """
+  Whether it is a moderation test: a test phrase someone typed, or the AI host's
+  answer to one (config/moderation/test_phrases.yml). Apps mark it as a test,
+  and reporting it files nothing.
+  """
+  isTest: Boolean!
+
+  """
   What the message is.
   """
   kind: ChatKind!
@@ -15089,6 +15262,117 @@ type LocationReportPayload {
   The venue the user is in, when they are in one.
   """
   venue: Venue
+}
+
+"""
+What a media title is, as IMDb has it.
+"""
+enum MediaKind {
+  """
+  A feature film.
+  """
+  FILM
+
+  """
+  A short film.
+  """
+  SHORT
+
+  """
+  A limited television series.
+  """
+  TV_MINI_SERIES
+
+  """
+  A film made for television.
+  """
+  TV_MOVIE
+
+  """
+  A television series.
+  """
+  TV_SERIES
+}
+
+"""
+A tag or collection on media titles, with how many listed titles have it.
+"""
+type MediaLabel {
+  """
+  How many listed titles have it.
+  """
+  count: Int!
+
+  """
+  The tag or collection, e.g. lesbian or new-since-2018.
+  """
+  name: String!
+}
+
+"""
+A film or television title the audience recommends, linked to its IMDb page. Open imdbUrl for its plot, cast and rating.
+"""
+type MediaTitle {
+  """
+  The list sections it's in, e.g. new-since-2018 (Audience.media.collections).
+  """
+  collections: [String!]!
+
+  """
+  When a series ended; null while it runs, and for films.
+  """
+  endYear: Int
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  IMDb's id for it, e.g. tt0109045.
+  """
+  imdbId: String!
+
+  """
+  Its IMDb page.
+  """
+  imdbUrl: String!
+
+  """
+  Film, short, TV movie, series or mini-series.
+  """
+  kind: MediaKind!
+
+  """
+  The curator's note, e.g. "Watch Paris Is Burning first"; null for none.
+  """
+  note: String
+
+  """
+  What it is, lowercase: gay, lesbian, bisexual, transgender, qpoc, drag,
+  hivaids, documentary, history, cult, classic, comedy and the curator's own.
+  """
+  tags: [String!]!
+
+  """
+  A series or mini-series.
+  """
+  television: Boolean!
+
+  """
+  Its title, as IMDb has it.
+  """
+  title: String!
+
+  """
+  When it came out, or a series started.
+  """
+  year: Int
+
+  """
+  When it was out, to show: 1994, 1999–2000, or 2018– for a running series.
+  """
+  years: String
 }
 
 """
@@ -24569,6 +24853,13 @@ type VenueMessage implements ChatMessage & HasTribes & Node {
   show as "Only you can see this". Nobody else in the room gets it.
   """
   isPrivate: Boolean!
+
+  """
+  Whether it is a moderation test: a test phrase someone typed, or the AI host's
+  answer to one (config/moderation/test_phrases.yml). Apps mark it as a test,
+  and reporting it files nothing.
+  """
+  isTest: Boolean!
 
   """
   What the message is.

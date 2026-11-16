@@ -10,9 +10,14 @@ import com.audiencekit.AudienceKitClient
 import com.audiencekit.AudienceKitConfiguration
 import com.audiencekit.DeviceAttestor
 import com.audiencekit.DeviceDescription
+import com.audiencekit.FileGraphQLCache
+import com.audiencekit.FileVisitedLocaleStore
+import com.audiencekit.GraphQLCache
+import com.audiencekit.GraphQLCachePolicy
 import com.audiencekit.GraphQLMonitor
 import com.audiencekit.HttpTransport
 import com.audiencekit.UrlConnectionTransport
+import com.audiencekit.VisitedLocales
 import java.util.UUID
 
 /**
@@ -60,8 +65,25 @@ public fun AudienceKitClient(
     transport: HttpTransport = UrlConnectionTransport(),
     deviceAttestor: DeviceAttestor? = PlayIntegrityAttestor(context),
     monitor: GraphQLMonitor? = null,
+    /** Keeps the last good answer to each query; [graphQLCache] gives one under the app's cache folder. */
+    cache: GraphQLCache? = null,
+    defaultCachePolicy: GraphQLCachePolicy = GraphQLCachePolicy.NetworkOnly,
 ): AudienceKitClient =
-    AudienceKitClient(configuration, KeystoreTokenStore(context), transport, monitor = monitor, deviceAttestor = deviceAttestor)
+    AudienceKitClient(
+        configuration, KeystoreTokenStore(context), transport, monitor = monitor, deviceAttestor = deviceAttestor,
+        cache = cache, defaultCachePolicy = defaultCachePolicy,
+    )
+
+/** A [FileGraphQLCache] under the app's cache folder, which Android may clear when space runs low and never backs up. */
+public fun graphQLCache(context: Context): FileGraphQLCache =
+    FileGraphQLCache(java.io.File(context.cacheDir, "audiencekit-graphql"))
+
+/**
+ * The locales the person has been in lately ([VisitedLocales]), kept in the app's no-backup folder so they stay on
+ * this phone. One list per audience.
+ */
+public fun visitedLocales(context: Context, audienceId: String): VisitedLocales =
+    VisitedLocales(FileVisitedLocaleStore(java.io.File(context.noBackupFilesDir, "audiencekit-visited-locales-$audienceId.json")))
 
 private fun deviceModel(): String {
     val manufacturer = Build.MANUFACTURER.replaceFirstChar { it.uppercase() }

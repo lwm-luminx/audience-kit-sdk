@@ -26,7 +26,7 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   - Kotlin: the same on `AudienceKitClient(cache = …, defaultCachePolicy = …)`: `GraphQLCachePolicy.NetworkOnly`,
     `NetworkFirst`, `CacheFirst`, `Refresh`; `graphQLResult`, `cachedGraphQL`; `FileGraphQLCache(directory)` (pass a
     folder under `context.cacheDir`); `VisitedLocales(store)` with `FileVisitedLocaleStore` (under
-    `noBackupFilesDir`); `RefreshBackoff`. Entries are keyed by the session token's JWT `sub`.
+    `noBackupFilesDir`); `RefreshBackoff`. Entries are keyed by the session token's JWT `sub`. audiencekit-android: `AudienceKitClient(context, …, cache, defaultCachePolicy)`, `graphQLCache(context)` and `visitedLocales(context, audienceId)`.
 
 ## 0.72.0 (2026-11-16)
 

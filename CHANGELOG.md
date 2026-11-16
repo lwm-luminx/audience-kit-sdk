@@ -3,7 +3,7 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
-## 0.74.0 (2026-11-16)
+## 0.75.0 (2026-11-16)
 
 - Friend matching from contacts (Swift and Kotlin; Rick, 2026-11-16, "build out the friend matching with twilio sms
   verification"). The API has had it since audience_kit_api #22; this is the client side. Needs audience_kit_api
@@ -28,6 +28,20 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
     `NSContactsUsageDescription`.
   - audiencekit-android: `DeviceContacts.read(context)` reads names and numbers from the phone's contacts
     (the app declares and asks for `READ_CONTACTS`), and `DeviceContacts.region(context)` gives the phone's region.
+
+## 0.74.0 (2026-11-16)
+
+- Ping and Quickie chats (Rick, 2026-11-16, "build out pings and quickie using ephemeral chat via XMPP"; API
+  audience_kit_api #681, doc/PRIVATE_CHATS.md). A short-lived chat for a ping's circle, or a Quickie pair once both
+  accepted. It lives in a private room on the XMPP server and is deleted when it closes; apps still talk only GraphQL.
+  - `PrivateChat` (`id`, `closesAt`, `messages`), `PrivateChatMessage` (`id`, `chatId`, `body`, `isMine`, `sender`,
+    `sentAt`), and `PrivateChat.graphQLFields` / `PrivateChat.GRAPHQL_FIELDS` to put in an app's own ping or Quickie
+    query (`chat { … }` on `Ping` and `PairUpMatch`).
+  - `pingChat(pingID:)`, `sendPrivateChatMessage(_:chatID:)`, and on the cable `privateChats(audienceID:)`: every chat
+    the person is in, as `PrivateChatUpdate` (`.event(.message)` / `.event(.closed)`). Kotlin: `pingChat(pingId)`,
+    `sendPrivateChatMessage(body, chatId)`, `CableConnection.privateChats(audienceId)`.
+  - `ReportTarget.privateMessage` / `PRIVATE_MESSAGE` reports a line by its id. `PrivateChatCopy` for shared wording.
+  - graphql/schema.graphql updated from the API branch.
 
 ## 0.73.0 (2026-11-16)
 

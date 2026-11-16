@@ -54,6 +54,7 @@ extension DesignTokens.TypeStyle {
 
 /// The token type scale, mapped to the text styles Dynamic Type scales.
 enum TokenFont {
+    static var title: Font { DesignTokens.Typography.title.font(relativeTo: .title2) }
     static var heading: Font { DesignTokens.Typography.heading.font(relativeTo: .headline) }
     static var subheading: Font { DesignTokens.Typography.subheading.font(relativeTo: .body) }
     static var body: Font { DesignTokens.Typography.body.font(relativeTo: .body) }

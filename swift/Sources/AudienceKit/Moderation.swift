@@ -8,6 +8,9 @@ public enum ReportTarget: String, Sendable, CaseIterable {
     case person = "PERSON"
     case photo = "PHOTO"
     case ping = "PING"
+    /// A line in a Ping or Quickie chat (``PrivateChatMessage/id``); the line and the ones before it are kept with the
+    /// report, as the chat is deleted when it closes.
+    case privateMessage = "PRIVATE_MESSAGE"
     case post = "POST"
     case postComment = "POST_COMMENT"
     case venue = "VENUE"

@@ -23,18 +23,19 @@ extension AudienceSession {
     /// is cached for the session, so later operations go straight to the right document.
     func graphQL<Response: Decodable & Sendable>(
         types: [String], variables: [String: GraphQLValue]? = nil, operationName: String,
-        as type: Response.Type, document: (SchemaShape) -> String
+        as type: Response.Type, cacheKey: String? = nil, document: (SchemaShape) -> String
     ) async throws -> Response {
         if let known = await cachedSchemaFields(of: types) {
             return try await graphQL(document(SchemaShape(fields: known)), variables: variables,
-                                     operationName: operationName, as: type)
+                                     operationName: operationName, as: type, cacheKey: cacheKey)
         }
         do {
             return try await graphQL(document(.everything), variables: variables, operationName: operationName,
-                                     as: type)
+                                     as: type, cacheKey: cacheKey)
         } catch let error as AudienceKitError where error.isUndefinedField {
             let shape = SchemaShape(fields: try await schemaFields(of: types))
-            return try await graphQL(document(shape), variables: variables, operationName: operationName, as: type)
+            return try await graphQL(document(shape), variables: variables, operationName: operationName, as: type,
+                                     cacheKey: cacheKey)
         }
     }
 }

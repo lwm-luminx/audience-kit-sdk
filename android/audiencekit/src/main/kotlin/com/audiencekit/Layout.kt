@@ -562,9 +562,12 @@ public suspend fun AudienceKitClient.layout(
         position?.let { put("position", it.toGraphQLValue()) }
         localeId?.let { put("localeId", JsonPrimitive(it)) }
     }
-    val wire = graphQL(listOf("PromoCard", "FlyersCard"), LayoutResponse.serializer(), variables, "Layout") { shape ->
-        LayoutQueries.layoutFor(shape)
-    }.layout
+    // The position changes on every call; the screen's last layout is still a fair stand-in when the API fails.
+    val wire = graphQL(
+        listOf("PromoCard", "FlyersCard"), LayoutResponse.serializer(), variables, "Layout",
+        cacheKey = "Layout:${screen.name}",
+        document = { shape -> LayoutQueries.layoutFor(shape) },
+    ).layout
     val cards = wire.cards.mapNotNull { element ->
         runCatching { AudienceKitClient.json.decodeFromJsonElement(LayoutCardWire.serializer(), element) }
             .getOrNull()?.toCard()

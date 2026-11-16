@@ -82,19 +82,31 @@ public actor AudienceSession {
     /// Proves each sign-in comes from the genuine app on a genuine device (``DeviceAttestation``): App Attest on iOS
     /// by default (``AppAttestAttestor/platformDefault``); nil sends none.
     public nonisolated let deviceAttestor: (any DeviceAttestor)?
+    /// Where the last good answer to each query is kept (``GraphQLCache``); nil keeps none.
+    public nonisolated let cache: (any GraphQLCache)?
+    /// The policy for calls that don't pass one. ``GraphQLCachePolicy/networkOnly`` unless the app sets another, so
+    /// with a `cache` every query falls back to its last good answer when the API fails.
+    public nonisolated let defaultCachePolicy: GraphQLCachePolicy
 
     public init(
         configuration: AudienceKitConfiguration,
         credentialStore: any CredentialStore = InMemoryCredentialStore(),
         session: URLSession = .shared,
         monitor: (any GraphQLMonitor)? = nil,
-        deviceAttestor: (any DeviceAttestor)? = AppAttestAttestor.platformDefault
+        deviceAttestor: (any DeviceAttestor)? = AppAttestAttestor.platformDefault,
+        cache: (any GraphQLCache)? = nil,
+        defaultCachePolicy: GraphQLCachePolicy = .networkOnly
     ) {
         self.configuration = configuration
         self.credentialStore = credentialStore
         self.session = session
         self.monitor = monitor
         self.deviceAttestor = deviceAttestor
+        self.cache = cache
+        self.defaultCachePolicy = cache == nil ? .networkOnly : defaultCachePolicy
+        if let cache, let maxAge = self.defaultCachePolicy.maxAge {
+            cache.removeEntries(storedBefore: Date().addingTimeInterval(-maxAge))
+        }
     }
 
     deinit {
@@ -297,6 +309,7 @@ public actor AudienceSession {
         try? credentialStore.delete()
         resolvedAudienceID = nil
         schemaFieldCache = [:]
+        cache?.removeAll()
         events.yield(.signedOut)
 
         guard let credential else { return }
@@ -329,6 +342,7 @@ public actor AudienceSession {
         try? credentialStore.delete()
         resolvedAudienceID = nil
         schemaFieldCache = [:]
+        cache?.removeAll()
         events.yield(.signedOut)
         return true
     }
@@ -407,32 +421,113 @@ public actor AudienceSession {
     /// (packages for other views, such as StaffKit, pass their own). Throws ``AudienceKitError/graphQL(_:)`` when the
     /// response carries errors, even alongside data. Pass a `decoder` to decode into the app's own models with its
     /// own strategies; the default, ``Foundation/JSONDecoder/audienceKit``, reads ISO 8601 dates.
+    ///
+    /// With a ``cache``, `cachePolicy` (the session's ``defaultCachePolicy`` when nil) decides whether a failure is
+    /// answered with the last good response instead; ``graphQLResult(_:variables:operationName:endpoint:as:decoder:cachePolicy:cacheKey:)``
+    /// says which one you got. `cacheKey` keeps the answer under a name of your own instead of the document and its
+    /// variables: use it when a variable changes on every call (a position) but the last answer is still a fair
+    /// stand-in, and to keep a mutation's answer (only mutations with a `cacheKey` are kept).
     public func graphQL<Response: Decodable & Sendable>(
         _ query: String,
         variables: [String: GraphQLValue]? = nil,
         operationName: String? = nil,
         endpoint: GraphQLEndpoint = .consumer,
         as type: Response.Type = Response.self,
-        decoder: JSONDecoder = .audienceKit
+        decoder: JSONDecoder = .audienceKit,
+        cachePolicy: GraphQLCachePolicy? = nil,
+        cacheKey: String? = nil
     ) async throws -> Response {
+        try await graphQLResult(query, variables: variables, operationName: operationName, endpoint: endpoint,
+                                as: type, decoder: decoder, cachePolicy: cachePolicy, cacheKey: cacheKey).value
+    }
+
+    /// ``graphQL(_:variables:operationName:endpoint:as:decoder:cachePolicy:cacheKey:)``, saying whether the answer
+    /// came from the API or the cache, when it was fetched, and why the API couldn't answer when it didn't.
+    public func graphQLResult<Response: Decodable & Sendable>(
+        _ query: String,
+        variables: [String: GraphQLValue]? = nil,
+        operationName: String? = nil,
+        endpoint: GraphQLEndpoint = .consumer,
+        as type: Response.Type = Response.self,
+        decoder: JSONDecoder = .audienceKit,
+        cachePolicy: GraphQLCachePolicy? = nil,
+        cacheKey: String? = nil
+    ) async throws -> GraphQLResult<Response> {
         let operation = GraphQLOperationEvent.describe(query: query, operationName: operationName)
+        let policy = cache == nil ? .networkOnly : (cachePolicy ?? defaultCachePolicy)
+        let keep = policy != .networkOnly && (operation.type == "query" || cacheKey != nil)
+        var key: String?
+        if keep {
+            key = try? await self.cacheKey(for: query, variables: variables, endpoint: endpoint, cacheKey: cacheKey)
+        }
+
+        if let key, case let .cacheFirst(freshFor, _) = policy,
+           let kept: GraphQLResult<Response> = keptAnswer(for: key, maxAge: freshFor, decoder: decoder) {
+            return kept
+        }
+
         let started = ContinuousClock.now
         do {
-            let result: Response = try await performGraphQL(query, variables: variables, operationName: operationName,
-                                                            operation: operation, endpoint: endpoint,
-                                                            decoder: decoder)
+            let (result, body): (Response, Data) = try await performGraphQL(
+                query, variables: variables, operationName: operationName, operation: operation, endpoint: endpoint,
+                decoder: decoder)
             record(operation, endpoint: endpoint, since: started)
-            return result
+            let now = Date()
+            if let key { cache?.store(GraphQLCacheEntry(key: key, body: body, storedAt: now)) }
+            return GraphQLResult(value: result, source: .network, fetchedAt: now)
         } catch {
             record(operation, endpoint: endpoint, since: started, error: error)
+            if let key, let maxAge = policy.maxAge, let failure = error as? AudienceKitError,
+               failure.allowsCachedAnswer,
+               let kept: GraphQLResult<Response> = keptAnswer(for: key, maxAge: maxAge, decoder: decoder,
+                                                               error: failure) {
+                return kept
+            }
             throw error
         }
+    }
+
+    /// The last good answer kept for this operation, without asking the API: for a screen to show something at once
+    /// while it refreshes. Nil without a ``cache``, or when nothing younger than `maxAge` is kept.
+    public func cachedGraphQL<Response: Decodable & Sendable>(
+        _ query: String,
+        variables: [String: GraphQLValue]? = nil,
+        endpoint: GraphQLEndpoint = .consumer,
+        as type: Response.Type = Response.self,
+        decoder: JSONDecoder = .audienceKit,
+        maxAge: TimeInterval = GraphQLCachePolicy.defaultMaxAge,
+        cacheKey: String? = nil
+    ) async -> GraphQLResult<Response>? {
+        guard cache != nil,
+              let key = try? await self.cacheKey(for: query, variables: variables, endpoint: endpoint,
+                                                 cacheKey: cacheKey)
+        else { return nil }
+        return keptAnswer(for: key, maxAge: maxAge, decoder: decoder)
+    }
+
+    private func cacheKey(for query: String, variables: [String: GraphQLValue]?, endpoint: GraphQLEndpoint,
+                          cacheKey: String?) async throws -> String {
+        let credential = try? credentialStore.load()
+        let audienceID = endpoint.isAudienceless ? nil : try await audienceID()
+        return GraphQLCacheKey.make(apiBase: configuration.apiBase(for: credential), audienceID: audienceID,
+                                    userID: credential?.userId, endpointPath: endpoint.path(audienceID: audienceID),
+                                    query: query, variables: variables, cacheKey: cacheKey)
+    }
+
+    private func keptAnswer<Response: Decodable & Sendable>(
+        for key: String, maxAge: TimeInterval, decoder: JSONDecoder, error: AudienceKitError? = nil
+    ) -> GraphQLResult<Response>? {
+        guard let entry = cache?.entry(for: key), Date().timeIntervalSince(entry.storedAt) <= maxAge,
+              let envelope = try? decoder.decode(GraphQLResponse<Response>.self, from: entry.body),
+              let value = envelope.data
+        else { return nil }
+        return GraphQLResult(value: value, source: .cache, fetchedAt: entry.storedAt, error: error)
     }
 
     private func performGraphQL<Response: Decodable & Sendable>(
         _ query: String, variables: [String: GraphQLValue]?, operationName: String?,
         operation: (type: String, name: String?), endpoint: GraphQLEndpoint, decoder: JSONDecoder
-    ) async throws -> Response {
+    ) async throws -> (Response, Data) {
         let credential = try? credentialStore.load()
         let audienceID = endpoint.isAudienceless ? nil : try await audienceID()
         let body = try JSONEncoder().encode(
@@ -451,7 +546,7 @@ public actor AudienceSession {
         if let errors, !errors.isEmpty { throw AudienceKitError.graphQL(errors) }
         let envelope = try Self.decode(GraphQLResponse<Response>.self, from: data, decoder: decoder)
         guard let result = envelope.data else { throw AudienceKitError.decoding("The response had no data.") }
-        return result
+        return (result, data)
     }
 
     private func record(_ operation: (type: String, name: String?), endpoint: GraphQLEndpoint,

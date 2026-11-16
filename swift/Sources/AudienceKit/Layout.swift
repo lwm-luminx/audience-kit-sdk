@@ -564,7 +564,10 @@ extension AudienceSession {
         if let localeID { variables["localeId"] = .string(localeID) }
 
         let payload = try await graphQL(types: ["PromoCard", "FlyersCard"], variables: variables, operationName: "Layout",
-                                        as: LayoutResponse.self, document: Queries.layout).layout
+                                        as: LayoutResponse.self,
+                                        // The position changes on every call; the screen's last layout is still a
+                                        // fair stand-in when the API fails.
+                                        cacheKey: "Layout:\(screen.rawValue)", document: Queries.layout).layout
         return CardLayout(id: payload.id, cards: payload.cards.compactMap(\.value).sorted { $0.rank < $1.rank },
                       refreshAfter: payload.refreshAfter)
     }

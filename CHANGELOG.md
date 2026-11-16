@@ -3,6 +3,28 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.73.0 (2026-11-16)
+
+- On-device GraphQL cache (Swift; Rick, 2026-11-15, "build our local cache for data so we get less errors if data is
+  flakey with a background update job"). Off unless the app passes one, so nothing changes for other callers.
+  - `AudienceSession(cache:defaultCachePolicy:)`: a `GraphQLCache` (`FileGraphQLCache` in Caches, readable after first
+    unlock so background refreshes work; `InMemoryGraphQLCache` for tests) and the policy for calls that don't pass one.
+  - `GraphQLCachePolicy`: `.networkOnly` (default), `.networkFirst(maxAge:)` (the last good answer, a week at most,
+    when the API can't answer: offline, 5xx, GraphQL errors, undecodable responses; refusals such as 401/403/404 and
+    `undefinedField`, which the SDK retries with fewer fields, still throw), `.cacheFirst(freshFor:maxAge:)`, and
+    `.refresh` (keep a good answer, never serve one: for background jobs that need to see failures and back off).
+  - `graphQL(...)` takes `cachePolicy:` and `cacheKey:`; `graphQLResult(...)` says whether the answer is from the
+    network or the cache, when it was fetched and why the API failed; `cachedGraphQL(...)` reads the cache only, for
+    screens that show the last answer at once. Only queries are kept, plus mutations given a `cacheKey`. Entries are
+    keyed by API, audience, person, endpoint and document plus sorted variables; sign-out and account deletion empty
+    the cache, and entries past the default policy's max age are pruned at launch.
+  - `layout(screen:...)` keeps each screen's layout under one key (`Layout:<screen>`), so a failing Layout request
+    returns the last layout instead of failing (and an app that refetches on failure stops looping).
+  - `VisitedLocales`: the locales the person has been in lately, on the phone only (`UserDefaults`, per audience, 5
+    within 30 days by default), for apps to choose what a background refresh keeps fresh.
+  - `RefreshBackoff`: spaces background refreshes, doubling after each failure (15 minutes to 6 hours by default).
+  - Kotlin parity to follow.
+
 ## 0.72.0 (2026-11-16)
 
 - `Branding.facebookScopes` (`facebook_scopes`): the Facebook permissions an audience's apps ask for at sign-in,

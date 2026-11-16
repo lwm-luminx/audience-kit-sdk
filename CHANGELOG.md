@@ -5,7 +5,7 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
 
 ## 0.73.0 (2026-11-16)
 
-- On-device GraphQL cache (Swift; Rick, 2026-11-15, "build our local cache for data so we get less errors if data is
+- On-device GraphQL cache (Swift and Kotlin; Rick, 2026-11-15, "build our local cache for data so we get less errors if data is
   flakey with a background update job"). Off unless the app passes one, so nothing changes for other callers.
   - `AudienceSession(cache:defaultCachePolicy:)`: a `GraphQLCache` (`FileGraphQLCache` in Caches, readable after first
     unlock so background refreshes work; `InMemoryGraphQLCache` for tests) and the policy for calls that don't pass one.
@@ -23,7 +23,10 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   - `VisitedLocales`: the locales the person has been in lately, on the phone only (`UserDefaults`, per audience, 5
     within 30 days by default), for apps to choose what a background refresh keeps fresh.
   - `RefreshBackoff`: spaces background refreshes, doubling after each failure (15 minutes to 6 hours by default).
-  - Kotlin parity to follow.
+  - Kotlin: the same on `AudienceKitClient(cache = …, defaultCachePolicy = …)`: `GraphQLCachePolicy.NetworkOnly`,
+    `NetworkFirst`, `CacheFirst`, `Refresh`; `graphQLResult`, `cachedGraphQL`; `FileGraphQLCache(directory)` (pass a
+    folder under `context.cacheDir`); `VisitedLocales(store)` with `FileVisitedLocaleStore` (under
+    `noBackupFilesDir`); `RefreshBackoff`. Entries are keyed by the session token's JWT `sub`.
 
 ## 0.72.0 (2026-11-16)
 

@@ -96,7 +96,23 @@ public class AudienceKitClient(
      * `PlayIntegrityAttestor(context)` from `audiencekit-android`; null sends none.
      */
     public val deviceAttestor: DeviceAttestor? = null,
+    /** Where the last good answer to each query is kept ([GraphQLCache]); null keeps none. */
+    public val cache: GraphQLCache? = null,
+    /**
+     * The policy for calls that don't pass one. [GraphQLCachePolicy.NetworkOnly] unless the app sets another, so with a
+     * [cache] every query falls back to its last good answer when the API fails.
+     */
+    defaultCachePolicy: GraphQLCachePolicy = GraphQLCachePolicy.NetworkOnly,
 ) {
+    public val defaultCachePolicy: GraphQLCachePolicy =
+        if (cache == null) GraphQLCachePolicy.NetworkOnly else defaultCachePolicy
+
+    init {
+        defaultCachePolicy.maxAgeMillis?.let { maxAge ->
+            cache?.removeEntriesStoredBefore(System.currentTimeMillis() - maxAge)
+        }
+    }
+
     private val sessionChannel = Channel<SessionEvent>(Channel.UNLIMITED)
 
     /** Session changes, for the app to route between sign-in and content. Collect it from one place. */
@@ -421,6 +437,7 @@ public class AudienceKitClient(
         runCatching { tokenStore.deleteToken() }
         resolvedAudienceId = null
         schemaFieldCache.clear()
+        cache?.removeAll()
         sessionChannel.trySend(SessionEvent.SIGNED_OUT)
     }
 
@@ -536,6 +553,11 @@ public class AudienceKitClient(
      * Throws [AudienceKitException.GraphQL] when the response carries errors, even alongside data.
      * Pass a [json] to decode into the app's own models with its own settings. [endpoint] is the consumer view;
      * a package built on the SDK passes its own.
+     *
+     * With a [cache], [cachePolicy] (the client's [defaultCachePolicy] when null) decides whether a failure is
+     * answered with the last good response instead; [graphQLResult] says which you got. [cacheKey] keeps the answer
+     * under a name of your own instead of the document and its variables: for a variable that changes on every call
+     * (a position), and to keep a mutation's answer (only mutations with a key are kept).
      */
     public suspend fun <T> graphQL(
         query: String,
@@ -544,13 +566,35 @@ public class AudienceKitClient(
         operationName: String? = null,
         json: Json = decodeJson,
         endpoint: GraphQLEndpoint = GraphQLEndpoint.CONSUMER,
-    ): T {
+        cachePolicy: GraphQLCachePolicy? = null,
+        cacheKey: String? = null,
+    ): T = graphQLResult(query, deserializer, variables, operationName, json, endpoint, cachePolicy, cacheKey).value
+
+    /** [graphQL], saying whether the answer came from the API or the cache, when, and why the API failed. */
+    public suspend fun <T> graphQLResult(
+        query: String,
+        deserializer: KSerializer<T>,
+        variables: Map<String, JsonElement>? = null,
+        operationName: String? = null,
+        json: Json = decodeJson,
+        endpoint: GraphQLEndpoint = GraphQLEndpoint.CONSUMER,
+        cachePolicy: GraphQLCachePolicy? = null,
+        cacheKey: String? = null,
+    ): GraphQLResult<T> {
+        val (type, name) = GraphQLOperationEvent.describe(query, operationName)
+        val policy = if (cache == null) GraphQLCachePolicy.NetworkOnly else cachePolicy ?: defaultCachePolicy
+        val keep = policy != GraphQLCachePolicy.NetworkOnly && (type == "query" || cacheKey != null)
+        val key = if (keep) runCatching { cacheKeyFor(query, variables, endpoint, cacheKey) }.getOrNull() else null
+
+        if (key != null && policy is GraphQLCachePolicy.CacheFirst) {
+            keptAnswer(key, policy.freshForMillis, deserializer, json)?.let { return it }
+        }
+
         val audienceId = if (endpoint.audienceless) null else audienceId()
         val body = encodeJson.encodeToString(
             GraphQLRequest.serializer(),
             GraphQLRequest(query = query, variables = variables, operationName = operationName),
         )
-        val (type, name) = GraphQLOperationEvent.describe(query, operationName)
         val request = APIRequest(
             method = "POST",
             path = endpoint.path(audienceId),
@@ -564,14 +608,7 @@ public class AudienceKitClient(
         val started = TimeSource.Monotonic.markNow()
         val result = runCatching {
             val text = data(request).toString(Charsets.UTF_8)
-            // Errors first: a refused mutation comes back as `{"errors":[…],"data":{"field":null}}`, which the
-            // caller's types usually can't hold, so decoding `data` first would hide the refusal.
-            val envelope = decode(GraphQLResponse.serializer(JsonElement.serializer()), text, json)
-
-            if (!envelope.errors.isNullOrEmpty()) throw AudienceKitException.GraphQL(envelope.errors)
-            val data = envelope.data?.takeUnless { it is JsonNull }
-                ?: throw AudienceKitException.Decoding("The response had no data.")
-            decode(deserializer, data, json)
+            text to decodeResponse(text, deserializer, json)
         }
         monitor?.record(
             GraphQLOperationEvent(
@@ -582,7 +619,76 @@ public class AudienceKitClient(
                 error = result.exceptionOrNull()?.let { it.message ?: it.toString() },
             ),
         )
-        return result.getOrThrow()
+        result.getOrNull()?.let { (text, value) ->
+            val now = System.currentTimeMillis()
+            key?.let { cache?.store(GraphQLCacheEntry(it, text, now)) }
+            return GraphQLResult(value, GraphQLResultSource.NETWORK, now)
+        }
+        val failure = result.exceptionOrNull()!!
+        val maxAge = policy.maxAgeMillis
+        if (key != null && maxAge != null && failure is AudienceKitException && failure.allowsCachedAnswer) {
+            keptAnswer(key, maxAge, deserializer, json, failure)?.let { return it }
+        }
+        throw failure
+    }
+
+    /**
+     * The last good answer kept for this operation, without asking the API: for a screen to show something at once
+     * while it refreshes. Null without a [cache], or when nothing younger than [maxAgeMillis] is kept.
+     */
+    public suspend fun <T> cachedGraphQL(
+        query: String,
+        deserializer: KSerializer<T>,
+        variables: Map<String, JsonElement>? = null,
+        json: Json = decodeJson,
+        endpoint: GraphQLEndpoint = GraphQLEndpoint.CONSUMER,
+        maxAgeMillis: Long = GraphQLCachePolicy.DEFAULT_MAX_AGE_MILLIS,
+        cacheKey: String? = null,
+    ): GraphQLResult<T>? {
+        cache ?: return null
+        val key = runCatching { cacheKeyFor(query, variables, endpoint, cacheKey) }.getOrNull() ?: return null
+        return keptAnswer(key, maxAgeMillis, deserializer, json)
+    }
+
+    private suspend fun cacheKeyFor(
+        query: String,
+        variables: Map<String, JsonElement>?,
+        endpoint: GraphQLEndpoint,
+        cacheKey: String?,
+    ): String {
+        val audienceId = if (endpoint.audienceless) null else audienceId()
+        return GraphQLCacheKey.make(
+            apiBase = configuration.baseUrl,
+            audienceId = audienceId,
+            person = GraphQLCacheKey.person(runCatching { tokenStore.loadToken() }.getOrNull()),
+            endpointPath = endpoint.path(audienceId),
+            query = query,
+            variables = variables,
+            cacheKey = cacheKey,
+        )
+    }
+
+    private fun <T> keptAnswer(
+        key: String,
+        maxAgeMillis: Long,
+        deserializer: KSerializer<T>,
+        json: Json,
+        error: AudienceKitException? = null,
+    ): GraphQLResult<T>? {
+        val entry = cache?.entry(key) ?: return null
+        if (System.currentTimeMillis() - entry.storedAtMillis > maxAgeMillis) return null
+        val value = runCatching { decodeResponse(entry.body, deserializer, json) }.getOrNull() ?: return null
+        return GraphQLResult(value, GraphQLResultSource.CACHE, entry.storedAtMillis, error)
+    }
+
+    private fun <T> decodeResponse(text: String, deserializer: KSerializer<T>, json: Json): T {
+        // Errors first: a refused mutation comes back as `{"errors":[…],"data":{"field":null}}`, which the
+        // caller's types usually can't hold, so decoding `data` first would hide the refusal.
+        val envelope = decode(GraphQLResponse.serializer(JsonElement.serializer()), text, json)
+        if (!envelope.errors.isNullOrEmpty()) throw AudienceKitException.GraphQL(envelope.errors)
+        val data = envelope.data?.takeUnless { it is JsonNull }
+            ?: throw AudienceKitException.Decoding("The response had no data.")
+        return decode(deserializer, data, json)
     }
 
     /**
@@ -640,15 +746,26 @@ public class AudienceKitClient(
         variables: Map<String, JsonElement>? = null,
         operationName: String,
         document: (SchemaShape) -> String,
+    ): T = graphQL(types, deserializer, variables, operationName, cacheKey = null, document = document)
+
+    /** The shape-aware [graphQL] above, keeping its answer under [cacheKey] (see the public [graphQL]). */
+    internal suspend fun <T> graphQL(
+        types: List<String>,
+        deserializer: KSerializer<T>,
+        variables: Map<String, JsonElement>?,
+        operationName: String,
+        cacheKey: String?,
+        document: (SchemaShape) -> String,
     ): T {
         cachedSchemaFields(types, GraphQLEndpoint.CONSUMER)?.let { known ->
-            return graphQL(document(SchemaShape(known)), deserializer, variables, operationName)
+            return graphQL(document(SchemaShape(known)), deserializer, variables, operationName, cacheKey = cacheKey)
         }
         return try {
-            graphQL(document(SchemaShape.EVERYTHING), deserializer, variables, operationName)
+            graphQL(document(SchemaShape.EVERYTHING), deserializer, variables, operationName, cacheKey = cacheKey)
         } catch (error: AudienceKitException.GraphQL) {
             if (!error.isUndefinedField) throw error
-            graphQL(document(SchemaShape(schemaFields(types))), deserializer, variables, operationName)
+            graphQL(document(SchemaShape(schemaFields(types))), deserializer, variables, operationName,
+                cacheKey = cacheKey)
         }
     }
 
@@ -659,7 +776,10 @@ public class AudienceKitClient(
         operationName: String? = null,
         json: Json = AudienceKitClient.json,
         endpoint: GraphQLEndpoint = GraphQLEndpoint.CONSUMER,
-    ): T = graphQL(query, json.serializersModule.serializer<T>(), variables, operationName, json, endpoint)
+        cachePolicy: GraphQLCachePolicy? = null,
+        cacheKey: String? = null,
+    ): T = graphQL(query, json.serializersModule.serializer<T>(), variables, operationName, json, endpoint, cachePolicy,
+        cacheKey)
 
     /** The audience, with its theme. */
     public suspend fun audience(): Audience =

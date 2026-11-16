@@ -11,6 +11,9 @@ public enum class ReportTarget {
     PERSON,
     PHOTO,
     PING,
+
+    /** A line in a Ping or Quickie chat ([PrivateChatMessage.id]); kept with the report, as the chat is deleted when it closes. */
+    PRIVATE_MESSAGE,
     POST,
     POST_COMMENT,
     VENUE,

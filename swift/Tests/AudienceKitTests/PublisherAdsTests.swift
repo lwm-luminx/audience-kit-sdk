@@ -37,7 +37,7 @@ private let adJSON = #"""
     #expect(PublisherAdCopy.soldBy(ad.soldBy!) == "Sold by QSaltLake")
     let request = try #require(stub.requests.first)
     let body = try request.jsonBody()
-    #expect(body?["operationName"] as? String == "ArticleAd")
+    #expect(body["operationName"] as? String == "ArticleAd")
 }
 
 @Test func noPublisherAdIsNil() async throws {

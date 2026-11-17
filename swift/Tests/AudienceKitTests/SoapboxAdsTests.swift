@@ -104,5 +104,5 @@ private let adJSON = """
     #expect(SoapboxAdsCopy.weekly(5000) == "$50 a week")
     #expect(SoapboxAdsCopy.money(1250) == "$12.50")
     #expect(PublisherAdStatus.listed.first == .running)
-    #expect(SoapboxAds.categories.map(\.key) == ["small_business", "health", "employment", "charity"])
+    #expect(SoapboxAds.categories.map { $0.key } == ["small_business", "health", "employment", "charity"])
 }

@@ -12,6 +12,7 @@ lineups and chat. One repository and one version for every platform.
 | [`ruby/`](ruby/README.md) | The `audience-kit` gem: Ruby bindings for the API (Ruby 3.2+), versioned on its own | RubyGems: `gem "audience-kit"` |
 | [`node/`](node/README.md) | The `audience-kit` npm package: a Node.js and TypeScript client for the consumer GraphQL API (Node 20+), versioned on its own | npm: `npm install audience-kit` |
 | [`python/`](python/README.md) | The `audiencekit` package: the shared calls for Python 3.10+, blocking and asyncio, versioned on its own | PyPI: `pip install audiencekit` |
+| [`rust/`](rust/README.md) | The `audiencekit` crate: an async client (tokio, reqwest) for reading an audience's community, built for agents like goose's `goosed`, versioned on its own | Cargo, from this repository (not on crates.io) |
 | [`graphql/`](graphql/schema.graphql) | The API's consumer GraphQL schema the SDKs are checked against | |
 
 Both builds sit at the root, because Swift Package Manager only reads a root manifest: `Package.swift` builds `swift/`,
@@ -20,9 +21,10 @@ and the Gradle build (`settings.gradle.kts`) builds `core/` and `android/`.
 ## Versioning
 
 The Ruby gem keeps its own version in [`ruby/lib/audience-kit/version.rb`](ruby/lib/audience-kit/version.rb), the
-npm package in [`node/package.json`](node/package.json) and the Python package in
+npm package in [`node/package.json`](node/package.json), the Python package in
 [`python/src/audiencekit/_version.py`](python/src/audiencekit/_version.py) (released from `python-<version>` tags,
-[python/README.md](python/README.md)); none is part of the release below. Swift and Kotlin release together under one [semantic version](https://semver.org), kept in [`VERSION`](VERSION).
+[python/README.md](python/README.md)) and the Rust crate in [`rust/Cargo.toml`](rust/Cargo.toml); none is part of
+the release below. Swift and Kotlin release together under one [semantic version](https://semver.org), kept in [`VERSION`](VERSION).
 Gradle reads it; the Swift and Kotlin clients also carry it as a constant, because they send it to the API with every
 call and the API refuses versions older than its minimum. So every change to either SDK takes a new version:
 
@@ -40,7 +42,7 @@ resolve it, and opens its GitHub release from the changelog entry. The Xcode Clo
 
 Each SDK has its own GitHub Actions workflow in [`.github/workflows/`](.github/workflows), filtered to its own paths, so
 a change to one language only runs (and only edits) that language's CI: `swift-kotlin.yml` (Swift and Kotlin share
-`VERSION` and the release job, so they stay together), `ruby.yml`, `php.yml` and `node.yml`. A new SDK adds its own
+`VERSION` and the release job, so they stay together), `ruby.yml`, `php.yml`, `node.yml`, `python.yml` and `rust.yml`. A new SDK adds its own
 `<language>.yml` with a `paths:` filter on its directory (plus `graphql/**` and `scripts/graphql/**` if it checks its
 documents against the schema), keeps the repository's 85% line-coverage floor, and tags releases with a prefix
 (`php/<version>`, `python-<version>`), never bare, since bare tags are the Swift package's.

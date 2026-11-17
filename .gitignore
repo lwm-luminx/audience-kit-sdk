@@ -18,3 +18,5 @@ local.properties
 # npm installs (CI installs graphql@16 for scripts/graphql/check.mjs); node/ keeps its own.
 node_modules/
 *.orig
+# The Rust crate builds into rust/target.
+/rust/target/

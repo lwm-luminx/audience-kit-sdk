@@ -63,7 +63,8 @@ jobs:
           node ../scripts/graphql/check.mjs --schema ../graphql/schema.graphql --endpoint consumer target/graphql
 
   msrv:
-    # rust-version in Cargo.toml: goose builds on newer Rust, but the crate shouldn't need it.
+    # rust-version in Cargo.toml: goose builds on newer Rust, but the crate shouldn't need it. Only the library: the
+    # test-only dependencies (wiremock) need a newer Rust, and nothing that depends on the crate builds them.
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -74,4 +75,4 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
-      - run: cargo build --all-targets
+      - run: cargo build --lib

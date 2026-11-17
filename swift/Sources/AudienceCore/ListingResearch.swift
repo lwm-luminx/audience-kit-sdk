@@ -85,7 +85,7 @@ public enum ListingResearch {
     /// When to stop asking: the provider's own limit is three minutes.
     public static let timeout: Duration = .seconds(200)
 
-    public static let fields = """
+    public static let listingResearchFields = """
         id state kind query found name summary description website city address phone googlePlaceId personKind \
         homeVenueName homeVenue { id } locale { id } links { provider handle url } evidence { url title } \
         matches { id name } error
@@ -94,12 +94,12 @@ public enum ListingResearch {
     public static let startMutation = """
         # endpoint: staff
         mutation FocusResearchListing($input: ResearchListingInput!) { \
-        researchListing(input: $input) { listingResearch { \(fields) } } }
+        researchListing(input: $input) { listingResearch { \(listingResearchFields) } } }
         """
 
     public static let query = """
         # endpoint: staff
-        query FocusListingResearch($id: ID!) { listingResearch(id: $id) { \(fields) } }
+        query FocusListingResearch($id: ID!) { listingResearch(id: $id) { \(listingResearchFields) } }
         """
 
     /// The variables for ``startMutation``: what the curator typed, and the locale they're curating, if one.

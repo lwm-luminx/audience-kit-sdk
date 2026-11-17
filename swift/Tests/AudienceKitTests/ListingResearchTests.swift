@@ -34,6 +34,6 @@ private let draftNode = """
     #expect(ListingResearch.startVariables(kind: .person, query: "Dugan", localeID: nil)
         == ["input": .object(["kind": .string("PERSON"), "query": .string("Dugan")])])
     #expect(ListingResearch.startMutation.contains("researchListing(input: $input)"))
-    #expect(ListingResearch.query.contains(ListingResearch.fields))
+    #expect(ListingResearch.query.contains(ListingResearch.listingResearchFields))
     #expect(!ListingResearchState.running.isFinished)
 }

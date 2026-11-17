@@ -77,18 +77,18 @@ public object ListingResearch {
     /** When to stop asking: the provider's own limit is three minutes. */
     public const val TIMEOUT_MS: Long = 200_000
 
-    public const val FIELDS: String = "id state kind query found name summary description website city address phone googlePlaceId personKind homeVenueName homeVenue { id } locale { id } links { provider handle url } evidence { url title } matches { id name } error"
+    public const val LISTING_RESEARCH_FIELDS: String = "id state kind query found name summary description website city address phone googlePlaceId personKind homeVenueName homeVenue { id } locale { id } links { provider handle url } evidence { url title } matches { id name } error"
 
     public const val START_MUTATION: String = """
         # endpoint: staff
         mutation FocusResearchListing(${'$'}input: ResearchListingInput!) {
-          researchListing(input: ${'$'}input) { listingResearch { $FIELDS } }
+          researchListing(input: ${'$'}input) { listingResearch { $LISTING_RESEARCH_FIELDS } }
         }
     """
 
     public const val QUERY: String = """
         # endpoint: staff
-        query FocusListingResearch(${'$'}id: ID!) { listingResearch(id: ${'$'}id) { $FIELDS } }
+        query FocusListingResearch(${'$'}id: ID!) { listingResearch(id: ${'$'}id) { $LISTING_RESEARCH_FIELDS } }
     """
 
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }

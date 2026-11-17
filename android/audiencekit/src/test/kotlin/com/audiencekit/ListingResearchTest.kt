@@ -44,7 +44,7 @@ class ListingResearchTest {
                 "localeId" to JsonPrimitive("loc-1")))),
             ListingResearch.startVariables(ListingResearchKind.PERSON, " Spokane Pride ", "loc-1"))
         assertTrue(ListingResearch.START_MUTATION.contains("researchListing(input: \$input)"))
-        assertTrue(ListingResearch.QUERY.contains(ListingResearch.FIELDS))
+        assertTrue(ListingResearch.QUERY.contains(ListingResearch.LISTING_RESEARCH_FIELDS))
         assertFalse(ListingResearchState.RUNNING.isFinished)
     }
 }

@@ -1457,6 +1457,13 @@ the writer and the audience's admins see it before.
 """
 type Article implements HasTimestamps {
   """
+  The ad to show after it in the reader, sold by its publication on its own
+  content (label Ad, soldBy). Null on a teaser or an op-ed, when none runs, or
+  when the reader reads it without ads. Report it with recordCardViews.
+  """
+  ad: PromoCard
+
+  """
   Who started it, or the reader who sent an op-ed: the audience's admins only.
   """
   author: Profile @requires(permissions: ["soapbox:read:*"])
@@ -2798,6 +2805,61 @@ Media titles stored in AudienceKit (MediaTitle).
 """
 type AudienceMediaView implements IAudienceMedia {
   """
+  A clip by its UUID; null when there is none.
+  """
+  clip(
+    """
+    Its UUID.
+    """
+    id: ID!
+  ): MediaClip
+
+  """
+  Every tag on a listed clip, most used first.
+  """
+  clipTags: [MediaLabel!]!
+
+  """
+  Listed clips by when their source came out, all of them: a few hundred at most. Filters narrow it; all must match.
+  """
+  clips(
+    """
+    Only clips in this collection.
+    """
+    collection: String
+
+    """
+    Only clips whose source is from these decades, e.g. 1990s.
+    """
+    decades: [String!]
+
+    """
+    Staff only: hidden ones too.
+    """
+    includeHidden: Boolean = false
+
+    """
+    Words in its song, performers or source title.
+    """
+    search: String
+
+    """
+    Only these sources.
+    """
+    sources: [MediaClipSource!]
+
+    """
+    Only clips with every one of these tags.
+    """
+    tags: [String!]
+
+    """
+    Only clips from this media title.
+    """
+    titleId: ID
+  ): [MediaClip!]!
+
+  """
   The list sections, most titles first.
   """
   collections: [MediaLabel!]!
@@ -2897,6 +2959,12 @@ type AudienceMember implements IUserSummary {
   Whether they are an AudienceKit super admin, who can manage every audience.
   """
   isPlatformAdmin: Boolean!
+
+  """
+  Whether they are a test account (TestUsers): their reports stay out of the
+  open queues and their actions push only test accounts.
+  """
+  isTestUser: Boolean!
 
   """
   When they first signed in there.
@@ -3240,6 +3308,11 @@ The local Soapbox implementation of the soapbox module's root lookups.
 """
 type AudienceSoapboxView implements IAudienceSoapbox {
   """
+  Publishers' ads waiting for the audience's admins to approve them, oldest first.
+  """
+  adReviewQueue: [PromoPlacement!] @requires(permissions: ["soapbox:moderate:*"])
+
+  """
   Every article in the audience, whatever its status and removed ones too,
   newest change first: the audience's admins, for moderation (doc/SOAPBOX.md,
   "In the admin").
@@ -3411,6 +3484,11 @@ type AudienceSoapboxView implements IAudienceSoapbox {
     """
     trust: [PublicationTrust!]
   ): [Publication!]!
+
+  """
+  Whether publishers sell ads on their own content here, and which of their ads admins review first.
+  """
+  publisherAds: PublisherAdsMode!
 
   """
   Articles waiting for the audience's admins to approve them, oldest first.
@@ -6075,7 +6153,8 @@ type ContactMatching {
 
   """
   Whether a code can be texted right now. False until the platform has a text
-  provider set up; apps hide the offer to turn matching on.
+  provider set up; apps hide the offer to turn matching on. True for a review
+  account that can prove a fictional number without a text.
   """
   textCodesAvailable: Boolean!
 }
@@ -10360,10 +10439,66 @@ interface IAudienceKaraoke @mixin(extensionKey: "karaoke", field: "karaoke", nul
 
 """
 The media module's root lookups: films and television the audience recommends,
-each linked to its IMDb page, with the tags and collections to filter them by
-(doc/MEDIA.md). Load the whole list and filter on the phone.
+each linked to its IMDb page, with the tags and collections to filter them by,
+and the songs show-tune nights play from them (clips; doc/MEDIA.md). Load the
+whole list and filter on the phone.
 """
 interface IAudienceMedia @mixin(extensionKey: "media", field: "media", null: false, on: ["Audience"]) @endpoint(in: [AUDIENCE, STAFF]) {
+  """
+  A clip by its UUID; null when there is none.
+  """
+  clip(
+    """
+    Its UUID.
+    """
+    id: ID!
+  ): MediaClip
+
+  """
+  Every tag on a listed clip, most used first.
+  """
+  clipTags: [MediaLabel!]!
+
+  """
+  Listed clips by when their source came out, all of them: a few hundred at most. Filters narrow it; all must match.
+  """
+  clips(
+    """
+    Only clips in this collection.
+    """
+    collection: String
+
+    """
+    Only clips whose source is from these decades, e.g. 1990s.
+    """
+    decades: [String!]
+
+    """
+    Staff only: hidden ones too.
+    """
+    includeHidden: Boolean = false
+
+    """
+    Words in its song, performers or source title.
+    """
+    search: String
+
+    """
+    Only these sources.
+    """
+    sources: [MediaClipSource!]
+
+    """
+    Only clips with every one of these tags.
+    """
+    tags: [String!]
+
+    """
+    Only clips from this media title.
+    """
+    titleId: ID
+  ): [MediaClip!]!
+
   """
   The list sections, most titles first.
   """
@@ -10623,6 +10758,11 @@ The soapbox module's root lookups: publications and their articles
 """
 interface IAudienceSoapbox @mixin(extensionKey: "soapbox", field: "soapbox", null: false, on: ["Audience"]) @endpoint(in: [AUDIENCE, STAFF]) {
   """
+  Publishers' ads waiting for the audience's admins to approve them, oldest first.
+  """
+  adReviewQueue: [PromoPlacement!] @requires(permissions: ["soapbox:moderate:*"])
+
+  """
   Every article in the audience, whatever its status and removed ones too,
   newest change first: the audience's admins, for moderation (doc/SOAPBOX.md,
   "In the admin").
@@ -10794,6 +10934,11 @@ interface IAudienceSoapbox @mixin(extensionKey: "soapbox", field: "soapbox", nul
     """
     trust: [PublicationTrust!]
   ): [Publication!]!
+
+  """
+  Whether publishers sell ads on their own content here, and which of their ads admins review first.
+  """
+  publisherAds: PublisherAdsMode!
 
   """
   Articles waiting for the audience's admins to approve them, oldest first.
@@ -15265,6 +15410,89 @@ type LocationReportPayload {
 }
 
 """
+A song a show-tune night plays on its screens, from one of the audience's media
+titles: a film, a series or a Tony Awards telecast. Only the catalog: url, when
+there is one, is an official page to watch it on.
+"""
+type MediaClip {
+  """
+  The list sections it's in, e.g. show-tunes.
+  """
+  collections: [String!]!
+
+  """
+  Its source's decade, the era to filter by: 1990s.
+  """
+  decade: String
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  The curator's note; null for none.
+  """
+  note: String
+
+  """
+  Who sings it in the source, e.g. "Idina Menzel".
+  """
+  performers: String
+
+  """
+  The song, e.g. "Let It Go".
+  """
+  song: String!
+
+  """
+  Animated film, film, television or the Tony Awards.
+  """
+  source: MediaClipSource!
+
+  """
+  What it is, lowercase: belter, duet, ballad, villain-song, group-number,
+  sing-along-staple, diva, drag and the curator's own.
+  """
+  tags: [String!]!
+
+  """
+  The film, series or telecast it is from, with its IMDb page.
+  """
+  title: MediaTitle!
+
+  """
+  An official page to watch it on; null when there is none.
+  """
+  url: String
+}
+
+"""
+Where a media clip comes from (MediaClip#source).
+"""
+enum MediaClipSource {
+  """
+  An animated film: Disney and the rest.
+  """
+  ANIMATED
+
+  """
+  A live-action film, movie musicals mostly.
+  """
+  FILM
+
+  """
+  A series or a television special.
+  """
+  TELEVISION
+
+  """
+  A performance on a Tony Awards telecast.
+  """
+  TONY_AWARDS
+}
+
+"""
 What a media title is, as IMDb has it.
 """
 enum MediaKind {
@@ -15292,6 +15520,11 @@ enum MediaKind {
   A television series.
   """
   TV_SERIES
+
+  """
+  A one-off television broadcast, such as a Tony Awards telecast.
+  """
+  TV_SPECIAL
 }
 
 """
@@ -15313,6 +15546,11 @@ type MediaLabel {
 A film or television title the audience recommends, linked to its IMDb page. Open imdbUrl for its plot, cast and rating.
 """
 type MediaTitle {
+  """
+  The songs show-tune nights play from it, listed ones only.
+  """
+  clips: [MediaClip!]!
+
   """
   The list sections it's in, e.g. new-since-2018 (Audience.media.collections).
   """
@@ -15339,7 +15577,7 @@ type MediaTitle {
   imdbUrl: String!
 
   """
-  Film, short, TV movie, series or mini-series.
+  Film, short, TV movie, TV special, series or mini-series.
   """
   kind: MediaKind!
 
@@ -15347,6 +15585,12 @@ type MediaTitle {
   The curator's note, e.g. "Watch Paris Is Burning first"; null for none.
   """
   note: String
+
+  """
+  Who holds its public performance rights, as best known, e.g. "Disney (20th
+  Century)"; confirm it before licensing a screening.
+  """
+  studio: String
 
   """
   What it is, lowercase: gay, lesbian, bisexual, transgender, qpoc, drag,
@@ -19279,6 +19523,12 @@ type PromoCard implements IPromoContent {
   linkUrl: String
 
   """
+  The Soapbox publication selling it, for a publisher's ad on its own content:
+  show "Sold by <soldBy>". Null for the audience's own cards.
+  """
+  soldBy: String
+
+  """
   Who placed it.
   """
   sponsorName: String!
@@ -19294,6 +19544,222 @@ type PromoCard implements IPromoContent {
   The venue it promotes, for a venue card.
   """
   venue: Venue
+}
+
+"""
+A promoted or charity card booked into the apps' layouts, for the audience's admins.
+"""
+type PromoPlacement implements IPromoContent {
+  """
+  Where a publisher's ad stands; null for the audience's own cards.
+  """
+  adStatus: PublisherAdStatus
+
+  """
+  A publisher's ad shows only on these of its articles; empty is all.
+  """
+  articleIds: [ID!]!
+
+  """
+  A line or two under the headline.
+  """
+  body: String
+
+  """
+  One of cardCategories.
+  """
+  category: String!
+
+  """
+  The rate card city size it was priced at.
+  """
+  citySize: String
+
+  """
+  The rate card discount it carries, if any.
+  """
+  discount: String
+
+  """
+  The last day it shows; null is open-ended.
+  """
+  endsOn: ISO8601Date
+
+  """
+  The event it promotes.
+  """
+  event: Event
+
+  """
+  What it says.
+  """
+  headline: String!
+
+  """
+  The house card (config/house_cards.yml) it was booked from, or "demo:<key>"
+  for sample advertising in a demo audience (DemoAds).
+  """
+  houseKey: String
+
+  """
+  Unique identifier.
+  """
+  id: ID!
+
+  """
+  What the picture shows.
+  """
+  imageAlt: String
+
+  """
+  Its picture.
+  """
+  imageUrl: String
+
+  """
+  What it says it is: Promoted, Charity, Announcement or From AudienceKit.
+  """
+  label: String!
+
+  """
+  The link's button text.
+  """
+  linkLabel: String
+
+  """
+  Where it goes.
+  """
+  linkUrl: String
+
+  """
+  The rate card list price, in cents, before any discount.
+  """
+  listCents: Int
+
+  """
+  The locales it shows in; empty is everywhere.
+  """
+  localeIds: [ID!]!
+
+  """
+  When its Checkout was paid.
+  """
+  paidAt: ISO8601DateTime
+
+  """
+  Whether it is paused.
+  """
+  paused: Boolean!
+
+  """
+  awaiting_payment while its Stripe Checkout is open (not showing yet), paid once paid; null when booked without Checkout.
+  """
+  paymentStatus: String
+
+  """
+  What the sponsor pays, in cents; 0 is free.
+  """
+  priceCents: Int!
+
+  """
+  The Soapbox publication selling it on its own content; null for the audience's own cards.
+  """
+  publication: Publication
+
+  """
+  When the audience's admins took a publisher's ad down.
+  """
+  removedAt: ISO8601DateTime
+
+  """
+  Why the audience's admins turned a publisher's ad down or took it down.
+  """
+  reviewNote: String
+
+  """
+  When an admin last reviewed a publisher's ad.
+  """
+  reviewedAt: ISO8601DateTime
+
+  """
+  The screens it shows on; empty is all.
+  """
+  screens: [LayoutScreen!]!
+
+  """
+  The publication sold it itself; priceCents is for its own records.
+  """
+  soldOutside: Boolean!
+
+  """
+  A publisher's ad's sponsor contact.
+  """
+  sponsorEmail: String
+
+  """
+  Who placed it.
+  """
+  sponsorName: String!
+
+  """
+  Where a publisher's ad shows; null for the audience's own cards.
+  """
+  spot: PublisherAdSpot
+
+  """
+  velvet, backstage or focus when it is about getting that staff app; the app skips it where the app is installed.
+  """
+  staffApp: String
+
+  """
+  The first day it shows.
+  """
+  startsOn: ISO8601Date!
+
+  """
+  Tags the viewer's venue or event must carry for it to show; empty is anywhere.
+  """
+  tagIds: [ID!]!
+
+  """
+  The rate card venue tier it was priced at; null when not booked from the card.
+  """
+  tier: String
+
+  """
+  The venue it promotes.
+  """
+  venue: Venue
+
+  """
+  The nights it shows, 0 (Sunday) to 6; empty is every night.
+  """
+  weekdays: [Int!]!
+
+  """
+  Different people who saw it each week, newest week first.
+  """
+  weeklyViewers: [PromoPlacementWeek!]!
+}
+
+"""
+The one number a sponsor gets about a placement: different people who saw it in a week.
+"""
+type PromoPlacementWeek {
+  """
+  Set (to 20) instead of viewers when fewer than that many saw it.
+  """
+  fewerThan: Int
+
+  """
+  Different people who saw it; null below the floor.
+  """
+  viewers: Int
+
+  """
+  The Monday (UTC) the week starts.
+  """
+  weekStart: ISO8601Date!
 }
 
 """
@@ -19447,6 +19913,13 @@ type Publication implements HasTimestamps {
   acceptsOpEds: Boolean!
 
   """
+  The ad to show on its page now, sold by the publication on its own content
+  (label Ad, soldBy). Null when none runs, it sells no ads, or the reader reads
+  it without ads. Report it with recordCardViews.
+  """
+  ad: PromoCard
+
+  """
   How many days a tip of at least adFreeTipCents reads it without ads.
   """
   adFreeDays: Int!
@@ -19463,6 +19936,32 @@ type Publication implements HasTimestamps {
   ad-free pass. All of the tip is the publisher's.
   """
   adFreeTipCents: Int
+
+  """
+  Ads it sells on its own articles and page, newest first: its managers and the audience's admins.
+  """
+  ads(
+    """
+    Only ads standing so.
+    """
+    statuses: [PublisherAdStatus!]
+  ): [PromoPlacement!] @requires(permissions: ["soapbox:read:mine", "soapbox:read:*"])
+
+  """
+  Whether it may sell ads on its own content now: the audience's admins switched
+  it on, the audience takes publisher ads, and it runs here and is not suspended.
+  """
+  adsEnabled: Boolean!
+
+  """
+  When the audience's admins switched its ads on; null when they haven't.
+  """
+  adsEnabledAt: ISO8601DateTime @requires(permissions: ["soapbox:read:mine", "soapbox:read:*"])
+
+  """
+  Whether its new and changed ads wait for the audience's admins.
+  """
+  adsNeedReview: Boolean @requires(permissions: ["soapbox:read:mine", "soapbox:read:*"])
 
   """
   Every article it has, drafts and op-eds included, newest first: its managers and the audience's admins.
@@ -19566,6 +20065,11 @@ type Publication implements HasTimestamps {
   masthead: String
 
   """
+  Its media library, newest first: pictures for its articles and ads. Its managers and the audience's admins.
+  """
+  media: [PublicationMedia!] @requires(permissions: ["soapbox:read:mine", "soapbox:read:*"])
+
+  """
   The name it publishes under: its masthead, else its person's.
   """
   name: String!
@@ -19589,6 +20093,11 @@ type Publication implements HasTimestamps {
   Its person's picture.
   """
   photoUrl: PhotoURL
+
+  """
+  Its public rate sheet: what its ad spots cost a week, and who to ask.
+  """
+  rateSheet: PublicationRateSheet!
 
   """
   Its articles by where they stand, the tips readers paid it and its ad-free readers: the audience's admins.
@@ -19658,6 +20167,46 @@ type Publication implements HasTimestamps {
 }
 
 """
+A picture in a Soapbox publication's media library, for its articles and ads.
+"""
+type PublicationMedia implements HasTimestamps {
+  """
+  What it shows, for screen readers.
+  """
+  altText: String
+
+  """
+  Its caption.
+  """
+  caption: String
+
+  """
+  When it was added.
+  """
+  createdAt: ISO8601DateTime!
+
+  """
+  Who took or made it.
+  """
+  credit: String
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  When it last changed.
+  """
+  updatedAt: ISO8601DateTime!
+
+  """
+  The picture.
+  """
+  url: PhotoURL!
+}
+
+"""
 Autogenerated input type of PublicationPushesMute
 """
 input PublicationPushesMuteInput {
@@ -19690,6 +20239,47 @@ type PublicationPushesMutePayload {
   The publication, after the change.
   """
   publication: Publication!
+}
+
+"""
+One spot on a Soapbox publication's public rate sheet: a flat weekly price, never per view or tap.
+"""
+type PublicationRate {
+  """
+  How many sponsors share the spot in a week.
+  """
+  slots: Int!
+
+  """
+  The spot.
+  """
+  spot: PublisherAdSpot!
+
+  """
+  Its price a week, in cents; null when not listed.
+  """
+  weeklyCents: Int
+}
+
+"""
+A Soapbox publication's public rate sheet: what its ad spots cost a week and who
+to ask. All of the money is the publication's.
+"""
+type PublicationRateSheet {
+  """
+  Who sponsors write to about buying a spot.
+  """
+  contactEmail: String
+
+  """
+  Anything else sponsors should know (discounts, deadlines).
+  """
+  notes: String
+
+  """
+  Each spot's price and slots.
+  """
+  rates: [PublicationRate!]!
 }
 
 """
@@ -19773,6 +20363,82 @@ enum PublicationTrust {
   Its managers publish directly.
   """
   TRUSTED
+}
+
+"""
+Where a Soapbox publisher's ad shows on the publication's own content (doc/plans/SOAPBOX_CARDS_AND_ADS_PLAN.md).
+"""
+enum PublisherAdSpot {
+  """
+  In the article reader, after the body: one ad an article view.
+  """
+  ARTICLE
+
+  """
+  On the publication's page, below its masthead.
+  """
+  PUBLICATION
+}
+
+"""
+Where a Soapbox publisher's ad stands (PromoPlacement#ad_status).
+"""
+enum PublisherAdStatus {
+  """
+  Its last day has passed.
+  """
+  ENDED
+
+  """
+  Waiting for the audience's admins to approve it.
+  """
+  IN_REVIEW
+
+  """
+  Paused by the publication.
+  """
+  PAUSED
+
+  """
+  The audience turned it down (reviewNote says why).
+  """
+  REJECTED
+
+  """
+  Taken down by the audience's admins (reviewNote says why).
+  """
+  REMOVED
+
+  """
+  Showing to readers now.
+  """
+  RUNNING
+
+  """
+  Approved; its first day is still to come.
+  """
+  SCHEDULED
+}
+
+"""
+Whether Soapbox publishers sell ads on their own content in the audience's apps,
+and which of their ads its admins review first (Audience.publisher_ads).
+"""
+enum PublisherAdsMode {
+  """
+  Publishers sell no ads here.
+  """
+  OFF
+
+  """
+  Every publisher ad waits for an admin.
+  """
+  REVIEW_ALL
+
+  """
+  Only a pending publication's ads wait; a trusted one's run on their start date. The default.
+  """
+  REVIEW_PENDING
 }
 
 """

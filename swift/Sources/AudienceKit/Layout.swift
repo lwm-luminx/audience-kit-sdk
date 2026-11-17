@@ -94,9 +94,13 @@ public struct PromoCard: Decodable, Sendable, Hashable, Identifiable {
     /// The staff app the card is about getting (``StaffApp``), if any. Skip the card on a phone that already has that
     /// app (``isForInstalledStaffApp(_:)``); the server never learns which apps someone has.
     public let staffApp: StaffApp?
+    /// The Soapbox publication selling it, for a publisher's ad on its own articles or page
+    /// (``AudienceSession/publisherAd(articleID:)``): show "Sold by <soldBy>" (``PublisherAdCopy/soldBy(_:)``). Nil for
+    /// the audience's own cards.
+    public let soldBy: String?
 
     public init(id: String, category: String, label: String, sponsorName: String, content: CardContent,
-                venueID: String? = nil, eventID: String? = nil, staffApp: StaffApp? = nil) {
+                venueID: String? = nil, eventID: String? = nil, staffApp: StaffApp? = nil, soldBy: String? = nil) {
         self.id = id
         self.category = category
         self.label = label
@@ -105,7 +109,11 @@ public struct PromoCard: Decodable, Sendable, Hashable, Identifiable {
         self.venueID = venueID
         self.eventID = eventID
         self.staffApp = staffApp
+        self.soldBy = soldBy
     }
+
+    /// A Soapbox publisher's ad on its own content, sold by ``soldBy``, rather than one of the audience's cards.
+    public var isPublisherAd: Bool { soldBy != nil }
 
     /// Whether this card is about a staff app `installed` says the phone has, so the app should skip it.
     public func isForInstalledStaffApp(_ installed: (StaffApp) -> Bool) -> Bool {
@@ -115,7 +123,7 @@ public struct PromoCard: Decodable, Sendable, Hashable, Identifiable {
     /// AudienceKit's own card (``PlatformCredit``), labelled "From AudienceKit".
     public var isFromAudienceKit: Bool { category == "audiencekit" }
 
-    private enum CodingKeys: String, CodingKey { case id, category, label, sponsorName, venue, event, staffApp }
+    private enum CodingKeys: String, CodingKey { case id, category, label, sponsorName, venue, event, staffApp, soldBy }
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -127,6 +135,7 @@ public struct PromoCard: Decodable, Sendable, Hashable, Identifiable {
         venueID = try container.decodeIfPresent(Ref.self, forKey: .venue)?.id
         eventID = try container.decodeIfPresent(Ref.self, forKey: .event)?.id
         staffApp = try container.decodeIfPresent(String.self, forKey: .staffApp).flatMap(StaffApp.init(rawValue:))
+        soldBy = try container.decodeIfPresent(String.self, forKey: .soldBy)
     }
 }
 

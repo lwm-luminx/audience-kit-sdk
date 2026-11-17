@@ -3,6 +3,20 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.78.0 (2026-11-17)
+
+- Soapbox publishers' ads, rate sheet and media library (Swift and Kotlin; Rick, 2026-11-17, "get the soapbox
+  management of cards / ads / media into a build"). Needs audience_kit_api #698.
+  - Readers' side (AudienceKit; `AudienceKitClient`): `publisherAd(articleID:)` / `publisherAdForArticle` and
+    `publisherAd(publicationID:)` / `publisherAdForPublication`, the one ad after an article or on a publication's
+    page; `PromoCard.soldBy` and `isPublisherAd`; `PublisherAdCopy`.
+  - Managers' and admins' side (AudienceCore; `com.audiencekit.SoapboxAds`), staff endpoint only: documents for a
+    publication's ads, rate sheet and media, saving (with a dry run that returns problems), deleting, admins'
+    review queue, approve or turn down, take down, switching a publication's ads on and the audience's mode, with
+    their variables and answers. `PublisherAd`, `PublisherAdDraft`, `PublisherAdStatus`, `PublisherAdSpot`,
+    `PublisherAdsMode`, `PublisherAdWeek` (weekly readers, under 20 shown as fewer than 20), `PublicationRateSheet`,
+    `PublicationRate`, `PublicationMediaItem`; `SoapboxAdsCopy`.
+
 ## 0.77.0 (2026-11-17)
 
 - Add with AI in Focus (Swift and Kotlin; Rick, 2026-11-17, "an add path for people and venues that fills out via

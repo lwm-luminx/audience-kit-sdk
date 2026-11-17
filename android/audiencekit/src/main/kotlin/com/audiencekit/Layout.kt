@@ -107,7 +107,15 @@ public data class PromoCard(
      * ([CardFilter.installedStaffApps]); the server never learns which apps someone has.
      */
     val staffApp: StaffApp? = null,
+    /**
+     * The Soapbox publication selling it, for a publisher's ad on its own articles or page ([publisherAd]): show
+     * "Sold by <soldBy>" ([PublisherAdCopy.soldBy]). Null for the audience's own cards.
+     */
+    val soldBy: String? = null,
 ) {
+    /** A Soapbox publisher's ad on its own content, sold by [soldBy], rather than one of the audience's cards. */
+    val isPublisherAd: Boolean get() = soldBy != null
+
     /** AudienceKit's own card ([PlatformCredit]), labelled "From AudienceKit". */
     val isFromAudienceKit: Boolean get() = category == "audiencekit"
 }
@@ -448,6 +456,7 @@ internal data class PromoCardWire(
     val venue: IdRef? = null,
     val event: IdRef? = null,
     val staffApp: String? = null,
+    val soldBy: String? = null,
 ) {
     fun toPromoCard() = PromoCard(
         id = id,
@@ -458,6 +467,7 @@ internal data class PromoCardWire(
         venueId = venue?.id,
         eventId = event?.id,
         staffApp = StaffApp.fromKey(staffApp),
+        soldBy = soldBy,
     )
 }
 

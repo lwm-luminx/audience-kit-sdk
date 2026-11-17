@@ -1,0 +1,77 @@
+name: Rust
+
+# The audiencekit crate in rust/: rustfmt, clippy, tests with line coverage at 85% or more (the repository's floor),
+# its GraphQL documents checked against the schema like the other SDKs', and a build on its minimum Rust. It has its
+# own version (rust/Cargo.toml), so the Swift/Kotlin version job doesn't look at it. Not published (publish = false).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "rust/**"
+      - "graphql/**"
+      - "scripts/graphql/**"
+      - ".github/workflows/rust.yml"
+  pull_request:
+    paths:
+      - "rust/**"
+      - "graphql/**"
+      - "scripts/graphql/**"
+      - ".github/workflows/rust.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy, llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - name: Tests, with line coverage at 85% or more (98% at 0.1.0)
+        run: cargo llvm-cov --fail-under-lines 85
+      - run: cargo doc --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: GraphQL documents match the API schema
+        run: |
+          cargo run --quiet --example graphql_documents -- target/graphql
+          # The checker imports graphql from where it lives, so the package goes at the repository root.
+          (cd .. && npm install --silent --no-save --no-package-lock graphql@16)
+          node ../scripts/graphql/check.mjs --schema ../graphql/schema.graphql --endpoint consumer target/graphql
+
+  msrv:
+    # rust-version in Cargo.toml: goose builds on newer Rust, but the crate shouldn't need it.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.85
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - run: cargo build --all-targets

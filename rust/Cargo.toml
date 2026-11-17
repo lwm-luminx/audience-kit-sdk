@@ -1,0 +1,41 @@
+[package]
+name = "audiencekit"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "AudienceKit SDK for Rust: an audience's venues, people, locales and events over its GraphQL API"
+authors = ["Love Wins Media, Inc."]
+# Source-available, not open source: the AudienceKit SDK License (LicenseRef-AudienceKit-SDK-1.2), for use only with
+# AudienceKit as hosted by Love Wins Media, Inc. Cargo copies the repository's LICENSE into the package.
+license-file = "../LICENSE"
+readme = "README.md"
+homepage = "https://audiencekit.com"
+documentation = "https://github.com/lwm-luminx/audience-kit-sdk/tree/main/rust"
+repository = "https://github.com/lwm-luminx/audience-kit-sdk"
+keywords = ["audiencekit", "graphql", "events", "venues", "goose"]
+categories = ["api-bindings", "web-programming::http-client"]
+# Not on crates.io until Love Wins Media decides to publish it; depend on it by git (README.md).
+publish = false
+
+[features]
+default = ["rustls"]
+# The TLS stack reqwest uses: rustls (the default, no system OpenSSL) or the platform's.
+rustls = ["reqwest/rustls"]
+native-tls = ["reqwest/native-tls"]
+
+[dependencies]
+chrono = { version = "0.4.40", default-features = false, features = ["serde", "clock", "std"] }
+reqwest = { version = "0.13.2", default-features = false, features = ["json", "query"] }
+serde = { version = "1.0.200", features = ["derive"] }
+serde_json = "1.0.120"
+# goose (goosed) builds with tokio 1.48 and reqwest 0.13, so these minimums let it share one copy of each.
+tokio = { version = "1.48", features = ["sync", "macros"] }
+url = "2.5"
+
+[dev-dependencies]
+tokio = { version = "1.48", features = ["macros", "rt-multi-thread"] }
+wiremock = "0.6.5"
+
+[lints.rust]
+missing_docs = "warn"
+unsafe_code = "deny"

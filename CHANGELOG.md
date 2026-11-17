@@ -3,6 +3,15 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.77.0 (2026-11-17)
+
+- Add with AI in Focus (Swift and Kotlin; Rick, 2026-11-17, "an add path for people and venues that fills out via
+  AI"). Needs audience_kit_api #702 (`researchListing`, `Audience.listingResearch`), staff endpoint only.
+  - `ListingResearch`: `startMutation`/`START_MUTATION`, `query`/`QUERY`, their variables, the poll interval and
+    timeout; `ListingResearchDraft` (the AI's draft: fields, `links` as provider and handle, `evidence`, same-name
+    `matches`, `locale`, a venue's `googlePlaceId`), `ListingResearchKind`, `ListingResearchState`.
+  - `ListingResearchCopy`: the words every staff app shows.
+
 ## 0.76.0 (2026-11-17)
 
 - Deleting and merging listings from a staff app (Swift and Kotlin; Rick, 2026-11-17, "I'd like delete venue / page in

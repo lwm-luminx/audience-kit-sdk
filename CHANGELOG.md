@@ -3,6 +3,19 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.76.0 (2026-11-17)
+
+- Deleting and merging listings from a staff app (Swift and Kotlin; Rick, 2026-11-17, "I'd like delete venue / page in
+  focus as well as merge"). For Focus; the API has had the mutations for the web console.
+  - `ListingCuration` (AudienceCore; `com.audiencekit.ListingCuration`): the staff-endpoint documents
+    `deleteMutation` (`deleteVenue`), `deletePersonMutation` (`deletePerson`), `mergeMutation` (`mergeVenue` with
+    `takeFromSource`), `duplicatesQuery` (`venues { duplicates }`) and `dismissDuplicateMutation`
+    (`dismissVenueDuplicate`), their variables, and their answers (`DeleteResponse`, `MergeResponse`,
+    `DuplicatesResponse`; on Kotlin `parseDelete`, `parseMerge`, `parseDuplicates`).
+  - `VenueMergeField` (with `offered`, the choices a phone's merge form shows), `VenueDuplicateReason`,
+    `VenueDuplicate` (with `reasonLine`) and, on Kotlin, `VenueMergeResult` and `VenueMergeCount`.
+  - `ListingCurationCopy`: the shared words, matching the web console's.
+
 ## 0.75.0 (2026-11-16)
 
 - Friend matching from contacts (Swift and Kotlin; Rick, 2026-11-16, "build out the friend matching with twilio sms

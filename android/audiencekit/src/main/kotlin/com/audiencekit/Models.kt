@@ -81,7 +81,34 @@ public data class FacebookProfile(
 public data class PlacesProfile(
     /** Its Google place ID, when it has one. */
     val placeId: String? = null,
+    /** Its opening hours and whether it's open now: `places { hours }`. */
+    val hours: OpeningHours? = null,
 )
+
+/**
+ * A place's opening hours and whether it's open now, from Google, in the place's own time zone: GraphQL's
+ * `OpeningHours`. Everything but [lines] is about the moment of the request.
+ */
+@Serializable
+public data class OpeningHours(
+    /** OPEN, CLOSED, UNKNOWN (no hours), CLOSED_TEMPORARILY or CLOSED_PERMANENTLY. */
+    val status: String = "UNKNOWN",
+    /** Whether it's open now; null when nobody knows. */
+    val isOpen: Boolean? = null,
+    /** One short line to show: "Open until 2 AM", "Opens at 4 PM", "Temporarily closed"; null when unknown. */
+    val label: String? = null,
+    /** When it next opens, while closed (ISO 8601). */
+    val opensAt: String? = null,
+    /** When it next closes, while open (ISO 8601). */
+    val closesAt: String? = null,
+    /** Its weekly hours, a line a day, e.g. "Monday: 4:00 PM – 2:00 AM". */
+    val lines: List<String> = emptyList(),
+    /** The IANA time zone its hours are read in. */
+    val timeZone: String? = null,
+) {
+    /** Closed for now or for good by Google, whatever its hours say. */
+    val isClosedForNow: Boolean get() = status == "CLOSED_TEMPORARILY" || status == "CLOSED_PERMANENTLY"
+}
 
 /** A place: a Google place with a point. */
 @Serializable
@@ -119,6 +146,9 @@ public data class Venue(
 ) {
     /** Its Facebook Page; venues added without one have none. */
     val page: Page? get() = profile.facebook?.page
+
+    /** Its opening hours and whether it's open now; null when the query or audience has no Google Places. */
+    val hours: OpeningHours? get() = profile.places?.hours
 
     /** The venue's own name, falling back to its Facebook Page's. */
     val name: String get() = venueName ?: page?.name.orEmpty()

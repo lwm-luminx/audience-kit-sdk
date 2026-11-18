@@ -321,7 +321,9 @@ class GraphQLTest {
         {"data":{"venues":{"list":{"nodes":[{
           "id":"Z2lkOi8vaG90LW1lc3MvVmVudWUvMTIz","name":null,"hidden":false,"order":3,
           "photoUrl":"/v1/photos/abc","bannerUrl":null,
-          "profile":{"facebook":{"page":{"id":"p-1","name":"The Stud","photoUrl":"https://cdn.example/stud.jpg","bannerUrl":null}}},
+          "profile":{"facebook":{"page":{"id":"p-1","name":"The Stud","photoUrl":"https://cdn.example/stud.jpg","bannerUrl":null}},
+            "places":{"hours":{"status":"CLOSED","isOpen":false,"label":"Opens at 4 PM","opensAt":"2026-11-18T23:00:00Z",
+              "closesAt":null,"lines":["Tuesday: 4:00 PM – 2:00 AM"],"timeZone":"America/Los_Angeles"}}},
           "locale":{"id":"l-1","name":"San Francisco","label":"SF","cityNames":null,"bannerUrl":null},
           "location":{"id":"loc-1","point":"POINT (-122.4194 37.7749)","places":{"placeId":"ChIJplace"}},
           "addedLater":"new API fields don't break old clients"
@@ -368,6 +370,11 @@ class GraphQLTest {
         assertEquals("SF", venue.locale.label)
         assertEquals(Coordinate(latitude = 37.7749, longitude = -122.4194), venue.location?.coordinate)
         assertEquals("ChIJplace", venue.location?.googlePlaceId)
+        assertEquals(false, venue.hours?.isOpen)
+        assertEquals("Opens at 4 PM", venue.hours?.label)
+        assertEquals("2026-11-18T23:00:00Z", venue.hours?.opensAt)
+        assertEquals(false, venue.hours?.isClosedForNow)
+        assertNull(venues.last().hours)
         assertEquals("${StubTransport.BASE_URL}/v1/photos/abc", client.url(venue.photoUrl))
         assertEquals("https://cdn.example/stud.jpg", client.url(venue.page?.photoUrl))
         assertNull(client.url(null))

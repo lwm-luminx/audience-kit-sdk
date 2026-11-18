@@ -2913,6 +2913,36 @@ type AudienceMediaView implements IAudienceMedia {
     """
     tags: [String!]
   ): [MediaTitle!]!
+
+  """
+  Listed watch parties by name. Filters narrow it.
+  """
+  watchParties(
+    """
+    Staff only: hidden ones too.
+    """
+    includeHidden: Boolean = false
+
+    """
+    Only those watching this title.
+    """
+    titleId: ID
+
+    """
+    Only those at this venue.
+    """
+    venueId: ID
+  ): [WatchParty!]!
+
+  """
+  A watch party by its UUID; null when there is none.
+  """
+  watchParty(
+    """
+    Its UUID.
+    """
+    id: ID!
+  ): WatchParty
 }
 
 """
@@ -10553,6 +10583,36 @@ interface IAudienceMedia @mixin(extensionKey: "media", field: "media", null: fal
     """
     tags: [String!]
   ): [MediaTitle!]!
+
+  """
+  Listed watch parties by name. Filters narrow it.
+  """
+  watchParties(
+    """
+    Staff only: hidden ones too.
+    """
+    includeHidden: Boolean = false
+
+    """
+    Only those watching this title.
+    """
+    titleId: ID
+
+    """
+    Only those at this venue.
+    """
+    venueId: ID
+  ): [WatchParty!]!
+
+  """
+  A watch party by its UUID; null when there is none.
+  """
+  watchParty(
+    """
+    Its UUID.
+    """
+    id: ID!
+  ): WatchParty
 }
 
 """
@@ -12397,6 +12457,12 @@ interface IPlacesProfile @mixin(extensionKey: "places", field: "places", null: f
   The place details stored from Google, as Google sent them. Only on a location; null on a profile.
   """
   details: JSON
+
+  """
+  Its opening hours and whether it's open now, in its time zone (a venue's own
+  when Google gave none). UNKNOWN without a Google place or hours.
+  """
+  hours: OpeningHours!
 
   """
   Its Google place, if its location is one.
@@ -15493,6 +15559,51 @@ enum MediaClipSource {
 }
 
 """
+An episode of a series (MediaEpisode, doc/MEDIA.md).
+"""
+type MediaEpisode {
+  """
+  When it first aired; null if unknown.
+  """
+  airsOn: ISO8601Date
+
+  """
+  Its season and number to show, e.g. S16E03.
+  """
+  code: String!
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  IMDb's id for the episode, if known.
+  """
+  imdbId: String
+
+  """
+  The episode's IMDb page, if known.
+  """
+  imdbUrl: String
+
+  """
+  Its number in the season.
+  """
+  number: Int!
+
+  """
+  Its season.
+  """
+  season: Int!
+
+  """
+  Its title, if it has one.
+  """
+  title: String
+}
+
+"""
 What a media title is, as IMDb has it.
 """
 enum MediaKind {
@@ -15562,6 +15673,16 @@ type MediaTitle {
   endYear: Int
 
   """
+  A series' episodes in order; empty for a film.
+  """
+  episodes(
+    """
+    Only this season's.
+    """
+    season: Int
+  ): [MediaEpisode!]!
+
+  """
   Its UUID.
   """
   id: ID!
@@ -15587,6 +15708,11 @@ type MediaTitle {
   note: String
 
   """
+  The seasons it has episodes for.
+  """
+  seasons: [Int!]!
+
+  """
   Who holds its public performance rights, as best known, e.g. "Disney (20th
   Century)"; confirm it before licensing a screening.
   """
@@ -15607,6 +15733,11 @@ type MediaTitle {
   Its title, as IMDb has it.
   """
   title: String!
+
+  """
+  Listed watch parties for it.
+  """
+  watchParties: [WatchParty!]!
 
   """
   When it came out, or a series started.
@@ -16871,6 +17002,79 @@ type OpEdSubmitPayload {
   A unique identifier for the client performing the mutation.
   """
   clientMutationId: String
+}
+
+"""
+A place's opening hours and whether it's open now, from Google (OpeningState),
+in the place's own time zone. Every field but `lines` is about the moment of the request.
+"""
+type OpeningHours {
+  """
+  When it next closes, while it is open. Null when closed, or open around the clock.
+  """
+  closesAt: ISO8601DateTime
+
+  """
+  Whether it is open now; null when nobody knows (UNKNOWN).
+  """
+  isOpen: Boolean
+
+  """
+  One short line saying so, in its time zone: "Open until 2 AM", "Opens at 4
+  PM", "Opens tomorrow at 4 PM", "Open 24 hours", "Temporarily closed". Null
+  when the hours are unknown.
+  """
+  label: String
+
+  """
+  Its weekly hours, a line a day, e.g. "Monday: 4:00 PM – 2:00 AM". Empty without hours.
+  """
+  lines: [String!]!
+
+  """
+  When it next opens, while it is closed by its hours. Null when open or never opening.
+  """
+  opensAt: ISO8601DateTime
+
+  """
+  Open, closed or unknown now.
+  """
+  status: OpeningStatus!
+
+  """
+  The IANA time zone its hours are read in.
+  """
+  timeZone: String
+}
+
+"""
+Whether a place is open now, by its Google opening hours and business status (OpeningState).
+"""
+enum OpeningStatus {
+  """
+  Closed now by its hours; opensAt says when it next opens.
+  """
+  CLOSED
+
+  """
+  Google marks it closed for good.
+  """
+  CLOSED_PERMANENTLY
+
+  """
+  Google marks it closed for now, whatever its hours say.
+  """
+  CLOSED_TEMPORARILY
+
+  """
+  Open now by its hours.
+  """
+  OPEN
+
+  """
+  Google gave no hours. Apps treat it as possibly open and show nothing.
+  """
+  UNKNOWN
 }
 
 """
@@ -18743,6 +18947,12 @@ type PlacesProfile implements IPlacesProfile {
   The place details stored from Google, as Google sent them. Only on a location; null on a profile.
   """
   details: JSON
+
+  """
+  Its opening hours and whether it's open now, in its time zone (a venue's own
+  when Google gave none). UNKNOWN without a Google place or hours.
+  """
+  hours: OpeningHours!
 
   """
   Its Google place, if its location is one.
@@ -26438,6 +26648,77 @@ type ViewerListings {
   The venues they manage.
   """
   venues: [Venue!]!
+}
+
+"""
+People watching a film or series together. One on a series can be on one season,
+and connects to each of its episodes (showings), with the event on the day each airs.
+"""
+type WatchParty {
+  """
+  What to expect.
+  """
+  description: String
+
+  """
+  For a film: the event it is.
+  """
+  event: Event
+
+  """
+  For a series: the recurring event it meets as.
+  """
+  eventSeries: EventSeries
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  What it is called, e.g. "Drag Race Season 16 Viewing Party".
+  """
+  name: String!
+
+  """
+  The first of its episodes airing today or later.
+  """
+  nextEpisode: MediaEpisode
+
+  """
+  The season it watches; null for the whole series, or a film.
+  """
+  season: Int
+
+  """
+  Its episodes in order, each with its event; empty for a film.
+  """
+  showings: [WatchPartyShowing!]!
+
+  """
+  What it watches.
+  """
+  title: MediaTitle!
+
+  """
+  Where, if at a venue.
+  """
+  venue: Venue
+}
+
+"""
+One of a watch party's episodes, with the party's event that day if there is one.
+"""
+type WatchPartyShowing {
+  """
+  The episode.
+  """
+  episode: MediaEpisode!
+
+  """
+  The party's event series' occurrence on the day it airs; null when it has none.
+  """
+  event: Event
 }
 
 """

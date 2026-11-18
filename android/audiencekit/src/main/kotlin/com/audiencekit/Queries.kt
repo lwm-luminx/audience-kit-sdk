@@ -15,17 +15,29 @@ public object Queries {
     // audience that hasn't installed it, and asking for one fails the whole operation.
 
     /** The types whose fields the listing documents depend on. */
-    public val LISTING_TYPES: List<String> = listOf("Locale", "ListingProfile", "Venue", "Location", "Person", "Event")
+    public val LISTING_TYPES: List<String> = listOf("Locale", "ListingProfile", "PlacesProfile", "Venue", "Location", "Person", "Event")
 
     /** A locale, with its Google place ID (Listings and Google Places). */
     public fun localeFields(shape: SchemaShape): String =
         "id name label cityNames bannerUrl" +
             if (shape.has("Locale", "profile") && shape.has("ListingProfile", "places")) " profile { places { placeId } }" else ""
 
-    /** A venue in a list: its Facebook Page (Listings and Facebook) and its location's Google place ID. */
+    /** A place's opening hours and whether it's open now (`OpeningHours`). */
+    public const val OPENING_HOURS_FIELDS: String = "status isOpen label opensAt closesAt lines timeZone"
+
+    /**
+     * A venue in a list: its Facebook Page (Listings and Facebook), its opening hours (Google Places) and its
+     * location's Google place ID.
+     */
     public fun venueFields(shape: SchemaShape): String {
-        val page = if (shape.has("Venue", "profile") && shape.has("ListingProfile", "facebook")) {
-            "profile { facebook { page { $PAGE_FIELDS } } }"
+        val facebook = if (shape.has("ListingProfile", "facebook")) "facebook { page { $PAGE_FIELDS } }" else ""
+        val hours = if (shape.has("ListingProfile", "places") && shape.has("PlacesProfile", "hours")) {
+            "places { hours { $OPENING_HOURS_FIELDS } }"
+        } else {
+            ""
+        }
+        val page = if (shape.has("Venue", "profile") && (facebook + hours).isNotEmpty()) {
+            "profile { $facebook $hours }"
         } else {
             ""
         }

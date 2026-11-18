@@ -18,10 +18,16 @@ enum Queries {
             ? " profile { places { placeId } }" : "")
     }
 
-    /// A venue in a list: its Facebook Page (Listings and Facebook) and its location's Google place ID.
+    /// A place's opening hours and whether it's open now (``OpeningHours``).
+    static let openingHoursFields = "status isOpen label opensAt closesAt lines timeZone"
+
+    /// A venue in a list: its Facebook Page (Listings and Facebook), its opening hours (Google Places) and its
+    /// location's Google place ID.
     static func venueFields(_ shape: SchemaShape) -> String {
-        let page = shape.has("Venue", "profile") && shape.has("ListingProfile", "facebook")
-            ? "profile { facebook { page { \(pageFields) } } }" : ""
+        let facebook = shape.has("ListingProfile", "facebook") ? "facebook { page { \(pageFields) } }" : ""
+        let hours = shape.has("ListingProfile", "places") && shape.has("PlacesProfile", "hours")
+            ? "places { hours { \(openingHoursFields) } }" : ""
+        let page = shape.has("Venue", "profile") && !(facebook + hours).isEmpty ? "profile { \(facebook) \(hours) }" : ""
         let place = shape.has("Location", "places") ? " places { placeId }" : ""
         return """
         id name hidden order photoUrl bannerUrl \(page)
@@ -47,7 +53,7 @@ enum Queries {
     }
 
     /// The types whose fields the documents above depend on.
-    static let listingTypes = ["Locale", "ListingProfile", "Venue", "Location", "Person", "Event"]
+    static let listingTypes = ["Locale", "ListingProfile", "PlacesProfile", "Venue", "Location", "Person", "Event"]
 
     static let audience = """
     query Audience {

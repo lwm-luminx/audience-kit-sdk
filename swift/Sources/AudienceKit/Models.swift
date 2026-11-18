@@ -118,7 +118,15 @@ public struct AudienceLocale: Codable, Sendable, Hashable, Identifiable {
 /// and the Google place ID (`places { placeId }`). Either module may be left out of the query.
 struct ListingProfile: Codable, Sendable, Hashable {
     struct Facebook: Codable, Sendable, Hashable { var page: Page? }
-    struct Places: Codable, Sendable, Hashable { var placeId: String? }
+    struct Places: Codable, Sendable, Hashable {
+        var placeId: String?
+        var hours: OpeningHours?
+
+        init(placeId: String? = nil, hours: OpeningHours? = nil) {
+            self.placeId = placeId
+            self.hours = hours
+        }
+    }
 
     var facebook: Facebook?
     var places: Places?
@@ -126,6 +134,66 @@ struct ListingProfile: Codable, Sendable, Hashable {
     init(facebook: Facebook? = nil, places: Places? = nil) {
         self.facebook = facebook
         self.places = places
+    }
+}
+
+/// A place's opening hours and whether it's open now, from Google, in the place's own time zone: the API's
+/// `OpeningHours` (`profile { places { hours } }`). Everything but ``lines`` is about the moment of the request.
+public struct OpeningHours: Codable, Sendable, Hashable {
+    /// OPEN, CLOSED, UNKNOWN (no hours), CLOSED_TEMPORARILY or CLOSED_PERMANENTLY.
+    public let status: String
+    /// Whether it's open now; nil when nobody knows.
+    public let isOpen: Bool?
+    /// One short line to show: "Open until 2 AM", "Opens at 4 PM", "Temporarily closed"; nil when unknown.
+    public let label: String?
+    /// When it next opens, while closed.
+    public let opensAt: Date?
+    /// When it next closes, while open.
+    public let closesAt: Date?
+    /// Its weekly hours, a line a day, e.g. "Monday: 4:00 PM – 2:00 AM".
+    public let lines: [String]
+    /// The IANA time zone its hours are read in.
+    public let timeZone: String?
+
+    /// Closed for now or for good by Google, whatever its hours say.
+    public var isClosedForNow: Bool { status == "CLOSED_TEMPORARILY" || status == "CLOSED_PERMANENTLY" }
+
+    private enum CodingKeys: String, CodingKey {
+        case status, isOpen, label, opensAt, closesAt, lines, timeZone
+    }
+
+    public init(status: String = "UNKNOWN", isOpen: Bool? = nil, label: String? = nil, opensAt: Date? = nil,
+                closesAt: Date? = nil, lines: [String] = [], timeZone: String? = nil)
+    {
+        self.status = status
+        self.isOpen = isOpen
+        self.label = label
+        self.opensAt = opensAt
+        self.closesAt = closesAt
+        self.lines = lines
+        self.timeZone = timeZone
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        status = try container.decodeIfPresent(String.self, forKey: .status) ?? "UNKNOWN"
+        isOpen = try container.decodeIfPresent(Bool.self, forKey: .isOpen)
+        label = try container.decodeIfPresent(String.self, forKey: .label)
+        opensAt = try container.decodeISO8601IfPresent(forKey: .opensAt)
+        closesAt = try container.decodeISO8601IfPresent(forKey: .closesAt)
+        lines = try container.decodeIfPresent([String].self, forKey: .lines) ?? []
+        timeZone = try container.decodeIfPresent(String.self, forKey: .timeZone)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(status, forKey: .status)
+        try container.encodeIfPresent(isOpen, forKey: .isOpen)
+        try container.encodeIfPresent(label, forKey: .label)
+        try container.encodeIfPresent(opensAt.map(ISO8601.string(from:)), forKey: .opensAt)
+        try container.encodeIfPresent(closesAt.map(ISO8601.string(from:)), forKey: .closesAt)
+        try container.encode(lines, forKey: .lines)
+        try container.encodeIfPresent(timeZone, forKey: .timeZone)
     }
 }
 
@@ -180,6 +248,9 @@ public struct Venue: Codable, Sendable, Hashable, Identifiable {
     public let bannerUrl: String?
     /// Its Facebook Page, the API's `profile { facebook { page } }`; venues added without one have none.
     public let page: Page?
+    /// Its opening hours and whether it's open now, the API's `profile { places { hours } }`; nil when the query or
+    /// the audience has no Google Places.
+    public let hours: OpeningHours?
     public let locale: AudienceLocale
     public let location: Location?
     /// The audience's tags on it, by name; nil when the query didn't ask.
@@ -191,8 +262,8 @@ public struct Venue: Codable, Sendable, Hashable, Identifiable {
 
     /// `name` is the venue's own name (the API's `name`, nullable); ``name`` falls back to the Page's.
     public init(id: String, name: String? = nil, hidden: Bool = false, order: Int = 0, photoUrl: String? = nil,
-                bannerUrl: String? = nil, page: Page? = nil, locale: AudienceLocale, location: Location? = nil,
-                tags: [Tag]? = nil)
+                bannerUrl: String? = nil, page: Page? = nil, hours: OpeningHours? = nil, locale: AudienceLocale,
+                location: Location? = nil, tags: [Tag]? = nil)
     {
         self.id = id
         self.venueName = name
@@ -201,6 +272,7 @@ public struct Venue: Codable, Sendable, Hashable, Identifiable {
         self.photoUrl = photoUrl
         self.bannerUrl = bannerUrl
         self.page = page
+        self.hours = hours
         self.locale = locale
         self.location = location
         self.tags = tags
@@ -218,7 +290,9 @@ public struct Venue: Codable, Sendable, Hashable, Identifiable {
         order = try container.decode(Int.self, forKey: .order)
         photoUrl = try container.decodeIfPresent(String.self, forKey: .photoUrl)
         bannerUrl = try container.decodeIfPresent(String.self, forKey: .bannerUrl)
-        page = try container.decodeIfPresent(ListingProfile.self, forKey: .profile)?.facebook?.page
+        let profile = try container.decodeIfPresent(ListingProfile.self, forKey: .profile)
+        page = profile?.facebook?.page
+        hours = profile?.places?.hours
         locale = try container.decode(AudienceLocale.self, forKey: .locale)
         location = try container.decodeIfPresent(Location.self, forKey: .location)
         tags = try container.decodeIfPresent([Tag].self, forKey: .tags)
@@ -233,8 +307,11 @@ public struct Venue: Codable, Sendable, Hashable, Identifiable {
         try container.encode(order, forKey: .order)
         try container.encodeIfPresent(photoUrl, forKey: .photoUrl)
         try container.encodeIfPresent(bannerUrl, forKey: .bannerUrl)
-        if let page {
-            try container.encode(ListingProfile(facebook: .init(page: page)), forKey: .profile)
+        if page != nil || hours != nil {
+            try container.encode(
+                ListingProfile(facebook: page.map { .init(page: $0) }, places: hours.map { .init(hours: $0) }),
+                forKey: .profile
+            )
         }
         try container.encode(locale, forKey: .locale)
         try container.encodeIfPresent(location, forKey: .location)

@@ -389,7 +389,9 @@ private func makeClient(
     {"data":{"venues":{"list":{"nodes":[{
       "id":"Z2lkOi8vaG90LW1lc3MvVmVudWUvMTIz","name":null,"hidden":false,"order":3,
       "photoUrl":"/v1/photos/abc","bannerUrl":null,
-      "profile":{"facebook":{"page":{"id":"p-1","name":"The Stud","photoUrl":"https://cdn.example/stud.jpg","bannerUrl":null}}},
+      "profile":{"facebook":{"page":{"id":"p-1","name":"The Stud","photoUrl":"https://cdn.example/stud.jpg","bannerUrl":null}},
+        "places":{"hours":{"status":"OPEN","isOpen":true,"label":"Open until 2 AM","opensAt":null,
+          "closesAt":"2026-11-18T10:00:00Z","lines":["Tuesday: 4:00 PM – 2:00 AM"],"timeZone":"America/Los_Angeles"}}},
       "locale":{"id":"l-1","name":"San Francisco","label":"SF","cityNames":null,"bannerUrl":null,
         "profile":{"places":{"placeId":"ChIJIQBpAG2ahYAR_6128GcTUEo"}}},
       "location":{"id":"loc-1","point":"POINT (-122.4194 37.7749)","places":{"placeId":"ChIJ-stud"}}
@@ -428,10 +430,16 @@ private func makeClient(
         #expect(venue.location?.googlePlaceId == "ChIJ-stud")
         #expect(client.url(for: venue.photoUrl) == stub.baseURL.appendingPathComponent("v1/photos/abc"))
         #expect(client.url(for: venue.page?.photoUrl) == URL(string: "https://cdn.example/stud.jpg"))
+        #expect(venue.hours?.isOpen == true)
+        #expect(venue.hours?.label == "Open until 2 AM")
+        #expect(venue.hours?.closesAt == ISO8601.date(from: "2026-11-18T10:00:00Z"))
+        #expect(venue.hours?.lines == ["Tuesday: 4:00 PM – 2:00 AM"])
+        #expect(venue.hours?.isClosedForNow == false)
 
         // A venue added without a Facebook Page has its own name, and cityNames is a list.
         let pageless = try #require(venues.last)
         #expect(pageless.page == nil)
+        #expect(pageless.hours == nil)
         #expect(pageless.name == "Pony")
         #expect(pageless.locale.cityNames == ["Seattle", "Capitol Hill"])
         #expect(pageless.locale.googlePlaceId == nil)

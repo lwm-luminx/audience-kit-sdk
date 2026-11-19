@@ -97,8 +97,45 @@ private func song(_ id: String, _ title: String, state: String = "QUEUED", mine:
             return .json(status: 200, body: lineupJSON)
         }
         let window2 = try #require(try await lineupClient(older).lineup(venueID: "v-1")?.karaoke)
-        #expect(older.requests.count == 2)
+        // Without hostsTonight first, then without the cutoff.
+        #expect(older.requests.count == 3)
         #expect(window2.paused && window2.closed && !window2.cutOff && window2.closesAt == nil)
+    }
+
+    @Test func featuresTheHostOnNowElseTheEventsHost() async throws {
+        let stub = Stub { _ in .json(status: 200, body: lineupJSON) }
+        let lineup = try #require(try await lineupClient(stub).lineup(venueID: "v-1"))
+        #expect(lineup.featuredHost?.id == "host")
+        #expect((try #require(stub.requests.first).jsonBody()["query"] as? String)?.contains("hostsTonight") == true)
+
+        // Nobody put on: the event's listed host, as an upcoming host entry that opens their page.
+        let listed = VenueLineup(venueID: "v-1", venueName: "Blue Gene's", entries: [],
+                                 hostsTonight: [.init(id: "p-1", name: "Sequoia", avatarUrl: nil)])
+        let host = try #require(listed.featuredHost)
+        #expect(host.role == .host && host.state == .upcoming && host.displayName == "Sequoia")
+        #expect(host.people.map(\.id) == ["p-1"])
+        #expect(VenueLineup(venueID: "v-1", venueName: "", entries: []).featuredHost == nil)
+
+        let withHosts = lineupJSON.replacingOccurrences(
+            of: #""upNext":{"id":"break"}"#,
+            with: #""upNext":{"id":"break"},"hostsTonight":[{"id":"p-1","name":"Sequoia","avatarUrl":null}]"#)
+        let decoded = try #require(try await lineupClient(Stub { _ in .json(status: 200, body: withHosts) })
+            .lineup(venueID: "v-1"))
+        #expect(decoded.hostsTonight.map(\.name) == ["Sequoia"])
+    }
+
+    @Test func asksAnAPIWithoutHostsTonightWithoutThem() async throws {
+        let older = Stub { request in
+            let query = (try? request.jsonBody()["query"] as? String) ?? ""
+            if query.contains("hostsTonight") {
+                return .json(status: 200, body: #"{"errors":[{"message":"Field 'hostsTonight' doesn't exist on type 'IVenuePeople'","extensions":{"code":"undefinedField"}}]}"#)
+            }
+            return .json(status: 200, body: lineupJSON)
+        }
+        let lineup = try #require(try await lineupClient(older).lineup(venueID: "v-1"))
+        #expect(older.requests.count == 2)
+        #expect(lineup.hostsTonight.isEmpty && lineup.featuredHost?.id == "host")
+        #expect((try #require(older.requests.last).jsonBody()["query"] as? String)?.contains("cutOff") == true)
     }
 
     @Test func numbersSingersAndCountsWhoIsBeforeYou() async throws {

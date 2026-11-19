@@ -3,6 +3,20 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.82.0 (2026-11-19)
+
+- Proposed changes and "Not a duplicate" undo for staff apps (Swift and Kotlin; Rick, 2026-11-19, "build out the
+  proposed changes and duplicates features into focus"). The GraphQL runs on the staff endpoint, which audience_kit_api
+  next already serves; nothing new is needed there.
+  - `ProposedChanges`: the review queue (`submissions(open:first:)`, 24 at a time as on the console), its open count,
+    `decideSubmission` (approve, approve another social handle with EDIT_APPROVE, reject with a reason, ask the
+    venue), `headshotsToReview` with approve and remove, and `venues { dismissedDuplicates }` with
+    `restoreVenueDuplicate`.
+  - `ProposedChange` reads a `Submission` for a row: `title`, `source`, `changes` (field, from, to), social `choices`
+    with `choiceProfiles`, `evidenceLinks`, `researchLine` and `decisionLine`. `HeadshotToReview` and
+    `VenueDuplicateDismissal` read the other two lists.
+  - `ProposedChangesCopy`: the console's words for them.
+
 ## 0.81.0 (2026-11-19)
 
 - Roll-ups (Swift and Kotlin; Rick, 2026-11-19, "when events have linked entities they roll up and can be queried for

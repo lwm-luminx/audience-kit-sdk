@@ -477,10 +477,13 @@ public struct VenueLineup: Sendable, Hashable {
     public let karaokeSession: VenueKaraoke?
     /// Song requests: whether they're taken, the user's own and the queue; nil when the API leaves them out.
     public let songRequests: SongRequestWindow?
+    /// Who's hosting there now: the hosts on now, else the hosts of the event under way (its lineup's, else the ones
+    /// listed on it). Empty without one, and from an API before 2026-11-19.
+    public let hostsTonight: [LineupEntry.Person]
 
     public init(venueID: String, venueName: String, entries: [LineupEntry], onStageID: String? = nil,
                 upNextID: String? = nil, karaoke: KaraokeWindow? = nil, karaokeSession: VenueKaraoke? = nil,
-                songRequests: SongRequestWindow? = nil) {
+                songRequests: SongRequestWindow? = nil, hostsTonight: [LineupEntry.Person] = []) {
         self.venueID = venueID
         self.venueName = venueName
         self.entries = entries
@@ -489,6 +492,16 @@ public struct VenueLineup: Sendable, Hashable {
         self.karaoke = karaoke
         self.karaokeSession = karaokeSession
         self.songRequests = songRequests
+        self.hostsTonight = hostsTonight
+    }
+
+    /// The host to feature (Now's and the venue page's host row, with their links and Tip): the host entry on now,
+    /// else the one taking karaoke signups, else the first of ``hostsTonight`` (an event's host nobody has put on yet)
+    /// as an upcoming host entry. Nil when nobody is hosting.
+    public var featuredHost: LineupEntry? {
+        if let on = entries.first(where: { $0.role == .host && $0.state == .on }) ?? karaoke?.host { return on }
+        guard let host = hostsTonight.first else { return nil }
+        return LineupEntry(id: "host-tonight:\(host.id)", role: .host, people: [host])
     }
 
     /// Everyone who isn't a karaoke singer: hosts, DJs, performers, MCs and intermissions.
@@ -555,64 +568,40 @@ extension Queries {
     /// The signup cutoff (an API from 2026-10-26 on).
     static let requestCutoffFields = "cutOff reopened closesAt"
 
-    static let venueLineup = """
-    query VenueLineup($id: ID!) {
-      venues {
-        venue(id: $id) {
-          id name
-          people {
-            runningOrder { nodes { \(lineupEntryFields) } }
-            onStage { id }
-            upNext { id }
-          }
-          karaoke { provider providerName joinUrl sessionCode tonight }
-          requests {
-            karaoke {
-              \(requestWindowFields) \(requestCutoffFields)
-              host { \(lineupEntryFields) }
-              mine { nodes { \(songRequestFields) } }
-            }
-            song {
-              \(requestWindowFields) \(requestCutoffFields)
-              host { \(lineupEntryFields) }
-              mine { nodes { \(songRequestFields) } }
-              queue { nodes { \(songRequestFields) } }
-            }
-          }
-        }
-      }
-    }
-    """
-
-    /// ``venueLineup`` for an API before the cutoff.
-    static let venueLineupWithoutCutoff = """
-    query VenueLineup($id: ID!) {
-      venues {
-        venue(id: $id) {
-          id name
-          people {
-            runningOrder { nodes { \(lineupEntryFields) } }
-            onStage { id }
-            upNext { id }
-          }
-          karaoke { provider providerName joinUrl sessionCode tonight }
-          requests {
-            karaoke {
-              \(requestWindowFields)
-              host { \(lineupEntryFields) }
-              mine { nodes { \(songRequestFields) } }
-            }
-            song {
-              \(requestWindowFields)
-              host { \(lineupEntryFields) }
-              mine { nodes { \(songRequestFields) } }
-              queue { nodes { \(songRequestFields) } }
+    /// A venue's lineup tonight. `hosts` asks for `hostsTonight` (an API from 2026-11-19 on) and `cutoff` for the
+    /// signup cutoff (2026-10-26 on); ``AudienceSession/lineup(venueID:)`` leaves out what an older API refuses.
+    static func venueLineup(hosts: Bool = true, cutoff: Bool = true) -> String {
+        let cutoffFields = cutoff ? " \(requestCutoffFields)" : ""
+        return """
+        query VenueLineup($id: ID!) {
+          venues {
+            venue(id: $id) {
+              id name
+              people {
+                runningOrder { nodes { \(lineupEntryFields) } }
+                onStage { id }
+                upNext { id }
+                \(hosts ? "hostsTonight { \(personSummaryFields) }" : "")
+              }
+              karaoke { provider providerName joinUrl sessionCode tonight }
+              requests {
+                karaoke {
+                  \(requestWindowFields)\(cutoffFields)
+                  host { \(lineupEntryFields) }
+                  mine { nodes { \(songRequestFields) } }
+                }
+                song {
+                  \(requestWindowFields)\(cutoffFields)
+                  host { \(lineupEntryFields) }
+                  mine { nodes { \(songRequestFields) } }
+                  queue { nodes { \(songRequestFields) } }
+                }
+              }
             }
           }
         }
-      }
+        """
     }
-    """
 
     static let requestSong = """
     mutation RequestSong($venueId: ID!, $kind: SongRequestKind!, $title: String!, $artist: String, $singer: String,
@@ -638,6 +627,7 @@ struct VenueLineupResponse: Decodable, Sendable {
             var runningOrder: Nodes<LineupEntry>
             var onStage: Ref?
             var upNext: Ref?
+            var hostsTonight: [LineupEntry.Person]?
         }
         struct Requests: Decodable, Sendable {
             var karaoke: KaraokeWindow?
@@ -659,7 +649,7 @@ struct VenueLineupResponse: Decodable, Sendable {
                                onStageID: LineupEntry.turnID(of: venue.people.onStage?.id, in: order, state: .on),
                                upNextID: LineupEntry.turnID(of: venue.people.upNext?.id, in: order, state: .upcoming),
                                karaoke: venue.requests?.karaoke, karaokeSession: venue.karaoke,
-                               songRequests: venue.requests?.song)
+                               songRequests: venue.requests?.song, hostsTonight: venue.people.hostsTonight ?? [])
         }
     }
 }
@@ -672,15 +662,21 @@ extension AudienceSession {
     /// A venue's lineup tonight with its karaoke singers and signups and its song requests, or `nil` when the venue
     /// doesn't exist.
     public func lineup(venueID: String) async throws -> VenueLineup? {
-        do {
-            return try await graphQL(Queries.venueLineup, variables: ["id": .string(venueID)],
-                                     operationName: "VenueLineup", as: VenueLineupResponse.self).lineup
-        } catch let error as AudienceKitError
-                    where error.code == "undefinedField" || error.code == AudienceKitError.Code.graphQL {
-            // An API before signup cutoffs (production until next is promoted) refuses their fields as invalid.
-            return try await graphQL(Queries.venueLineupWithoutCutoff, variables: ["id": .string(venueID)],
-                                     operationName: "VenueLineup", as: VenueLineupResponse.self).lineup
+        // An older API refuses the fields it doesn't have yet as invalid: `hostsTonight` (before 2026-11-19), then the
+        // signup cutoff (before 2026-10-26). Each try leaves out the next newest.
+        let attempts = [Queries.venueLineup(), Queries.venueLineup(hosts: false),
+                        Queries.venueLineup(hosts: false, cutoff: false)]
+        for (index, document) in attempts.enumerated() {
+            do {
+                return try await graphQL(document, variables: ["id": .string(venueID)], operationName: "VenueLineup",
+                                         as: VenueLineupResponse.self).lineup
+            } catch let error as AudienceKitError
+                        where index < attempts.count - 1
+                        && (error.code == "undefinedField" || error.code == AudienceKitError.Code.graphQL) {
+                continue
+            }
         }
+        return nil
     }
 
     /// Signs the signed-in user up to sing at a venue: they go last on its lineup as a singer, and the room sees the

@@ -3,6 +3,17 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.80.0 (2026-11-19)
+
+- Feature an event's host before anyone puts them on (Swift; Rick, 2026-11-19, "the hosts don't pull forward to the
+  Now page for an event"). Needs audience_kit_api `IVenuePeople.hostsTonight`; an API without it is asked again
+  without it, as with the signup cutoff.
+  - `VenueLineup.hostsTonight`: who's hosting at the venue now (the hosts on now, else the event under way's lineup
+    hosts, else the hosts listed on it).
+  - `VenueLineup.featuredHost`: the host entry on now, else the karaoke host, else the first of `hostsTonight` as an
+    upcoming host entry, for `VenueHostRow` and its Tip.
+  - The `VenueLineup` document is now `Queries.venueLineup(hosts:cutoff:)` and is rendered for the schema check.
+
 ## 0.79.0 (2026-11-18)
 
 - Venue opening hours (Swift and Kotlin; Rick, 2026-11-18, "Venues aren't showing open closed hours so we saw

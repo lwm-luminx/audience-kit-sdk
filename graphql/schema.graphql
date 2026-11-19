@@ -13378,6 +13378,13 @@ interface IVenuePeople @mixin(extensionKey: "people", field: "people", null: fal
   guests: [Person!]!
 
   """
+  Who's hosting here now, for the apps' host row: the host and MC entries on now,
+  else the hosts of the event under way (its lineup's, else the ones listed on it),
+  else none. Signed out, only the Public ones.
+  """
+  hostsTonight: [Person!]!
+
+  """
   The acts on a night that have a time (or have gone on), in running order.
   """
   lineup(
@@ -26417,6 +26424,13 @@ type VenuePeopleView implements IVenuePeople {
   on its lineups again (createGuestPerson). Empty for anyone not working its shows.
   """
   guests: [Person!]!
+
+  """
+  Who's hosting here now, for the apps' host row: the host and MC entries on now,
+  else the hosts of the event under way (its lineup's, else the ones listed on it),
+  else none. Signed out, only the Public ones.
+  """
+  hostsTonight: [Person!]!
 
   """
   The acts on a night that have a time (or have gone on), in running order.

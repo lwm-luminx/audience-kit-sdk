@@ -7225,6 +7225,131 @@ enum Endpoint {
 }
 
 """
+An item (a podcast episode, a film, an article, a person) linked to what it is
+about (an event, a venue, a series, a person or a locale). Venue.rollUp and the
+like list the links to a record and to everything under it.
+"""
+type EntityLink {
+  """
+  The event it is linked to, when it is linked to an event: the night an episode was recorded, say.
+  """
+  event: Event
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  What is linked.
+  """
+  item: EntityLinkItem!
+
+  """
+  When it was linked.
+  """
+  linkedAt: ISO8601DateTime!
+
+  """
+  How it was made.
+  """
+  origin: EntityLinkOrigin!
+
+  """
+  How sure matching is, 0 to 1; null for links people made.
+  """
+  score: Float
+
+  """
+  Whether it shows.
+  """
+  status: EntityLinkStatus!
+
+  """
+  What it is linked to.
+  """
+  target: EntityLinkTarget!
+}
+
+"""
+What an entity link points from: a podcast episode or music track, a film or
+series, a series episode, an article or a person (doc/ROLL_UP.md).
+"""
+union EntityLinkItem = Article | MediaEpisode | MediaTitle | Person | Track
+
+"""
+A kind of item that can be linked to an event, venue, series, person or locale.
+"""
+enum EntityLinkItemKind {
+  """
+  An article.
+  """
+  ARTICLE
+
+  """
+  An episode of a series.
+  """
+  MEDIA_EPISODE
+
+  """
+  A film or television title.
+  """
+  MEDIA_TITLE
+
+  """
+  A person.
+  """
+  PERSON
+
+  """
+  A podcast episode or music track.
+  """
+  TRACK
+}
+
+"""
+How an entity link was made.
+"""
+enum EntityLinkOrigin {
+  """
+  Found by matching the item's text to venue names and event dates.
+  """
+  FUZZY
+
+  """
+  Made by a person (linkEntity).
+  """
+  MANUAL
+}
+
+"""
+Where an entity link stands.
+"""
+enum EntityLinkStatus {
+  """
+  Shown wherever it rolls up.
+  """
+  LINKED
+
+  """
+  Turned down by a person: never shown, and matching never suggests it again.
+  """
+  REJECTED
+
+  """
+  Found by matching but not sure enough to show: waits for an admin (reviewEntityLink).
+  """
+  SUGGESTED
+}
+
+"""
+What an entity link points to: an event, an event series, a venue, a person or a
+locale. Items linked to an event roll up to its venue, series, locale and people
+(doc/ROLL_UP.md).
+"""
+union EntityLinkTarget = Event | EventSeries | Locale | Person | Venue
+
+"""
 Track metadata reported by venue equipment.
 """
 type EquipmentTrack {
@@ -7384,6 +7509,28 @@ type Event implements HasBanner & HasTags & HasTaskTemplates & Node {
   The instance's IPosts mixin. Left out of the schema where its module isn't installed.
   """
   posts: IPosts!
+
+  """
+  Items linked to it or to anything under it (a venue's events and series, a
+  locale's venues), one row per item, newest first. Only linked items, unless an
+  admin asks for suggested or rejected ones too.
+  """
+  rollUp(
+    """
+    Only these kinds of items.
+    """
+    itemKinds: [EntityLinkItemKind!]
+
+    """
+    At most this many (up to 200).
+    """
+    limit: Int = 50
+
+    """
+    Links in these states; anything but LINKED needs an admin.
+    """
+    statuses: [EntityLinkStatus!] = [LINKED]
+  ): [EntityLink!]!
 
   """
   The instance's IEventRSVP mixin. Left out of the schema where its module isn't installed.
@@ -8413,6 +8560,28 @@ type EventSeries implements HasBanner & HasTags & HasTaskTemplates & Node {
   Its rule in words, e.g. "Every month on the 1st Friday".
   """
   recurrenceText: String
+
+  """
+  Items linked to it or to anything under it (a venue's events and series, a
+  locale's venues), one row per item, newest first. Only linked items, unless an
+  admin asks for suggested or rejected ones too.
+  """
+  rollUp(
+    """
+    Only these kinds of items.
+    """
+    itemKinds: [EntityLinkItemKind!]
+
+    """
+    At most this many (up to 200).
+    """
+    limit: Int = 50
+
+    """
+    Links in these states; anything but LINKED needs an admin.
+    """
+    statuses: [EntityLinkStatus!] = [LINKED]
+  ): [EntityLink!]!
 
   """
   Whether its occurrences have a back-of-house chat. An occurrence can say otherwise (Event.roomEnabled).
@@ -14816,6 +14985,28 @@ type Locale implements HasBanner & HasTimestamps & Node {
   profile: IListingProfile!
 
   """
+  Items linked to it or to anything under it (a venue's events and series, a
+  locale's venues), one row per item, newest first. Only linked items, unless an
+  admin asks for suggested or rejected ones too.
+  """
+  rollUp(
+    """
+    Only these kinds of items.
+    """
+    itemKinds: [EntityLinkItemKind!]
+
+    """
+    At most this many (up to 200).
+    """
+    limit: Int = 50
+
+    """
+    Links in these states; anything but LINKED needs an admin.
+    """
+    statuses: [EntityLinkStatus!] = [LINKED]
+  ): [EntityLink!]!
+
+  """
   Its IANA time zone, e.g. America/Los_Angeles, else that of the nearest locale above it; Etc/UTC until one is known.
   """
   timeZone: String!
@@ -18005,6 +18196,28 @@ type Person implements HasBanner & HasTags & HasTaskTemplates & Node {
   The instance's IListingProfile mixin. Left out of the schema where its module isn't installed.
   """
   profile: IListingProfile!
+
+  """
+  Items linked to it or to anything under it (a venue's events and series, a
+  locale's venues), one row per item, newest first. Only linked items, unless an
+  admin asks for suggested or rejected ones too.
+  """
+  rollUp(
+    """
+    Only these kinds of items.
+    """
+    itemKinds: [EntityLinkItemKind!]
+
+    """
+    At most this many (up to 200).
+    """
+    limit: Int = 50
+
+    """
+    Links in these states; anything but LINKED needs an admin.
+    """
+    statuses: [EntityLinkStatus!] = [LINKED]
+  ): [EntityLink!]!
 
   """
   Their tags that are tribes you identify with too: in the DNC app, a
@@ -25446,6 +25659,28 @@ type Venue implements HasBanner & HasPhoto & HasTags & HasTaskTemplates & HasTim
   The instance's IVenueRequests mixin. Left out of the schema where its module isn't installed.
   """
   requests: IVenueRequests!
+
+  """
+  Items linked to it or to anything under it (a venue's events and series, a
+  locale's venues), one row per item, newest first. Only linked items, unless an
+  admin asks for suggested or rejected ones too.
+  """
+  rollUp(
+    """
+    Only these kinds of items.
+    """
+    itemKinds: [EntityLinkItemKind!]
+
+    """
+    At most this many (up to 200).
+    """
+    limit: Int = 50
+
+    """
+    Links in these states; anything but LINKED needs an admin.
+    """
+    statuses: [EntityLinkStatus!] = [LINKED]
+  ): [EntityLink!]!
 
   """
   Whether anyone on shift here hears safety alerts right now; the app offers other ways to get help when not.

@@ -39,6 +39,7 @@ struct RenderedDocumentsTests {
             ("DisableContactMatching", Queries.disableContactMatching(shape)),
             ("SendFriendRequest", Queries.sendFriendRequest(shape)),
             ("RespondToFriendRequest", Queries.respondToFriendRequest(shape)),
+            ("RollUp", Queries.rollUp(shape)),
         ] + [ArticleTopic.venue("v"), .event("e"), .person("p"), .locale("l")].map { topic in
             ("ArticlesAbout\(Queries.articles(about: topic).type)", Queries.articles(about: topic).document(shape))
         }

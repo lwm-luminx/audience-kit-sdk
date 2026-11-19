@@ -3,6 +3,18 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.80.0 (2026-11-19)
+
+- Roll-ups (Swift and Kotlin; Rick, 2026-11-19, "when events have linked entities they roll up and can be queried for
+  the venue that holds them"). Needs audience_kit_api's `rollUp` (doc/ROLL_UP.md); returns nothing where the API
+  doesn't have it yet.
+  - `rollUp(id:kinds:limit:statuses:)`: the items (podcast episodes, films, series episodes, articles, people) linked
+    to a venue, event, event series, person or locale, or to anything under it, newest first. A venue's include
+    those linked to its events, so an episode recorded live at a party shows among the hosting venue's items.
+  - `RolledUpItem` is flat for a list row: `kind`, `title`, `subtitle` (the event, a film's year, an episode's code),
+    `url`, `artworkUrl`, `streamUrl`, `publishedAt`, `event`, `status`, `isMatched` (found by fuzzy matching) and
+    `score`. Each item type's fragment is left out where the audience lacks its module.
+
 ## 0.79.0 (2026-11-18)
 
 - Venue opening hours (Swift and Kotlin; Rick, 2026-11-18, "Venues aren't showing open closed hours so we saw

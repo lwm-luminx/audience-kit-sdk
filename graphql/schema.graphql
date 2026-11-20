@@ -887,6 +887,13 @@ type Appearance implements Node {
   person: Person
 
   """
+  The night's playlist this segment holds (spotify:playlist:<id>), its songs as
+  its scenes in the order the venue plays them, each on while it plays; null for
+  any other entry.
+  """
+  playlistUri: String
+
+  """
   Its place in its lineup's running order, from 0.
   """
   position: Int!
@@ -1455,7 +1462,7 @@ A Soapbox publication's article, in Markdown (doc/SOAPBOX.md): its own, or an
 op-ed a reader sent it. Readers see it once it is published; the publication,
 the writer and the audience's admins see it before.
 """
-type Article implements HasTimestamps {
+type Article implements HasCredits & HasTimestamps {
   """
   The ad to show after it in the reader, sold by its publication on its own
   content (label Ad, soldBy). Null on a teaser or an op-ed, when none runs, or
@@ -1487,6 +1494,11 @@ type Article implements HasTimestamps {
   When it was started.
   """
   createdAt: ISO8601DateTime!
+
+  """
+  Its credits that everyone sees, original source first.
+  """
+  credits: [Credit!]!
 
   """
   Ties the publication declared to what it covers (its own gala, a sponsor), shown to readers above the article.
@@ -1689,13 +1701,18 @@ type ArticleEdge {
 }
 
 """
-Who wrote a Soapbox article: the publication, or a reader (an op-ed).
+What a Soapbox article is: written by the publication, an op-ed from a reader, or a guide.
 """
 enum ArticleKind {
   """
   Written by the publication.
   """
   ARTICLE
+
+  """
+  A standing guide the publication keeps, e.g. a Pride guide.
+  """
+  GUIDE
 
   """
   Sent to the publication by a reader from the apps.
@@ -1760,7 +1777,8 @@ type ArticlesView implements IArticles {
   """
   Live articles about it, newest first; a person's also the articles of a
   publication they run; a locale's news: about it or anything in it, or by a
-  publication covering it, from the last 30 days (pinned ones whatever their age).
+  publication covering it, from the last 30 days (pinned ones whatever their
+  age). Also the articles linked to it or to anything under it (doc/ROLL_UP.md).
   """
   list(
     """
@@ -2211,6 +2229,11 @@ type Audience implements IRelay & Node {
   The instance's IAudienceSoapbox mixin. Left out of the schema where its module isn't installed.
   """
   soapbox: IAudienceSoapbox! @endpoint(in: [AUDIENCE, STAFF])
+
+  """
+  Its connected Spotify account, which reads nights' playlists (connectSpotify). Admins only; null for everyone else.
+  """
+  spotify: AudienceSpotify @requires(permissions: ["audience:read:*"])
 
   """
   The unique audience subdomain.
@@ -2863,6 +2886,146 @@ type AudienceMediaView implements IAudienceMedia {
   The list sections, most titles first.
   """
   collections: [MediaLabel!]!
+
+  """
+  A media item by its UUID, IMDb id or Spotify track id; null when there is none.
+  """
+  item(
+    """
+    Its UUID.
+    """
+    id: ID
+
+    """
+    IMDb's id for it.
+    """
+    imdbId: String
+
+    """
+    Its Spotify track id.
+    """
+    spotifyId: String
+  ): MediaItem
+
+  """
+  Media items of every kind (doc/plans/UNIFIED_MEDIA_PLAN.md) by title. Filters narrow it; all must match.
+  """
+  items(
+    """
+    Only items in this collection.
+    """
+    collection: String
+
+    """
+    At most this many, up to 2000.
+    """
+    first: Int = 500
+
+    """
+    Staff only: hidden ones too.
+    """
+    includeHidden: Boolean = false
+
+    """
+    Only these kinds.
+    """
+    kinds: [MediaItemKind!]
+
+    """
+    Only items in this playlist.
+    """
+    playlistId: ID
+
+    """
+    Words in its title or artists, or an IMDb or Spotify id.
+    """
+    search: String
+
+    """
+    Only variants of this song.
+    """
+    songId: ID
+
+    """
+    Only these Spotify tracks.
+    """
+    spotifyIds: [String!]
+
+    """
+    Only items with every one of these tags.
+    """
+    tags: [String!]
+
+    """
+    Only recordings, live versions, music videos and scenes not yet linked to a song.
+    """
+    withoutSong: Boolean = false
+  ): [MediaItem!]!
+
+  """
+  A playlist by its UUID; null when there is none.
+  """
+  playlist(
+    """
+    Its UUID.
+    """
+    id: ID!
+  ): MediaPlaylist
+
+  """
+  Playlists by title: series, albums, playlists, podcasts.
+  """
+  playlists(
+    """
+    Staff only: hidden ones too.
+    """
+    includeHidden: Boolean = false
+
+    """
+    Only these kinds.
+    """
+    kinds: [MediaPlaylistKind!]
+
+    """
+    Words in its title or artists.
+    """
+    search: String
+  ): [MediaPlaylist!]!
+
+  """
+  A song by its UUID; null when there is none.
+  """
+  song(
+    """
+    Its UUID.
+    """
+    id: ID!
+  ): MediaSong
+
+  """
+  Songs by title, each with its variants. Filters narrow it.
+  """
+  songs(
+    """
+    Staff only: hidden ones too.
+    """
+    includeHidden: Boolean = false
+
+    """
+    Words in its title, writers or variants' artists.
+    """
+    search: String
+
+    """
+    Only songs with every one of these tags.
+    """
+    tags: [String!]
+
+    """
+    Only songs with no scene yet (no show-tune clip).
+    """
+    withoutScene: Boolean = false
+  ): [MediaSong!]!
 
   """
   Every tag on a listed title, most used first.
@@ -3529,6 +3692,31 @@ type AudienceSoapboxView implements IAudienceSoapbox {
   Every publication's counts added up: articles, tips and ad-free readers. The audience's admins only.
   """
   stats: PublicationStats @requires(permissions: ["soapbox:moderate:*"])
+}
+
+"""
+The audience's connected Spotify account, which reads nights' playlists (connectSpotify). Its tokens are never returned.
+"""
+type AudienceSpotify {
+  """
+  Whether this server can connect Spotify (its app keys are set).
+  """
+  available: Boolean!
+
+  """
+  Whether an account is connected.
+  """
+  connected: Boolean!
+
+  """
+  When it was connected.
+  """
+  connectedAt: ISO8601DateTime
+
+  """
+  The connected account's Spotify name.
+  """
+  displayName: String
 }
 
 """
@@ -6773,6 +6961,87 @@ type CoverTier {
 }
 
 """
+Who is credited on something, and as what: a persona (a publication, author,
+organization or performer), or a member whose suggestion was accepted.
+"""
+type Credit {
+  """
+  For a republisher, the credit it republished.
+  """
+  derivedFrom: Credit
+
+  """
+  When an admin hid it; null when not hidden.
+  """
+  hiddenAt: ISO8601DateTime @requires(permissions: ["audience:write:*"])
+
+  """
+  The credit's id.
+  """
+  id: ID!
+
+  """
+  The member credited, for a suggester: named "First L." unless the viewer may see their full name.
+  """
+  member: Profile
+
+  """
+  Who is credited, as shown in the credits.
+  """
+  name: String!
+
+  """
+  The persona credited; null for a suggester.
+  """
+  person: Person
+
+  """
+  What they are credited as.
+  """
+  role: CreditRole!
+
+  """
+  Whether everyone sees it: not hidden, not an unonboarded publisher's, and a suggester's only when they chose to be.
+  """
+  shown: Boolean! @requires(permissions: ["audience:write:*"])
+}
+
+"""
+What someone is credited as (Credit).
+"""
+enum CreditRole {
+  """
+  Who wrote it.
+  """
+  AUTHOR
+
+  """
+  Who provided the data it was listed from.
+  """
+  DATA_PROVIDER
+
+  """
+  Where it first came from, e.g. the paper that first ran a guide.
+  """
+  ORIGINAL_SOURCE
+
+  """
+  Who took its photos.
+  """
+  PHOTOGRAPHER
+
+  """
+  A publication that ran it again; derivedFrom is the credit it republished.
+  """
+  REPUBLISHER
+
+  """
+  A member whose suggestion added or changed it, shown only when they chose to be.
+  """
+  SUGGESTER
+}
+
+"""
 The next curtain call's readiness for anyone to see: counts per area, never who.
 """
 type CurtainReadiness {
@@ -7364,6 +7633,11 @@ type EquipmentTrack {
   artist: String
 
   """
+  The cover art, an https link, when the player gives one.
+  """
+  artworkUrl: String
+
+  """
   When the report becomes stale.
   """
   expiresAt: ISO8601DateTime!
@@ -7387,12 +7661,17 @@ type EquipmentTrack {
   Track title.
   """
   title: String!
+
+  """
+  The songs the venue plays next, in order, when its player knows them (Velvet Display shuffling a night).
+  """
+  upNext: [UpNextTrack!]!
 }
 
 """
 An event hosted at a venue or awaiting a venue.
 """
-type Event implements HasBanner & HasTags & HasTaskTemplates & Node {
+type Event implements HasBanner & HasCredits & HasReviews & HasTags & HasTaskTemplates & Node {
   """
   The instance's IArticles mixin. Left out of the schema where its module isn't installed.
   """
@@ -7417,6 +7696,11 @@ type Event implements HasBanner & HasTags & HasTaskTemplates & Node {
   Its own chat community (a conference's Discord server), where the apps send people from it; null without one.
   """
   chatCommunity: EventChatCommunity
+
+  """
+  Its credits that everyone sees, original source first.
+  """
+  credits: [Credit!]!
 
   """
   Description of the event.
@@ -7506,9 +7790,20 @@ type Event implements HasBanner & HasTags & HasTaskTemplates & Node {
   ping: IPingFeed
 
   """
+  What it plays (a Spotify link), shuffled unless turned off; copied from its
+  series. A Sing-along karaoke night shows its lyrics. Null: none.
+  """
+  playlist: EventPlaylist
+
+  """
   The instance's IPosts mixin. Left out of the schema where its module isn't installed.
   """
   posts: IPosts!
+
+  """
+  Its published reviews, newest first.
+  """
+  reviews: [Review!]!
 
   """
   Items linked to it or to anything under it (a venue's events and series, a
@@ -7958,6 +8253,31 @@ The local People implementation of an event's lineup.
 """
 type EventPeopleView implements IEventPeople {
   """
+  Organizations co-presenting it alongside its organizers. Not on its lineup or hosts.
+  """
+  coPresenters(
+    """
+    Returns the elements in the list that come after the specified cursor.
+    """
+    after: String
+
+    """
+    Returns the elements in the list that come before the specified cursor.
+    """
+    before: String
+
+    """
+    Returns the first _n_ elements from the list.
+    """
+    first: Int
+
+    """
+    Returns the last _n_ elements from the list.
+    """
+    last: Int
+  ): PersonConnection!
+
+  """
   How many of its people you can't see until you sign in, as 'plus other
   performers': the Community ones, to someone signed out. 0 when signed in.
   """
@@ -8392,6 +8712,41 @@ type EventPhotosView implements IEventPhotos {
 }
 
 """
+A night's playlist: what the venue plays (Spotify for now), and whether
+shuffled. On a Sing-along karaoke night (Event.karaoke.provider sing_along) the
+screens show its lyrics.
+"""
+type EventPlaylist {
+  """
+  Where it plays: spotify, else other.
+  """
+  provider: String!
+
+  """
+  Whether to play it shuffled, so nights vary. True unless turned off.
+  """
+  shuffle: Boolean!
+
+  """
+  Its songs in the playlist's order (up to 500), so the venue can shuffle it
+  itself and show what plays next. Null when Spotify's catalog isn't available,
+  or for a playlist without the audience's Spotify account connected
+  (connectSpotify).
+  """
+  tracks: [PlaylistTrack!]
+
+  """
+  Its Spotify URI (spotify:playlist:<id>), which the Spotify app plays; null for other links.
+  """
+  uri: String
+
+  """
+  Its web link, e.g. https://open.spotify.com/playlist/<id>.
+  """
+  url: String!
+}
+
+"""
 The local RSVP implementation of who's going to an event.
 """
 type EventRSVP implements IEventRSVP {
@@ -8527,6 +8882,11 @@ type EventSeries implements HasBanner & HasTags & HasTaskTemplates & Node {
   karaoke: Boolean!
 
   """
+  Its occurrences' own karaoke provider, e.g. sing_along. Null: their venue's partner.
+  """
+  karaokeProvider: String
+
+  """
   Its session code. Null means venue controlled.
   """
   karaokeSessionCode: String
@@ -8550,6 +8910,11 @@ type EventSeries implements HasBanner & HasTags & HasTaskTemplates & Node {
   The instance's IEventSeriesPeople mixin. Left out of the schema where its module isn't installed.
   """
   people: IEventSeriesPeople!
+
+  """
+  What its occurrences play (a Spotify link), copied to each. Null: none.
+  """
+  playlist: EventPlaylist
 
   """
   The instance's IPosts mixin. Left out of the schema where its module isn't installed.
@@ -10115,6 +10480,16 @@ interface HasBanner {
 }
 
 """
+Something people are credited on (Credit): an event, venue, article, media title or locale.
+"""
+interface HasCredits {
+  """
+  Its credits that everyone sees, original source first.
+  """
+  credits: [Credit!]!
+}
+
+"""
 An object with a profile photo.
 """
 interface HasPhoto {
@@ -10122,6 +10497,16 @@ interface HasPhoto {
   The photo's CDN URL, if there is one.
   """
   photoUrl: PhotoURL
+}
+
+"""
+Something people write reviews of (Review): a media title or an event.
+"""
+interface HasReviews {
+  """
+  Its published reviews, newest first.
+  """
+  reviews: [Review!]!
 }
 
 """
@@ -10247,7 +10632,8 @@ interface IArticles @mixin(extensionKey: "soapbox", field: "articles", null: fal
   """
   Live articles about it, newest first; a person's also the articles of a
   publication they run; a locale's news: about it or anything in it, or by a
-  publication covering it, from the last 30 days (pinned ones whatever their age).
+  publication covering it, from the last 30 days (pinned ones whatever their
+  age). Also the articles linked to it or to anything under it (doc/ROLL_UP.md).
   """
   list(
     """
@@ -10702,6 +11088,146 @@ interface IAudienceMedia @mixin(extensionKey: "media", field: "media", null: fal
   The list sections, most titles first.
   """
   collections: [MediaLabel!]!
+
+  """
+  A media item by its UUID, IMDb id or Spotify track id; null when there is none.
+  """
+  item(
+    """
+    Its UUID.
+    """
+    id: ID
+
+    """
+    IMDb's id for it.
+    """
+    imdbId: String
+
+    """
+    Its Spotify track id.
+    """
+    spotifyId: String
+  ): MediaItem
+
+  """
+  Media items of every kind (doc/plans/UNIFIED_MEDIA_PLAN.md) by title. Filters narrow it; all must match.
+  """
+  items(
+    """
+    Only items in this collection.
+    """
+    collection: String
+
+    """
+    At most this many, up to 2000.
+    """
+    first: Int = 500
+
+    """
+    Staff only: hidden ones too.
+    """
+    includeHidden: Boolean = false
+
+    """
+    Only these kinds.
+    """
+    kinds: [MediaItemKind!]
+
+    """
+    Only items in this playlist.
+    """
+    playlistId: ID
+
+    """
+    Words in its title or artists, or an IMDb or Spotify id.
+    """
+    search: String
+
+    """
+    Only variants of this song.
+    """
+    songId: ID
+
+    """
+    Only these Spotify tracks.
+    """
+    spotifyIds: [String!]
+
+    """
+    Only items with every one of these tags.
+    """
+    tags: [String!]
+
+    """
+    Only recordings, live versions, music videos and scenes not yet linked to a song.
+    """
+    withoutSong: Boolean = false
+  ): [MediaItem!]!
+
+  """
+  A playlist by its UUID; null when there is none.
+  """
+  playlist(
+    """
+    Its UUID.
+    """
+    id: ID!
+  ): MediaPlaylist
+
+  """
+  Playlists by title: series, albums, playlists, podcasts.
+  """
+  playlists(
+    """
+    Staff only: hidden ones too.
+    """
+    includeHidden: Boolean = false
+
+    """
+    Only these kinds.
+    """
+    kinds: [MediaPlaylistKind!]
+
+    """
+    Words in its title or artists.
+    """
+    search: String
+  ): [MediaPlaylist!]!
+
+  """
+  A song by its UUID; null when there is none.
+  """
+  song(
+    """
+    Its UUID.
+    """
+    id: ID!
+  ): MediaSong
+
+  """
+  Songs by title, each with its variants. Filters narrow it.
+  """
+  songs(
+    """
+    Staff only: hidden ones too.
+    """
+    includeHidden: Boolean = false
+
+    """
+    Words in its title, writers or variants' artists.
+    """
+    search: String
+
+    """
+    Only songs with every one of these tags.
+    """
+    tags: [String!]
+
+    """
+    Only songs with no scene yet (no show-tune clip).
+    """
+    withoutScene: Boolean = false
+  ): [MediaSong!]!
 
   """
   Every tag on a listed title, most used first.
@@ -11442,6 +11968,31 @@ Who is hosting or playing an event.
 """
 interface IEventPeople @mixin(extensionKey: "people", field: "people", null: false, on: ["Event"]) {
   """
+  Organizations co-presenting it alongside its organizers. Not on its lineup or hosts.
+  """
+  coPresenters(
+    """
+    Returns the elements in the list that come after the specified cursor.
+    """
+    after: String
+
+    """
+    Returns the elements in the list that come before the specified cursor.
+    """
+    before: String
+
+    """
+    Returns the first _n_ elements from the list.
+    """
+    first: Int
+
+    """
+    Returns the last _n_ elements from the list.
+    """
+    last: Int
+  ): PersonConnection!
+
+  """
   How many of its people you can't see until you sign in, as 'plus other
   performers': the Community ones, to someone signed out. 0 when signed in.
   """
@@ -11896,12 +12447,17 @@ interface IKaraokeNight @facet(tag: "karaoke") @mixin(extensionKey: "karaoke", f
   joinUrl: String
 
   """
+  The night's own provider, e.g. sing_along, set over its venue's partner. Null when the night uses its venue's.
+  """
+  ownProvider: String
+
+  """
   The night's own session code, set over its venue's standing one. Null when the night uses its venue's.
   """
   ownSessionCode: String
 
   """
-  The venue's karaoke partner, e.g. karafun. Null when it hasn't connected one.
+  The night's karaoke provider, e.g. karafun or sing_along: its own, else its venue's partner. Null when there is neither.
   """
   provider: String
 
@@ -11920,6 +12476,12 @@ interface IKaraokeNight @facet(tag: "karaoke") @mixin(extensionKey: "karaoke", f
   The partner's session singers join that night, e.g. a KaraFun remote code: the night's own, else its venue's standing one.
   """
   sessionCode: String
+
+  """
+  Whether the room sings along (provider sing_along): the night's playlist
+  (Event.playlist) plays with the lyrics on the venue's screens.
+  """
+  singAlong: Boolean!
 }
 
 """
@@ -13313,6 +13875,29 @@ Live music reported by equipment linked to this venue.
 """
 interface IVenueMusic @mixin(extensionKey: "music", field: "music", null: false, on: ["Venue"]) {
   """
+  When each lyric line of these Spotify tracks or recordings is sung, without
+  the words, for sing-along screens; tracks nobody has timed are left out.
+  Shared by every venue.
+  """
+  lyricTimings(
+    """
+    Recordings by ISRC, at most 100 (any copy of the audio).
+    """
+    isrcs: [String!] = []
+
+    """
+    MusicBrainz recording ids (MBIDs), at most 100: a venue's own copy of a song
+    finds its timing whether it was kept for a Spotify track or not.
+    """
+    musicbrainzRecordingIds: [String!] = []
+
+    """
+    Spotify track ids, at most 100.
+    """
+    spotifyTrackIds: [String!] = []
+  ): [LyricTiming!]!
+
+  """
   Latest track while equipment reporting is active.
   """
   nowPlaying: EquipmentTrack
@@ -13378,9 +13963,9 @@ interface IVenuePeople @mixin(extensionKey: "people", field: "people", null: fal
   guests: [Person!]!
 
   """
-  Who's hosting here now, for the apps' host row: the host and MC entries on now,
-  else the hosts of the event under way (its lineup's, else the ones listed on it),
-  else none. Signed out, only the Public ones.
+  Who's hosting here now, for the apps' host row: the host and MC entries on
+  now, else the hosts of the event under way (its lineup's, else the ones listed
+  on it), else none. Signed out, only the Public ones.
   """
   hostsTonight: [Person!]!
 
@@ -13719,12 +14304,17 @@ type KaraokeNightView implements IKaraokeNight {
   joinUrl: String
 
   """
+  The night's own provider, e.g. sing_along, set over its venue's partner. Null when the night uses its venue's.
+  """
+  ownProvider: String
+
+  """
   The night's own session code, set over its venue's standing one. Null when the night uses its venue's.
   """
   ownSessionCode: String
 
   """
-  The venue's karaoke partner, e.g. karafun. Null when it hasn't connected one.
+  The night's karaoke provider, e.g. karafun or sing_along: its own, else its venue's partner. Null when there is neither.
   """
   provider: String
 
@@ -13743,6 +14333,12 @@ type KaraokeNightView implements IKaraokeNight {
   The partner's session singers join that night, e.g. a KaraFun remote code: the night's own, else its venue's standing one.
   """
   sessionCode: String
+
+  """
+  Whether the room sings along (provider sing_along): the night's playlist
+  (Event.playlist) plays with the lyrics on the venue's screens.
+  """
+  singAlong: Boolean!
 }
 
 """
@@ -13774,6 +14370,11 @@ type KaraokeProvider implements IProvider {
   Whether a karaoke night can be linked to its session, which singers join with a code.
   """
   sessions: Boolean!
+
+  """
+  Whether the room sings with the night's playlist, lyrics on the venue's screens, instead of singers taking turns.
+  """
+  singsAlong: Boolean!
 
   """
   Whether a venue's API token can be checked with it on this server.
@@ -14834,7 +15435,7 @@ enum ListingVisibility {
 """
 A geographic area containing venues and featured people.
 """
-type Locale implements HasBanner & HasTimestamps & Node {
+type Locale implements HasBanner & HasCredits & HasTimestamps & Node {
   """
   The locales it lies within, outermost first (a congressional district's: its
   country, then its state). Empty for a top-level locale.
@@ -14855,6 +15456,11 @@ type Locale implements HasBanner & HasTimestamps & Node {
   The major identifier of the locale beacon.
   """
   beaconMajor: Int
+
+  """
+  Where its outline came from: tiger, statcan, osm, overture, union (its members' outlines) or manual; null without one.
+  """
+  boundarySource: String
 
   """
   The instance's ILocaleChat mixin. Left out of the schema where its module isn't installed.
@@ -14885,6 +15491,11 @@ type Locale implements HasBanner & HasTimestamps & Node {
   When the record was created.
   """
   createdAt: ISO8601DateTime!
+
+  """
+  Its credits that everyone sees, original source first.
+  """
+  credits: [Credit!]!
 
   """
   Its Open Civic Data division ID, e.g. ocd-division/country:us/state:ut/cd:3, for districts and other official divisions.
@@ -14936,6 +15547,11 @@ type Locale implements HasBanner & HasTimestamps & Node {
   The geographic location of this place.
   """
   location: Location
+
+  """
+  For a super locale (a metro grouping jurisdictions, like Moscow–Pullman), the locales it groups, by name. Empty otherwise.
+  """
+  memberLocales: [Locale!]!
 
   """
   Display name.
@@ -15005,6 +15621,12 @@ type Locale implements HasBanner & HasTimestamps & Node {
     """
     statuses: [EntityLinkStatus!] = [LINKED]
   ): [EntityLink!]!
+
+  """
+  The super locale grouping it (Moscow–Pullman for Pullman), shown in the apps
+  in its place; null when none does. Liquor rules still come from its own chain.
+  """
+  superLocale: Locale
 
   """
   Its IANA time zone, e.g. America/Los_Angeles, else that of the nearest locale above it; Etc/UTC until one is known.
@@ -15486,6 +16108,59 @@ type LocalePeopleView implements ILocalePeople {
 }
 
 """
+The locale to show someone so the view is never empty (doc/LOCALE_HIERARCHY.md,
+"Resolving a locale"): a super locale covering them, the most specific locale
+with something on, one above it, or the nearest that has something on.
+"""
+type LocaleResolution {
+  """
+  Where they are: the innermost locale covering them. Differs from locale when
+  the apps should say "Quiet in Great Falls this week, here's what's on across Montana".
+  """
+  homeLocale: Locale
+
+  """
+  The locale to show.
+  """
+  locale: Locale
+
+  """
+  Why it was chosen.
+  """
+  reason: LocaleResolutionReason!
+}
+
+"""
+Why a locale was chosen to show someone (LocaleResolution), so the apps can say so honestly.
+"""
+enum LocaleResolutionReason {
+  """
+  Nothing on anywhere nearby; where they are.
+  """
+  EMPTY
+
+  """
+  Nothing on around them; the closest locale with something on.
+  """
+  NEAREST
+
+  """
+  The most specific locale covering them with something on.
+  """
+  SPECIFIC
+
+  """
+  A super locale covering them has something on.
+  """
+  SUPER_LOCALE
+
+  """
+  Nothing on where they are; a locale it lies within (their state) has something.
+  """
+  WALKED_UP
+}
+
+"""
 What a kind of locale attachment does along the locale tree (LocaleTree, doc/LOCALE_HIERARCHY.md).
 """
 enum LocaleTreeMode {
@@ -15668,9 +16343,161 @@ type LocationReportPayload {
   nearbyVenues: [Venue!]
 
   """
+  The locale to show so the view is never empty, and why (a super locale, the
+  most specific with something on, one above it, or the nearest).
+  """
+  resolution: LocaleResolution!
+
+  """
   The venue the user is in, when they are in one.
   """
   venue: Venue
+}
+
+"""
+When each lyric line of a track is sung, for sing-along screens, without the
+words (LyricTiming): the screen fetches the words from its own licensed source
+and takes the time of each line whose hash matches.
+"""
+type LyricTiming {
+  """
+  Artist, as reported.
+  """
+  artist: String
+
+  """
+  Track length, in milliseconds.
+  """
+  durationMs: Int
+
+  """
+  Whether a Chromaprint fingerprint of the recording was reported.
+  """
+  hasFingerprint: Boolean!
+
+  """
+  The recording's ISRC, when known.
+  """
+  isrc: String
+
+  """
+  Every line, in order.
+  """
+  lines: [LyricTimingLine!]!
+
+  """
+  The lyrics source's id for the words, such as a Musixmatch track id.
+  """
+  lyricsRef: String
+
+  """
+  Where the words come from, such as musixmatch.
+  """
+  lyricsSource: String
+
+  """
+  Lines timed from the audio; the rest were spread between them.
+  """
+  matchedLines: Int!
+
+  """
+  The media item (a variant of a song) it times, when it has no Spotify track.
+  """
+  mediaItemId: ID
+
+  """
+  The MusicBrainz recording id (MBID), when known.
+  """
+  musicbrainzRecordingId: String
+
+  """
+  How many reports there have been for the track.
+  """
+  reportsCount: Int!
+
+  """
+  What timed it, such as velvet-aligner or venue-lrc.
+  """
+  source: String
+
+  """
+  The Spotify track id; empty for a media item's own timing (mediaItemId), which Venue.music.lyricTimings never returns.
+  """
+  spotifyTrackId: String!
+
+  """
+  Lines timed syllable by syllable (lines.syllables).
+  """
+  syllableLines: Int!
+
+  """
+  The lines with their words, fetched from Musixmatch with AudienceKit's key
+  when asked and never kept; null without a key or when the words found are
+  another version of the song.
+  """
+  syncedLines: [SyncedLyricLine!]
+
+  """
+  Track title, as reported.
+  """
+  title: String!
+
+  """
+  When the kept timing last changed.
+  """
+  updatedAt: ISO8601DateTime!
+}
+
+"""
+When one lyric line is sung. It carries a digest of the line's words, never the
+words: match it to the words from your own licensed source, digested the same
+way (LyricTiming.line_hash).
+"""
+type LyricTimingLine {
+  """
+  First 16 hex digits of SHA-256 of the line's words: lower case, no accents or
+  apostrophes, anything else but letters and digits one space.
+  """
+  digest: String!
+
+  """
+  Its syllables in order; null when the line was timed only as a whole.
+  """
+  syllables: [LyricTimingSyllable!]
+
+  """
+  Seconds from the start of the track.
+  """
+  time: Float!
+}
+
+"""
+When one syllable of a lyric line is sung, by how many of the line's characters
+it covers (never the characters): cut the words your licensed source has for the
+line into syllables of these lengths, in order (Velvet JSON,
+velvet-syllables/1).
+"""
+type LyricTimingSyllable {
+  """
+  How sure the aligner was, 0 to 1; null when not measured.
+  """
+  confidence: Float
+
+  """
+  Seconds from the start of the track.
+  """
+  end: Float!
+
+  """
+  How many of the line's characters this syllable covers, spaces after it
+  included: Unicode scalars of the NFC form of the line with its ends trimmed.
+  """
+  length: Int!
+
+  """
+  Seconds from the start of the track.
+  """
+  start: Float!
 }
 
 """
@@ -15802,6 +16629,223 @@ type MediaEpisode {
 }
 
 """
+One thing to watch or play: a film, an episode, a scene, a music video, a
+recording (a Spotify track), a live version, a podcast episode or other audio.
+Scenes, music videos, recordings and live versions are variants of a song.
+"""
+type MediaItem {
+  """
+  AcoustID's id for the audio's fingerprint, when known.
+  """
+  acoustidId: String
+
+  """
+  Its AcoustID page.
+  """
+  acoustidUrl: String
+
+  """
+  Who performs it, e.g. "Idina Menzel, Kristin Chenoweth".
+  """
+  artists: String
+
+  """
+  A podcast episode's audio file.
+  """
+  audioUrl: String
+
+  """
+  The list sections it's in.
+  """
+  collections: [String!]!
+
+  """
+  How long it is, in milliseconds.
+  """
+  durationMs: Int
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  IMDb's id for it, e.g. tt0109045.
+  """
+  imdbId: String
+
+  """
+  Its IMDb page.
+  """
+  imdbUrl: String
+
+  """
+  The recording's ISRC.
+  """
+  isrc: String
+
+  """
+  What it is.
+  """
+  kind: MediaItemKind!
+
+  """
+  Shared lyric timings for its Spotify track (times and digests, never words); null when untimed.
+  """
+  lyricTiming: LyricTiming
+
+  """
+  Kept from a media title, episode or clip: its title, year, IMDb id, tags and the like save to that record too.
+  """
+  mirrored: Boolean!
+
+  """
+  The MusicBrainz recording id (MBID) it is, when known.
+  """
+  musicbrainzRecordingId: String
+
+  """
+  Its MusicBrainz recording page.
+  """
+  musicbrainzUrl: String
+
+  """
+  The curator's note; null for none.
+  """
+  note: String
+
+  """
+  The film or special a scene is part of.
+  """
+  partOf: MediaItem
+
+  """
+  The series an episode or scene is part of.
+  """
+  partOfPlaylist: MediaPlaylist
+
+  """
+  Where it is in each playlist that has it.
+  """
+  playlists: [MediaPlaylistEntry!]!
+
+  """
+  When it came out or aired.
+  """
+  releasedOn: ISO8601Date
+
+  """
+  The song it performs; null when none.
+  """
+  song: MediaSong
+
+  """
+  Its Spotify track id.
+  """
+  spotifyId: String
+
+  """
+  Its Spotify page.
+  """
+  spotifyUrl: String
+
+  """
+  Who holds its public performance rights, as best known.
+  """
+  studio: String
+
+  """
+  What it is, lowercase, and the curator's own.
+  """
+  tags: [String!]!
+
+  """
+  Its title.
+  """
+  title: String!
+
+  """
+  The media title (Audience.media.title) a film is kept from.
+  """
+  titleId: ID
+
+  """
+  An https page to watch or listen to it on.
+  """
+  url: String
+
+  """
+  Which version of its song, e.g. "Original Broadway Cast".
+  """
+  variant: String
+
+  """
+  When it came out.
+  """
+  year: Int
+}
+
+"""
+What a media item is (MediaItem.kind). Scenes, music videos, recordings and live versions are variants of a song.
+"""
+enum MediaItemKind {
+  """
+  An episode of a series.
+  """
+  EPISODE
+
+  """
+  A feature film.
+  """
+  FILM
+
+  """
+  A live version of a song.
+  """
+  LIVE
+
+  """
+  A music video.
+  """
+  MUSIC_VIDEO
+
+  """
+  An episode of a podcast.
+  """
+  PODCAST_EPISODE
+
+  """
+  A recording of a song: studio, cast album, a Spotify track.
+  """
+  RECORDING
+
+  """
+  Part of a film, episode or special, such as a show-tune number.
+  """
+  SCENE
+
+  """
+  A short film.
+  """
+  SHORT
+
+  """
+  Audio that isn't one song, such as a DJ mix on SoundCloud.
+  """
+  TRACK
+
+  """
+  A film made for television.
+  """
+  TV_MOVIE
+
+  """
+  A one-off broadcast, such as a Tony Awards telecast.
+  """
+  TV_SPECIAL
+}
+
+"""
 What a media title is, as IMDb has it.
 """
 enum MediaKind {
@@ -15852,9 +16896,277 @@ type MediaLabel {
 }
 
 """
+An ordered collection of media items: a TV series (its episodes, by season), an
+album, a playlist (a night's Spotify playlist, or a curated one) or a podcast.
+"""
+type MediaPlaylist {
+  """
+  An album's or podcast's artists or hosts.
+  """
+  artists: String
+
+  """
+  The list sections it's in.
+  """
+  collections: [String!]!
+
+  """
+  What it is.
+  """
+  description: String
+
+  """
+  When a series ended; null while it runs.
+  """
+  endYear: Int
+
+  """
+  Its items in order (listed ones).
+  """
+  entries(
+    """
+    Only this season's.
+    """
+    season: Int
+  ): [MediaPlaylistEntry!]!
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  IMDb's id for a series.
+  """
+  imdbId: String
+
+  """
+  A series' IMDb page.
+  """
+  imdbUrl: String
+
+  """
+  How many items it has.
+  """
+  itemCount: Int!
+
+  """
+  What it is.
+  """
+  kind: MediaPlaylistKind!
+
+  """
+  Kept from a media title (a series): its title, years, IMDb id, tags and the like save to that record too.
+  """
+  mirrored: Boolean!
+
+  """
+  The audience's event series whose night plays it.
+  """
+  nights: [EventSeries!]!
+
+  """
+  The curator's note; null for none.
+  """
+  note: String
+
+  """
+  The seasons it has episodes for.
+  """
+  seasons: [Int!]!
+
+  """
+  Played shuffled.
+  """
+  shuffle: Boolean!
+
+  """
+  Its Spotify playlist or album id.
+  """
+  spotifyId: String
+
+  """
+  Its Spotify page.
+  """
+  spotifyUrl: String
+
+  """
+  When it last synced.
+  """
+  syncedAt: ISO8601DateTime
+
+  """
+  Whether it can sync: a Spotify playlist or album, or a podcast with a feed.
+  """
+  syncs: Boolean!
+
+  """
+  What it is, lowercase, and the curator's own.
+  """
+  tags: [String!]!
+
+  """
+  Its title.
+  """
+  title: String!
+
+  """
+  The media title (Audience.media.title) a series is kept from.
+  """
+  titleId: ID
+
+  """
+  Its link: Spotify, a podcast feed, a SoundCloud set.
+  """
+  url: String
+
+  """
+  When it came out, or a series started.
+  """
+  year: Int
+}
+
+"""
+One media item at one place in a playlist.
+"""
+type MediaPlaylistEntry {
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  The item.
+  """
+  item: MediaItem!
+
+  """
+  An episode's number in its season.
+  """
+  number: Int
+
+  """
+  The playlist.
+  """
+  playlist: MediaPlaylist!
+
+  """
+  Where it is in the playlist, in order.
+  """
+  position: Int!
+
+  """
+  An episode's season.
+  """
+  season: Int
+}
+
+"""
+What a media playlist is (MediaPlaylist.kind).
+"""
+enum MediaPlaylistKind {
+  """
+  An album, such as a cast recording.
+  """
+  ALBUM
+
+  """
+  A limited television series.
+  """
+  MINI_SERIES
+
+  """
+  A playlist: a night's Spotify playlist, or a curated list.
+  """
+  PLAYLIST
+
+  """
+  A podcast: its episodes, from its feed.
+  """
+  PODCAST
+
+  """
+  A television series: its episodes, by season.
+  """
+  SERIES
+}
+
+"""
+A song as written, not one recording of it: "Defying Gravity". Its variants are
+the media items that perform it: a scene in a film or telecast, a Spotify
+recording, a live version, a music video.
+"""
+type MediaSong {
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  Its ISWC, e.g. T-070.000.000-1, when known.
+  """
+  iswc: String
+
+  """
+  Its MusicBrainz work page.
+  """
+  musicbrainzUrl: String
+
+  """
+  The MusicBrainz work id (MBID), when known.
+  """
+  musicbrainzWorkId: String
+
+  """
+  The audience's event series whose night's playlist plays one of its variants (a synced Spotify playlist).
+  """
+  nights: [EventSeries!]!
+
+  """
+  The curator's note; null for none.
+  """
+  note: String
+
+  """
+  What it is, lowercase: belter, duet, ballad and the curator's own.
+  """
+  tags: [String!]!
+
+  """
+  Whether any of its recordings has shared lyric timings.
+  """
+  timedLyrics: Boolean!
+
+  """
+  Its title, e.g. "Defying Gravity".
+  """
+  title: String!
+
+  """
+  The items that perform it, listed ones.
+  """
+  variants(
+    """
+    Only these kinds.
+    """
+    kinds: [MediaItemKind!]
+  ): [MediaItem!]!
+
+  """
+  Who wrote it, e.g. "Stephen Schwartz".
+  """
+  writers: String
+
+  """
+  When it was written or first performed.
+  """
+  year: Int
+}
+
+"""
 A film or television title the audience recommends, linked to its IMDb page. Open imdbUrl for its plot, cast and rating.
 """
-type MediaTitle {
+type MediaTitle implements HasCredits & HasReviews {
   """
   The songs show-tune nights play from it, listed ones only.
   """
@@ -15864,6 +17176,11 @@ type MediaTitle {
   The list sections it's in, e.g. new-since-2018 (Audience.media.collections).
   """
   collections: [String!]!
+
+  """
+  Its credits that everyone sees, original source first.
+  """
+  credits: [Credit!]!
 
   """
   When a series ended; null while it runs, and for films.
@@ -15904,6 +17221,11 @@ type MediaTitle {
   The curator's note, e.g. "Watch Paris Is Burning first"; null for none.
   """
   note: String
+
+  """
+  Its published reviews, newest first.
+  """
+  reviews: [Review!]!
 
   """
   The seasons it has episodes for.
@@ -16498,6 +17820,16 @@ type Mutation {
   ): ChatMessageRemoveOwnPayload @requires(permissions: ["chat:write:self"])
 
   """
+  Takes someone out of a persona; members can take themselves out.
+  """
+  removePersonaMember(
+    """
+    Parameters for PersonaMemberRemove
+    """
+    input: PersonaMemberRemoveInput!
+  ): PersonaMemberRemovePayload @requires(permissions: ["people:write:*", "people:write:mine", "users:write:self"])
+
+  """
   Removes a comment on a post: its author's own, or any on a post for whoever
   manages its poster (the venue's managers, the talent listing's) and admins.
   """
@@ -16607,6 +17939,16 @@ type Mutation {
   ): FriendRequestRespondPayload @requires(permissions: ["users:write:self"])
 
   """
+  Accepts or declines your invite into a persona.
+  """
+  respondToPersonaInvite(
+    """
+    Parameters for PersonaInviteRespond
+    """
+    input: PersonaInviteRespondInput!
+  ): PersonaInviteRespondPayload @requires(permissions: ["users:write:self"])
+
+  """
   Sets the user's RSVP to an event in AudienceKit. It isn't sent to Facebook,
   which no longer lets apps RSVP for people. A ticket holder stays going
   whatever they answer.
@@ -16617,6 +17959,16 @@ type Mutation {
     """
     input: EventRSVPInput!
   ): EventRSVPPayload @requires(permissions: ["rsvp:write:self"])
+
+  """
+  Writes or changes your review of a film, a show or an event; publish: true publishes it.
+  """
+  saveReview(
+    """
+    Parameters for ReviewSave
+    """
+    input: ReviewSaveInput!
+  ): ReviewSavePayload @requires(permissions: ["users:write:self"])
 
   """
   Scans a Quickie code. Your partner's confirms you met (both see You met!);
@@ -16799,6 +18151,16 @@ type Mutation {
     """
     input: PairUpShareInput!
   ): PairUpSharePayload @requires(permissions: ["pair_up:write:self"])
+
+  """
+  Shows you in the credits of what your accepted suggestion added or changed, or stops showing you.
+  """
+  showMeInCredits(
+    """
+    Parameters for ShowMeInCredits
+    """
+    input: ShowMeInCreditsInput!
+  ): ShowMeInCreditsPayload @requires(permissions: ["users:write:self"])
 
   """
   A fresh QR code to show your partner once you both accept. It works once, only
@@ -18617,6 +19979,171 @@ enum PersonVisibility {
 }
 
 """
+Autogenerated input type of PersonaInviteRespond
+"""
+input PersonaInviteRespondInput {
+  """
+  true to join, false to decline.
+  """
+  accept: Boolean!
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The invite.
+  """
+  id: ID!
+}
+
+"""
+Autogenerated return type of PersonaInviteRespond.
+"""
+type PersonaInviteRespondPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The membership, now active or left.
+  """
+  member: PersonaMember!
+}
+
+"""
+Someone in a persona (an organization, publication or performer), with their role there.
+"""
+type PersonaMember {
+  """
+  The membership id.
+  """
+  id: ID!
+
+  """
+  When they accepted.
+  """
+  joinedAt: ISO8601DateTime
+
+  """
+  The persona.
+  """
+  persona: Person!
+
+  """
+  Their role.
+  """
+  role: PersonaRole!
+
+  """
+  Invited, active or left.
+  """
+  status: PersonaMemberStatus!
+
+  """
+  Their own words for what they do, e.g. "Treasurer".
+  """
+  title: String
+
+  """
+  Who they are.
+  """
+  user: Profile!
+}
+
+"""
+Autogenerated input type of PersonaMemberRemove
+"""
+input PersonaMemberRemoveInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The membership.
+  """
+  id: ID!
+}
+
+"""
+Autogenerated return type of PersonaMemberRemove.
+"""
+type PersonaMemberRemovePayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The membership, now left.
+  """
+  member: PersonaMember!
+}
+
+"""
+Where a persona member stands.
+"""
+enum PersonaMemberStatus {
+  """
+  In, with their role.
+  """
+  ACTIVE
+
+  """
+  Asked; nothing until they accept.
+  """
+  INVITED
+
+  """
+  Left or removed.
+  """
+  LEFT
+}
+
+"""
+A member's role in a persona (PersonaRoles): what they may do there.
+"""
+enum PersonaRole {
+  """
+  Manages the persona and its members.
+  """
+  ADMIN
+
+  """
+  Runs its rate sheet and ads.
+  """
+  AD_MANAGER
+
+  """
+  In its back of house: the committee room and its events.
+  """
+  COMMITTEE
+
+  """
+  Edits the persona and its events.
+  """
+  EDITOR
+
+  """
+  Everything, and the only one who can hand the persona over.
+  """
+  OWNER
+
+  """
+  In its back of house, as staff.
+  """
+  STAFF
+
+  """
+  Drafts Soapbox articles for its publication.
+  """
+  WRITER
+}
+
+"""
 Someone posting as a listing, like a host as their talent page (Ty posting as
 Anya): its name and photo with a role badge. Without a People page (a guest
 host), apps draw a host glyph and link nowhere.
@@ -19183,6 +20710,31 @@ type PlacesProfile implements IPlacesProfile {
   Its Google place ID, from its location.
   """
   placeId: String
+}
+
+"""
+One song of a night's playlist, from Spotify's catalog.
+"""
+type PlaylistTrack {
+  """
+  Its artists, comma separated.
+  """
+  artist: String
+
+  """
+  Its length in milliseconds.
+  """
+  durationMs: Int
+
+  """
+  Its title.
+  """
+  title: String!
+
+  """
+  Its Spotify URI (spotify:track:<id>), which the Spotify app plays.
+  """
+  uri: String!
 }
 
 """
@@ -21309,6 +22861,121 @@ type ResourceNeed {
 }
 
 """
+A written take on a film, a show or an event, by a member or a publication. There is no rating.
+"""
+type Review implements HasCredits {
+  """
+  Who wrote it.
+  """
+  author: Profile!
+
+  """
+  What they wrote, in Markdown.
+  """
+  body: String!
+
+  """
+  Its credits that everyone sees, original source first.
+  """
+  credits: [Credit!]!
+
+  """
+  The event it's about.
+  """
+  event: Event
+
+  """
+  Its id.
+  """
+  id: ID!
+
+  """
+  The film or show it's about.
+  """
+  mediaTitle: MediaTitle
+
+  """
+  When it was published.
+  """
+  publishedAt: ISO8601DateTime
+
+  """
+  Draft, published or removed.
+  """
+  status: ReviewStatus!
+}
+
+"""
+Autogenerated input type of ReviewSave
+"""
+input ReviewSaveInput {
+  """
+  What you have to say, in Markdown.
+  """
+  body: String!
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The event (to start a review of one).
+  """
+  eventId: ID
+
+  """
+  Your review to change; leave out to start one.
+  """
+  id: ID
+
+  """
+  The film or show (to start a review of one).
+  """
+  mediaTitleId: ID
+
+  """
+  Publish it now.
+  """
+  publish: Boolean = false
+}
+
+"""
+Autogenerated return type of ReviewSave.
+"""
+type ReviewSavePayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  Your review as saved.
+  """
+  review: Review!
+}
+
+"""
+Where a review stands.
+"""
+enum ReviewStatus {
+  """
+  Only its author sees it.
+  """
+  DRAFT
+
+  """
+  Everyone in the audience sees it.
+  """
+  PUBLISHED
+
+  """
+  Taken down by the audience's admins.
+  """
+  REMOVED
+}
+
+"""
 A file shared in a room. Only its members can download it, through a link that works for an hour.
 """
 type RoomFile {
@@ -22048,6 +23715,11 @@ of its performers and on a track from the back-of-house room.
 """
 type Scene {
   """
+  A night playlist's song: who recorded it, as Spotify lists them.
+  """
+  artist: String
+
+  """
   When advancing took it off.
   """
   cameOffAt: ISO8601DateTime
@@ -22121,6 +23793,11 @@ type Scene {
   Its track, for the back-of-house room's members; null for everyone else, or without one.
   """
   track: RoomFile
+
+  """
+  A night playlist's song: its Spotify track URI (spotify:track:<id>).
+  """
+  trackUri: String
 
   """
   When advancing put it on.
@@ -22403,6 +24080,41 @@ enum ShowEndsTo {
 }
 
 """
+Autogenerated input type of ShowMeInCredits
+"""
+input ShowMeInCreditsInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  false to stop showing you.
+  """
+  show: Boolean = true
+
+  """
+  The accepted suggestion.
+  """
+  submissionId: ID!
+}
+
+"""
+Autogenerated return type of ShowMeInCredits.
+"""
+type ShowMeInCreditsPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  Your credits from that suggestion.
+  """
+  credits: [Credit!]!
+}
+
+"""
 Where one show stands: a venue night's own lineup or an event's. Who covers the
 stage, whether it can be ended, when it ends on its own, and until when its cast
 moderate the venue chat.
@@ -22520,6 +24232,53 @@ type SignInWarning {
   The sign-in method it comes before.
   """
   method: SignInMethod!
+}
+
+"""
+A venue's Sing-along karaoke (Karaoke::SingAlong): no partner and no singer
+queue. The room sings with the night's playlist (Event.playlist) while the
+venue's screens show the lyrics.
+"""
+type SingAlongKaraokeAccount implements IKaraokeAccount {
+  """
+  Whether an API token for the partner is stored, e.g. KaraFun Box's.
+  """
+  hasApiToken: Boolean!
+
+  """
+  Unique identifier.
+  """
+  id: ID!
+
+  """
+  Where singers join its standing session.
+  """
+  joinUrl: String
+
+  """
+  Why the last check with the partner failed, if it did.
+  """
+  lastError: String
+
+  """
+  When the partner last accepted its token.
+  """
+  lastVerifiedAt: ISO8601DateTime
+
+  """
+  The venue's name for its account on the partner.
+  """
+  name: String
+
+  """
+  The karaoke partner.
+  """
+  provider: KaraokeProvider!
+
+  """
+  Its standing session code, used by karaoke nights that have none of their own.
+  """
+  sessionCode: String
 }
 
 """
@@ -23784,6 +25543,31 @@ type SupportRide {
   The link with no pickup, for when the app knows neither.
   """
   url: String!
+}
+
+"""
+One lyric line with its words and when it is sung, for a sing-along screen.
+"""
+type SyncedLyricLine {
+  """
+  The digest of its words, as on the timed line (LyricTimingLine.digest).
+  """
+  digest: String!
+
+  """
+  Its syllables in order, cutting the words by length; null when timed only as a whole.
+  """
+  syllables: [LyricTimingSyllable!]
+
+  """
+  The line's words.
+  """
+  text: String!
+
+  """
+  Seconds from the start of the track.
+  """
+  time: Float!
 }
 
 """
@@ -25166,6 +26950,21 @@ type TriviaVoteCastPayload {
 }
 
 """
+A song the venue plays next, in order.
+"""
+type UpNextTrack {
+  """
+  Artist name.
+  """
+  artist: String
+
+  """
+  Track title.
+  """
+  title: String!
+}
+
+"""
 A user: their public profile, the same record whoever asks.
 """
 type User implements HasTribes & IUser & Node {
@@ -25299,6 +27098,11 @@ type UserState {
   On unless they turned it off.
   """
   pairUpPush: Boolean!
+
+  """
+  The personas you are in or invited to (PersonaMember), invites first.
+  """
+  personaMemberships: [PersonaMember!]!
 
   """
   The instance's IUserStatePing mixin, when available.
@@ -25439,7 +27243,7 @@ type UserStatePingView implements IUserStatePing {
 """
 A venue in the audience.
 """
-type Venue implements HasBanner & HasPhoto & HasTags & HasTaskTemplates & HasTimestamps & Node {
+type Venue implements HasBanner & HasCredits & HasPhoto & HasTags & HasTaskTemplates & HasTimestamps & Node {
   """
   How busy it is right now, approximately. Admins and its managers only.
   """
@@ -25495,6 +27299,11 @@ type Venue implements HasBanner & HasPhoto & HasTags & HasTaskTemplates & HasTim
   When the record was created.
   """
   createdAt: ISO8601DateTime!
+
+  """
+  Its credits that everyone sees, original source first.
+  """
+  credits: [Credit!]!
 
   """
   Its public description.
@@ -26313,6 +28122,29 @@ The local Music implementation of a venue's live music.
 """
 type VenueMusicView implements IVenueMusic {
   """
+  When each lyric line of these Spotify tracks or recordings is sung, without
+  the words, for sing-along screens; tracks nobody has timed are left out.
+  Shared by every venue.
+  """
+  lyricTimings(
+    """
+    Recordings by ISRC, at most 100 (any copy of the audio).
+    """
+    isrcs: [String!] = []
+
+    """
+    MusicBrainz recording ids (MBIDs), at most 100: a venue's own copy of a song
+    finds its timing whether it was kept for a Spotify track or not.
+    """
+    musicbrainzRecordingIds: [String!] = []
+
+    """
+    Spotify track ids, at most 100.
+    """
+    spotifyTrackIds: [String!] = []
+  ): [LyricTiming!]!
+
+  """
   Latest track while equipment reporting is active.
   """
   nowPlaying: EquipmentTrack
@@ -26426,9 +28258,9 @@ type VenuePeopleView implements IVenuePeople {
   guests: [Person!]!
 
   """
-  Who's hosting here now, for the apps' host row: the host and MC entries on now,
-  else the hosts of the event under way (its lineup's, else the ones listed on it),
-  else none. Signed out, only the Public ones.
+  Who's hosting here now, for the apps' host row: the host and MC entries on
+  now, else the hosts of the event under way (its lineup's, else the ones listed
+  on it), else none. Signed out, only the Public ones.
   """
   hostsTonight: [Person!]!
 

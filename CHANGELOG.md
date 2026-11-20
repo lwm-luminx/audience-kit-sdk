@@ -3,6 +3,20 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.83.0 (2026-11-20)
+
+- Sing-along nights (Swift and Kotlin; Rick, 2026-11-20, "showing the rotation / requesting a song flows" for Hot Mess
+  2.9). Reads what audience_kit_api already serves on production (#760, `Venue.music.nowPlaying`); nothing new is
+  needed there.
+  - `singAlong(eventID:)`: whether an event is a sing-along (`Event.karaoke.singAlong`), its playlist (`url`, `uri`,
+    `shuffle`, `tracks`) and its venue's rotation now. `nowPlaying(venueID:)` refreshes the rotation alone. Both drop
+    a report past its `expiresAt`.
+  - `NowPlaying` (title, artist, artwork, `upNext`), `SingAlongPlaylist`, `SingAlongTrack`.
+  - For the request picker: `pickableTracks(matching:)` (A to Z, searched by title and artist ignoring case, accents
+    and punctuation) and `status(of:)`: playing now, up next, requested by me, or in the queue. Requests go through
+    the existing `requestSong`.
+  - graphql/schema.graphql refreshed from audience_kit_api next.
+
 ## 0.82.0 (2026-11-19)
 
 - Proposed changes and "Not a duplicate" undo for staff apps (Swift and Kotlin; Rick, 2026-11-19, "build out the

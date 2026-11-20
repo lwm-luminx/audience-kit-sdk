@@ -10,6 +10,8 @@ let package = Package(
     platforms: [
         .iOS(.v16),
         .macOS(.v13),
+        // Apple TV builds the core and the shared look only (Velvet on Apple TV): AudienceKitUI's screens are left out there.
+        .tvOS(.v17),
     ],
     products: [
         .library(name: "AudienceCore", targets: ["AudienceCore"]),

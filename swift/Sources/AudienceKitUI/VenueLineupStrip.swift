@@ -1,3 +1,5 @@
+// tvOS: AudienceKitUI on Apple TV is only the shared look (Theme, DesignTokens, AudienceAvatar) for Velvet's TV app.
+#if !os(tvOS)
 #if canImport(SwiftUI)
 import AudienceKit
 import SwiftUI
@@ -573,4 +575,5 @@ enum LineupAccessibility {
             .compactMap { $0 }.joined(separator: ", ")
     }
 }
+#endif
 #endif

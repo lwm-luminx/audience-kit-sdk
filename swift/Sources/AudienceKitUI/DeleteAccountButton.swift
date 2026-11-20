@@ -1,3 +1,5 @@
+// tvOS: AudienceKitUI on Apple TV is only the shared look (Theme, DesignTokens, AudienceAvatar) for Velvet's TV app.
+#if !os(tvOS)
 #if canImport(SwiftUI)
 import AudienceKit
 import SwiftUI
@@ -74,4 +76,5 @@ public enum DeleteAccountCopy {
         + "have in other apps built on AudienceKit aren't affected. It can't be undone."
     public static let notDeleted = "Your account is still here. Try again, or email hello@audiencekit.com."
 }
+#endif
 #endif

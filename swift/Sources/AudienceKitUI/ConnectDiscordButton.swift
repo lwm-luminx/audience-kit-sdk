@@ -1,3 +1,5 @@
+// tvOS: AudienceKitUI on Apple TV is only the shared look (Theme, DesignTokens, AudienceAvatar) for Velvet's TV app.
+#if !os(tvOS)
 #if canImport(SwiftUI) && canImport(AuthenticationServices)
 import AudienceKit
 import AuthenticationServices
@@ -94,4 +96,5 @@ public enum ConnectDiscordCopy {
     public static let explanation = "Connect your Discord account to see the community's Discord channels here as "
         + "yourself. We only learn your Discord name; nothing is posted for you."
 }
+#endif
 #endif

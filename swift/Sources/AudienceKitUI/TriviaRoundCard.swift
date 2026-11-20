@@ -1,3 +1,5 @@
+// tvOS: AudienceKitUI on Apple TV is only the shared look (Theme, DesignTokens, AudienceAvatar) for Velvet's TV app.
+#if !os(tvOS)
 #if canImport(SwiftUI)
 import AudienceKit
 import SwiftUI
@@ -120,4 +122,5 @@ public struct TriviaRoundCard: View {
         return call == answer ? String(localized: "The room got it.") : String(localized: "The room said \(call).")
     }
 }
+#endif
 #endif

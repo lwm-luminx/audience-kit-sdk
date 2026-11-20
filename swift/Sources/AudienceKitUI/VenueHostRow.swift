@@ -1,3 +1,5 @@
+// tvOS: AudienceKitUI on Apple TV is only the shared look (Theme, DesignTokens, AudienceAvatar) for Velvet's TV app.
+#if !os(tvOS)
 #if canImport(SwiftUI)
 import AudienceKit
 import SwiftUI
@@ -84,4 +86,5 @@ public struct VenueHostRow: View {
         .padding(.horizontal, DesignTokens.Spacing.s4)
     }
 }
+#endif
 #endif

@@ -1,3 +1,5 @@
+// tvOS: AudienceKitUI on Apple TV is only the shared look (Theme, DesignTokens, AudienceAvatar) for Velvet's TV app.
+#if !os(tvOS)
 #if canImport(SwiftUI)
 import AudienceKit
 import SwiftUI
@@ -55,4 +57,5 @@ extension CommunityChatLinks where Label == SwiftUI.Label<Text, Image> {
         self.init(links) { link in SwiftUI.Label(link.joinTitle, systemImage: link.systemImage) }
     }
 }
+#endif
 #endif

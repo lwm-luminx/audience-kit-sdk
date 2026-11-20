@@ -3,6 +3,14 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.83.0 (2026-11-20)
+
+- Apple TV (Rick, 2026-11-20, "build a tvOS app for the same bundle id as velvet"). The Swift package now lists
+  tvOS 17, so Velvet on Apple TV can link it. AudienceCore and AudienceKit build for tvOS as they are. On tvOS,
+  AudienceKitUI has only the shared look: `Theme`, `DesignTokens` and `AudienceAvatar`. Its screens and sheets (update
+  prompts, find friends, karaoke, song requests, calendar, Discord, App Check, delete account) are left out there,
+  since they need iOS or macOS. iOS and macOS builds are unchanged.
+
 ## 0.82.0 (2026-11-19)
 
 - Proposed changes and "Not a duplicate" undo for staff apps (Swift and Kotlin; Rick, 2026-11-19, "build out the

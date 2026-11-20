@@ -1,3 +1,5 @@
+// tvOS: AudienceKitUI on Apple TV is only the shared look (Theme, DesignTokens, AudienceAvatar) for Velvet's TV app.
+#if !os(tvOS)
 #if canImport(Contacts)
 import AudienceCore
 import Contacts
@@ -54,4 +56,5 @@ public enum ContactsReader {
     /// The phone's region, for numbers saved without a country code.
     public static var region: String? { Locale.current.region?.identifier }
 }
+#endif
 #endif

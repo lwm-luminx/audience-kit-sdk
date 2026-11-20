@@ -1,3 +1,5 @@
+// tvOS: AudienceKitUI on Apple TV is only the shared look (Theme, DesignTokens, AudienceAvatar) for Velvet's TV app.
+#if !os(tvOS)
 #if canImport(SwiftUI) && canImport(Contacts)
 import AudienceCore
 import AudienceKit
@@ -183,4 +185,5 @@ public final class ContactMatchingModel: ObservableObject {
         return error.localizedDescription
     }
 }
+#endif
 #endif

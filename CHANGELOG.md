@@ -3,6 +3,20 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.87.0 (2026-11-21)
+
+- The Spotify bridge (Swift and Kotlin; Rick, 2026-11-21, "connects and bridges in the music from personal libraries
+  to venues and back out"). Needs audience_kit_api #838; on an older API the reads answer nil. Nobody signs in to
+  Spotify, and Spotify only plays on the person's own account.
+  - `spotifyLink(url:)` / `spotifyLink(url)`: what a shared or pasted Spotify link names (`SpotifyLink`: kind,
+    title, artist, artwork, URI, link, embed player).
+  - `requestSong(venueID:spotifyURL:title:note:)` / `requestSong(venueId, spotifyUrl, title, note)`: a song request
+    from a Spotify song link.
+  - `setList(eventID:)` / `setList(eventId)`: the night's set list as a public Spotify playlist (`EventSetList`), for
+    a Listen in Spotify button.
+  - `SpotifyLink.firstLink(in:)` / `SpotifyLink.firstLink(text)`: the Spotify link in shared text.
+- `graphql/schema.graphql` brought up to the API's next.
+
 ## 0.86.0 (2026-11-21)
 
 - Sliding-scale cover (Swift, Kotlin and Node; Rick, 2026-11-21, "build out sliding scale cover, max, min,

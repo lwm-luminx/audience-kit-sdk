@@ -914,9 +914,20 @@ public class AudienceKitClient(
      * sheet, set up with [CoverPurchase.publishableKey] on the venue's account [CoverPurchase.stripeAccountId],
      * then call [confirmCover]. For a Square venue ([CoverPurchase.isSquare]), make a payment token with Square's
      * In-App Payments SDK and call [payCover]. Asking again the same night returns the same pass.
+     *
+     * On a sliding scale ([CoverCharge.scale]) [amountCents] is what the buyer chose, from its min to its max; `null`
+     * pays the suggested (or fixed) amount.
      */
-    public suspend fun buyCover(venueId: String): CoverPurchase =
-        graphQL(Queries.buyCover, BuyCoverResponse.serializer(), graphQLVariables("venueId" to venueId), "BuyCover").buyCover
+    public suspend fun buyCover(venueId: String, amountCents: Int? = null): CoverPurchase =
+        graphQL(
+            Queries.buyCover,
+            BuyCoverResponse.serializer(),
+            graphQLVariables(
+                "venueId" to venueId,
+                "amount" to amountCents?.let { mapOf("cents" to it, "currency" to "usd") },
+            ),
+            "BuyCover",
+        ).buyCover
 
     /**
      * Starts paying tonight's coat check at a venue for [quantity] coats, the same way as [buyCover]: Stripe's payment

@@ -49,7 +49,8 @@ public object Queries {
     public const val PROFILE_FIELDS: String = "id name avatarUrl"
     public const val COVER_CHARGE_FIELDS: String =
         "amount { $MONEY_FIELDS } total { $MONEY_FIELDS } fee { $MONEY_FIELDS } night from payable event { id name } " +
-            "coatCheck { amount { $MONEY_FIELDS } fee { $MONEY_FIELDS } total { $MONEY_FIELDS } night payable }"
+            "coatCheck { amount { $MONEY_FIELDS } fee { $MONEY_FIELDS } total { $MONEY_FIELDS } night payable } " +
+            "scale { min { $MONEY_FIELDS } max { $MONEY_FIELDS } suggested { $MONEY_FIELDS } }"
 
     /** An [Admission], with the pass secret the buyer makes the QR code from. */
     public const val ADMISSION_FIELDS: String =
@@ -214,8 +215,8 @@ public object Queries {
     }
 
     public val buyCover: String = """
-        mutation BuyCover(${'$'}venueId: ID!) {
-          buyCover(input: { venueId: ${'$'}venueId }) {
+        mutation BuyCover(${'$'}venueId: ID!, ${'$'}amount: MoneyInput) {
+          buyCover(input: { venueId: ${'$'}venueId, amount: ${'$'}amount }) {
             admission { $ADMISSION_FIELDS }
             provider paymentIntentClientSecret publishableKey stripeAccountId squareApplicationId squareLocationId
           }

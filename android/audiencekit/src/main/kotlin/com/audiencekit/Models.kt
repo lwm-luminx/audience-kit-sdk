@@ -346,7 +346,34 @@ public data class CoverCharge(
     val event: CoverEvent? = null,
     /** The venue's coat check that night, when it has one: pay it with [AudienceKitClient.buyCoatCheck]. */
     val coatCheck: CoatCheck? = null,
+    /**
+     * Its sliding scale, when the buyer chooses what to pay: pass the amount to [AudienceKitClient.buyCover].
+     * [amount] is then the suggested amount. `null` for a fixed cover.
+     */
+    val scale: CoverScale? = null,
 )
+
+/**
+ * A sliding-scale cover's range: the buyer pays from [min] to [max], starting at [suggested]. Amounts are what the
+ * venue receives, before fees.
+ */
+@Serializable
+public data class CoverScale(val min: Money, val max: Money, val suggested: Money) {
+    /** [cents] kept inside the range. */
+    public fun clamp(cents: Int): Int = cents.coerceIn(min.cents, max.cents)
+
+    /** One whole-dollar step up ([direction] > 0) or down from [cents], staying in the range. */
+    public fun step(cents: Int, direction: Int): Int {
+        val next = if (direction > 0) (cents / STEP_CENTS + 1) * STEP_CENTS
+        else ((cents + STEP_CENTS - 1) / STEP_CENTS - 1) * STEP_CENTS
+        return clamp(next)
+    }
+
+    public companion object {
+        /** How far the picker moves: a dollar. */
+        public const val STEP_CENTS: Int = 100
+    }
+}
 
 /** What checking a coat costs at a venue on a night. Show [total], the all-in price per coat. */
 @Serializable

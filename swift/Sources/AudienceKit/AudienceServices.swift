@@ -125,9 +125,16 @@ extension AudienceSession {
     /// call ``confirmCover(admissionID:)``. For a Square venue (``CoverPurchase/isSquare``), make a payment token
     /// with Square's In-App Payments SDK and call ``payCover(admissionID:sourceID:verificationToken:)``. Asking
     /// again the same night returns the same pass.
-    public func buyCover(venueID: String) async throws -> CoverPurchase {
-        try await graphQL(Queries.buyCover, variables: ["venueId": .string(venueID)], operationName: "BuyCover",
-                          as: BuyCoverResponse.self).buyCover
+    ///
+    /// On a sliding scale (``CoverCharge/scale``) `amountCents` is what the buyer chose, from its min to its max;
+    /// `nil` pays the suggested (or fixed) amount.
+    public func buyCover(venueID: String, amountCents: Int? = nil) async throws -> CoverPurchase {
+        var variables: [String: GraphQLValue] = ["venueId": .string(venueID)]
+        if let amountCents {
+            variables["amount"] = .object(["cents": .int(amountCents), "currency": .string("usd")])
+        }
+        return try await graphQL(Queries.buyCover, variables: variables, operationName: "BuyCover",
+                                 as: BuyCoverResponse.self).buyCover
     }
 
     /// Pays a Square venue's cover with a payment token (nonce) from Square's In-App Payments SDK: a card, Apple

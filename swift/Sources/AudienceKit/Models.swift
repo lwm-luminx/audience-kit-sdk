@@ -889,7 +889,7 @@ public struct Profile: Codable, Sendable, Hashable, Identifiable {
 }
 
 /// What it costs to get into a venue on a night. Show ``total``, the all-in price, and take it with
-/// ``AudienceKitClient/buyCover(venueID:)`` when ``payable`` is true; otherwise it's paid at the door.
+/// ``AudienceKitClient/buyCover(venueID:amountCents:)`` when ``payable`` is true; otherwise it's paid at the door.
 public struct CoverCharge: Codable, Sendable, Hashable {
     /// The cover the venue receives.
     public let amount: Money
@@ -905,9 +905,13 @@ public struct CoverCharge: Codable, Sendable, Hashable {
     public let payable: Bool
     /// The event that night, when it sets the night's cover.
     public let event: CoverEvent?
+    /// Its sliding scale, when the buyer chooses what to pay: pass the amount to
+    /// ``AudienceKitClient/buyCover(venueID:amountCents:)``. ``amount`` is then the suggested amount; `nil` for a
+    /// fixed cover.
+    public let scale: CoverScale?
 
     public init(amount: Money, fee: Money, total: Money, night: String, from: String? = nil, payable: Bool,
-                event: CoverEvent? = nil)
+                event: CoverEvent? = nil, scale: CoverScale? = nil)
     {
         self.amount = amount
         self.fee = fee
@@ -916,6 +920,34 @@ public struct CoverCharge: Codable, Sendable, Hashable {
         self.from = from
         self.payable = payable
         self.event = event
+        self.scale = scale
+    }
+}
+
+/// A sliding-scale cover's range: the buyer pays from ``min`` to ``max``, starting at ``suggested``. Amounts are
+/// what the venue receives, before fees.
+public struct CoverScale: Codable, Sendable, Hashable {
+    public let min: Money
+    public let max: Money
+    public let suggested: Money
+
+    /// How far a picker moves: a dollar.
+    public static let stepCents = 100
+
+    public init(min: Money, max: Money, suggested: Money) {
+        self.min = min
+        self.max = max
+        self.suggested = suggested
+    }
+
+    /// `cents` kept inside the range.
+    public func clamped(_ cents: Int) -> Int { Swift.min(Swift.max(cents, min.cents), max.cents) }
+
+    /// One whole-dollar step up (`direction` > 0) or down from `cents`, staying in the range.
+    public func step(_ cents: Int, by direction: Int) -> Int {
+        let step = Self.stepCents
+        let next = direction > 0 ? (cents / step + 1) * step : ((cents + step - 1) / step - 1) * step
+        return clamped(next)
     }
 }
 
@@ -1075,7 +1107,7 @@ public enum PaymentProvider: Sendable, Hashable, RawRepresentable, Codable {
     }
 }
 
-/// What ``AudienceKitClient/buyCover(venueID:)`` returns: the pending pass and what the venue's payment provider
+/// What ``AudienceKitClient/buyCover(venueID:amountCents:)`` returns: the pending pass and what the venue's payment provider
 /// needs. Stripe venues pay with Stripe's payment sheet; Square venues with Square's In-App Payments SDK.
 public struct CoverPurchase: Codable, Sendable, Hashable {
     /// The pass, pending until the payment succeeds.

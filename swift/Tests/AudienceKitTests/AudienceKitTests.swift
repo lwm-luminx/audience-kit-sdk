@@ -1085,7 +1085,8 @@ private func makeClient(
         let (client, _) = makeClient(stub)
 
         _ = try await client.buyCover(venueID: "v-1", amountCents: 800)
-        let variables = try #require(try #require(stub.requests.first).jsonBody()["variables"] as? [String: Any])
+        let request = try #require(stub.requests.first)
+        let variables = try #require(request.jsonBody()["variables"] as? [String: Any])
         let amount = try #require(variables["amount"] as? [String: Any])
         #expect(amount["cents"] as? Int == 800)
         #expect(amount["currency"] as? String == "usd")

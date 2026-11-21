@@ -3,6 +3,15 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.85.0 (2026-11-21)
+
+- `cachedVenues(maxAge:)` / `cachedVenues(maxAgeMillis)` (Swift and Kotlin; Rick, 2026-11-21, "venues list is slow
+  to load"): the venues `venues()` last fetched, read from the GraphQL cache without asking the API, so a Venues
+  screen draws at once and refreshes behind them. `venues()` now keeps its answer under a fixed cache key
+  (`venuesCacheKey` / `VENUES_CACHE_KEY`, "Venues") whatever the audience's modules, so the list is found after a
+  relaunch, before the session has learned the audience's schema shape. Lists kept under the old key are fetched
+  again once.
+
 ## 0.84.0 (2026-11-20)
 
 - Sing-along nights (Swift and Kotlin; Rick, 2026-11-20, "showing the rotation / requesting a song flows" for Hot Mess

@@ -1017,6 +1017,35 @@ class CoverChargeTest {
     }
 
     @Test
+    fun startsPayingASlidingScaleCoverAtTheChosenAmount() = runTest {
+        val stub = StubTransport {
+            StubTransport.json(
+                200,
+                """{"data":{"buyCover":{"admission":${ADMISSION_JSON.replace("\"PAID\"", "\"PENDING\"")},
+                 "paymentIntentClientSecret":"pi_1_secret_2","publishableKey":"pk_test_1","stripeAccountId":"acct_1"}}}""",
+            )
+        }
+        val (client, _) = makeClient(stub)
+
+        client.buyCover(venueId = "v-1", amountCents = 800)
+
+        val amount = stub.requests.single().jsonBody()["variables"]!!.jsonObject["amount"]!!.jsonObject
+        assertEquals("800", amount["cents"].toString())
+        assertEquals("usd", amount.string("currency"))
+    }
+
+    @Test
+    fun stepsASlidingScaleADollarAtATime() {
+        val scale = CoverScale(min = Money(550), max = Money(3000), suggested = Money(1500))
+        assertEquals(1600, scale.step(1500, 1))
+        assertEquals(1400, scale.step(1500, -1))
+        assertEquals(1500, scale.step(1550, -1))
+        assertEquals(550, scale.step(600, -1))
+        assertEquals(3000, scale.step(2950, 1))
+        assertEquals(550, scale.clamp(100))
+    }
+
+    @Test
     fun startsPayingCoatCheckForSeveralCoats() = runTest {
         val pass = ADMISSION_JSON.replace("\"PAID\"", "\"PENDING\"").replaceFirst("{", """{"kind":"COAT_CHECK","quantity":2,"claimCheckNumber":"A12",""")
         val stub = StubTransport {

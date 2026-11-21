@@ -14,7 +14,8 @@ export const MONEY_FIELDS = "cents currency";
 export const PROFILE_FIELDS = "id name avatarUrl";
 export const COVER_CHARGE_FIELDS =
   `amount { ${MONEY_FIELDS} } total { ${MONEY_FIELDS} } fee { ${MONEY_FIELDS} } night from payable event { id name } ` +
-  `coatCheck { amount { ${MONEY_FIELDS} } fee { ${MONEY_FIELDS} } total { ${MONEY_FIELDS} } night payable }`;
+  `coatCheck { amount { ${MONEY_FIELDS} } fee { ${MONEY_FIELDS} } total { ${MONEY_FIELDS} } night payable } ` +
+  `scale { min { ${MONEY_FIELDS} } max { ${MONEY_FIELDS} } suggested { ${MONEY_FIELDS} } }`;
 /** An `Admission`, with the pass secret the buyer makes the QR code from. */
 export const ADMISSION_FIELDS =
   `id status kind night quantity tier claimCheckNumber amount { ${MONEY_FIELDS} } fee { ${MONEY_FIELDS} } ` +
@@ -157,8 +158,8 @@ export function venueCover(shape: SchemaShape = EVERYTHING): string {
 const PURCHASE_FIELDS = `admission { ${ADMISSION_FIELDS} }
     provider paymentIntentClientSecret publishableKey stripeAccountId squareApplicationId squareLocationId`;
 
-export const buyCover = `mutation BuyCover($venueId: ID!) {
-  buyCover(input: { venueId: $venueId }) {
+export const buyCover = `mutation BuyCover($venueId: ID!, $amount: MoneyInput) {
+  buyCover(input: { venueId: $venueId, amount: $amount }) {
     ${PURCHASE_FIELDS}
   }
 }`;

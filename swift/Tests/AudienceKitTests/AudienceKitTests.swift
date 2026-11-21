@@ -1076,6 +1076,32 @@ private func makeClient(
             == ["admissionId": "7d9f2c1e-3b4a-4e5f-8a6b-1c2d3e4f5a6b"])
     }
 
+    @Test func paysASlidingScaleCoverAtTheChosenAmount() async throws {
+        let stub = Stub { _ in
+            .json(status: 200, body: #"{"data":{"buyCover":{"admission":\#(Self.admission),"#
+                + #""provider":"STRIPE","paymentIntentClientSecret":"pi_1_secret_2","publishableKey":"pk_test_1","#
+                + #""stripeAccountId":"acct_1"}}}"#)
+        }
+        let (client, _) = makeClient(stub)
+
+        _ = try await client.buyCover(venueID: "v-1", amountCents: 800)
+        let variables = try #require(try #require(stub.requests.first).jsonBody()["variables"] as? [String: Any])
+        let amount = try #require(variables["amount"] as? [String: Any])
+        #expect(amount["cents"] as? Int == 800)
+        #expect(amount["currency"] as? String == "usd")
+    }
+
+    @Test func stepsASlidingScaleADollarAtATime() {
+        let scale = CoverScale(min: Money(cents: 550, currency: "usd"), max: Money(cents: 3000, currency: "usd"),
+                               suggested: Money(cents: 1500, currency: "usd"))
+        #expect(scale.step(1500, by: 1) == 1600)
+        #expect(scale.step(1500, by: -1) == 1400)
+        #expect(scale.step(1550, by: -1) == 1500)
+        #expect(scale.step(600, by: -1) == 550)
+        #expect(scale.step(2950, by: 1) == 3000)
+        #expect(scale.clamped(100) == 550)
+    }
+
     @Test func paysSquareCoverWithAToken() async throws {
         let stub = Stub { request in
             let operation = (try? request.jsonBody()["operationName"] as? String) ?? ""

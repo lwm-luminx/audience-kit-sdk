@@ -153,7 +153,8 @@ enum Queries {
     static let moneyFields = "cents currency"
     /// A ``CoverCharge``.
     static let coverChargeFields = """
-    amount { \(moneyFields) } fee { \(moneyFields) } total { \(moneyFields) } night from payable event { id name }
+    amount { \(moneyFields) } fee { \(moneyFields) } total { \(moneyFields) } night from payable event { id name } \
+    scale { min { \(moneyFields) } max { \(moneyFields) } suggested { \(moneyFields) } }
     """
     /// An ``Admission``: the pass secret the buyer makes the QR code from, and the buyer's ``Profile`` for the door.
     static let admissionFields = """
@@ -195,8 +196,8 @@ enum Queries {
     """
 
     static let buyCover = """
-    mutation BuyCover($venueId: ID!) {
-      buyCover(input: { venueId: $venueId }) {
+    mutation BuyCover($venueId: ID!, $amount: MoneyInput) {
+      buyCover(input: { venueId: $venueId, amount: $amount }) {
         admission { \(admissionFields) }
         provider paymentIntentClientSecret publishableKey stripeAccountId squareApplicationId squareLocationId
       }

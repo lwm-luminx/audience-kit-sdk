@@ -608,7 +608,9 @@ describe("cover", () => {
       return data({ me: { cover: { admissions: { nodes: [admission] } } } });
     });
     expect(await client.buyCover("v-1")).toEqual(purchase);
-    expect(stub.last.variables).toEqual({ venueId: "v-1" });
+    expect(stub.last.variables).toEqual({ venueId: "v-1", amount: null });
+    await client.buyCover("v-1", 800);
+    expect(stub.last.variables).toEqual({ venueId: "v-1", amount: { cents: 800, currency: "usd" } });
     expect((await client.buyCoatCheck("v-1", 2)).admission.quantity).toBe(2);
     expect(stub.last.variables).toEqual({ venueId: "v-1", quantity: 2 });
     expect((await client.payCover("a-1", "cnon:1")).status).toBe("PAID");

@@ -102,7 +102,7 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
     /// Nil without the Ticketing module.
     public var ticketOffers: [AdmissionOffer]? { tickets?.offers?.nodes }
     /// The cover at its venue that night: nil when there's none, when it sells tickets instead, or without the
-    /// Cover module. Take it with ``AudienceKitClient/buyCover(venueID:)`` when it's payable.
+    /// Cover module. Take it with ``AudienceKitClient/buyCover(venueID:amountCents:)`` when it's payable.
     public var coverCharge: CoverCharge? { tickets?.cover?.charge }
 
     public init(id: String, name: String? = nil, description: String? = nil, startAt: Date? = nil,

@@ -3,6 +3,16 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.86.0 (2026-11-21)
+
+- Sliding-scale cover (Swift, Kotlin and Node; Rick, 2026-11-21, "build out sliding scale cover, max, min,
+  suggested"). Needs audience_kit_api's `CoverCharge.scale` and `buyCover(amount:)`.
+  - `CoverCharge.scale` (`CoverScale`: `min`, `max`, `suggested`), null for a fixed cover; the charge's `amount` is
+    then the suggested amount.
+  - `buyCover(venueID:amountCents:)` / `buyCover(venueId, amountCents)`: what the buyer chose for each cover, from
+    min to max; left out, the suggested (or fixed) amount.
+  - `CoverScale.step` / `clamped` (`clamp` in Kotlin): a picker's whole-dollar steps, kept in the range.
+
 ## 0.85.0 (2026-11-21)
 
 - `cachedVenues(maxAge:)` / `cachedVenues(maxAgeMillis)` (Swift and Kotlin; Rick, 2026-11-21, "venues list is slow

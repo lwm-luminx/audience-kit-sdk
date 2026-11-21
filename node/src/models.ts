@@ -263,6 +263,15 @@ export interface CoverCharge {
   event?: CoverEvent | null;
   /** The venue's coat check that night, when it has one: pay it with `buyCoatCheck`. */
   coatCheck?: CoatCheck | null;
+  /** Its sliding scale, when the buyer chooses what to pay (pass it to `buyCover`); `amount` is then the suggested. */
+  scale?: CoverScale | null;
+}
+
+/** A sliding-scale cover's range: the buyer pays from `min` to `max`, starting at `suggested`, before fees. */
+export interface CoverScale {
+  min: Money;
+  max: Money;
+  suggested: Money;
 }
 
 /** What an `Admission` gets you: in the door, or a coat checked. */

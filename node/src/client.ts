@@ -612,9 +612,13 @@ export class AudienceKitClient {
    * Starts paying tonight's cover at a venue. For a Stripe venue, finish the payment with Stripe, then call
    * `confirmCover`. For a Square venue, make a payment token and call `payCover`. Asking again the same night returns
    * the same pass.
+   *
+   * On a sliding scale (`CoverCharge.scale`) `amountCents` is what the buyer chose, from its min to its max; left out,
+   * the suggested (or fixed) amount.
    */
-  async buyCover(venueId: string): Promise<CoverPurchase> {
-    const data = await this.graphQL<{ buyCover: CoverPurchase }>(Queries.buyCover, { variables: { venueId }, operationName: "BuyCover" });
+  async buyCover(venueId: string, amountCents?: number): Promise<CoverPurchase> {
+    const amount = amountCents == null ? null : { cents: amountCents, currency: "usd" };
+    const data = await this.graphQL<{ buyCover: CoverPurchase }>(Queries.buyCover, { variables: { venueId, amount }, operationName: "BuyCover" });
     return data.buyCover;
   }
 

@@ -233,18 +233,21 @@ private final class Flaky: @unchecked Sendable {
 
 @Test func cachedVenuesReadsTheLastListWithoutTheNetwork() async throws {
     let body = #"{"data":{"venues":{"list":{"nodes":[{"id":"v-1","name":"Purr","hidden":false,"order":1,"photoUrl":null,"bannerUrl":null,"locale":{"id":"l-1","name":"San Francisco","label":"SF","cityNames":null,"bannerUrl":null},"location":null,"tags":[]}]}}}}"#
-    let stub = Stub { _ in .json(status: 200, body: body) }
+    let flaky = Flaky()
+    // The cache key carries the API base, which is the stub's own: one stub for both launches.
+    let stub = Stub { _ in flaky.lock.withLock { flaky.failure } ?? .json(status: 200, body: body) }
     let cache = InMemoryGraphQLCache()
     let (client, _) = cachingClient(stub, cache: cache)
     #expect(await client.cachedVenues() == nil)
 
     _ = try await client.venues()
+    let asked = stub.requests.count
 
-    // A relaunch: a new session that hasn't learned the audience's schema shape still finds the list.
-    let offline = Stub { _ in .failure(URLError(.notConnectedToInternet)) }
-    let (relaunched, _) = cachingClient(offline, cache: cache)
+    // A relaunch: a new session that hasn't learned the audience's schema shape still finds the list, offline.
+    flaky.lock.withLock { flaky.failure = .failure(URLError(.notConnectedToInternet)) }
+    let (relaunched, _) = cachingClient(stub, cache: cache)
     let kept = try #require(await relaunched.cachedVenues())
     #expect(kept.map(\.id) == ["v-1"])
-    #expect(offline.requests.isEmpty)
+    #expect(stub.requests.count == asked)
     #expect(await relaunched.cachedVenues(maxAge: -1) == nil)
 }

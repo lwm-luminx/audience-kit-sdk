@@ -193,4 +193,22 @@ class GraphQLCacheTest {
         assertEquals(1035, backoff.nextAtMillis())
         assertEquals(10, backoff.succeeded(1000).intervalMillis)
     }
+
+    @Test
+    fun cachedVenuesReadsTheLastListWithoutTheNetwork() = runTest {
+        val body = """{"data":{"venues":{"list":{"nodes":[{"id":"v-1","name":"Purr","hidden":false,"order":1,""" +
+            """"locale":{"id":"l-1","name":"San Francisco"},"tags":[]}]}}}}"""
+        val cache = InMemoryGraphQLCache()
+        val client = cachingClient(StubTransport { StubTransport.json(200, body) }, cache = cache)
+        assertNull(client.cachedVenues())
+
+        client.venues()
+
+        // A relaunch: a new client that hasn't learned the audience's schema shape still finds the list.
+        val offline = StubTransport { StubTransport.failure(IOException("offline")) }
+        val relaunched = cachingClient(offline, cache = cache)
+        assertEquals(listOf("v-1"), assertNotNull(relaunched.cachedVenues()).map { it.id })
+        assertTrue(offline.requests.isEmpty())
+        assertNull(relaunched.cachedVenues(maxAgeMillis = -1))
+    }
 }

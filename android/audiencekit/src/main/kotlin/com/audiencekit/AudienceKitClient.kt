@@ -785,10 +785,22 @@ public class AudienceKitClient(
     public suspend fun audience(): Audience =
         graphQL(Queries.audience, Audience.serializer(), operationName = "Audience")
 
-    /** The audience's venues; without their Facebook Pages or Google place IDs in an audience without those modules. */
+    /**
+     * The audience's venues; without their Facebook Pages or Google place IDs in an audience without those modules.
+     * Kept under [VENUES_CACHE_KEY] whatever the audience's modules, so [cachedVenues] finds it after a relaunch.
+     */
     public suspend fun venues(): List<Venue> =
-        graphQL(Queries.LISTING_TYPES, VenuesResponse.serializer(), operationName = "Venues", document = { Queries.venues(it) })
+        graphQL(Queries.LISTING_TYPES, VenuesResponse.serializer(), null, "Venues", cacheKey = VENUES_CACHE_KEY,
+            document = { Queries.venues(it) })
             .venues?.list?.nodes.orEmpty()
+
+    /**
+     * The venues [venues] last fetched, without asking the API: for the Venues screen to draw at once and refresh
+     * behind them. Null without a [cache], or when nothing younger than [maxAgeMillis] (a week) is kept.
+     */
+    public suspend fun cachedVenues(maxAgeMillis: Long = GraphQLCachePolicy.DEFAULT_MAX_AGE_MILLIS): List<Venue>? =
+        cachedGraphQL(Queries.venues(SchemaShape.EVERYTHING), VenuesResponse.serializer(), maxAgeMillis = maxAgeMillis,
+            cacheKey = VENUES_CACHE_KEY)?.value?.venues?.list?.nodes
 
     /** The people the audience follows. */
     public suspend fun people(): List<Person> =
@@ -1053,6 +1065,9 @@ public class AudienceKitClient(
         }
 
         private val decodeJson get() = json
+
+        /** The name [venues] keeps its answer under in the cache, which [cachedVenues] reads. */
+        public const val VENUES_CACHE_KEY: String = "Venues"
 
         /** The Kotlin SDK attests with Play Integrity; the Swift SDK sends `ios`. */
         private const val ATTESTATION_PLATFORM = "android"

@@ -7,10 +7,22 @@ extension AudienceSession {
         try await graphQL(Queries.audience, operationName: "Audience", as: Audience.self)
     }
 
+    /// The name ``venues()`` keeps its answer under in the cache, which ``cachedVenues(maxAge:)`` reads.
+    public static let venuesCacheKey = "Venues"
+
     /// The audience's venues; without their Facebook Pages or Google place IDs in an audience without those modules.
+    /// Kept under ``venuesCacheKey`` whatever the audience's modules, so ``cachedVenues(maxAge:)`` finds it after a
+    /// relaunch.
     public func venues() async throws -> [Venue] {
         try await graphQL(types: Queries.listingTypes, operationName: "Venues", as: VenuesResponse.self,
-                          document: Queries.venues).list
+                          cacheKey: Self.venuesCacheKey, document: Queries.venues).list
+    }
+
+    /// The venues ``venues()`` last fetched, without asking the API: for the Venues screen to draw at once and
+    /// refresh behind them. Nil without a ``cache``, or when nothing younger than `maxAge` (a week) is kept.
+    public func cachedVenues(maxAge: TimeInterval = GraphQLCachePolicy.defaultMaxAge) async -> [Venue]? {
+        await cachedGraphQL(Queries.venues(.everything), as: VenuesResponse.self, maxAge: maxAge,
+                            cacheKey: Self.venuesCacheKey)?.value.list
     }
 
     /// The people the audience follows.

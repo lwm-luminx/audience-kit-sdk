@@ -230,3 +230,21 @@ private final class Flaky: @unchecked Sendable {
     let kept = try await client.graphQL("query Hello { hello }", as: Greeting.self)
     #expect(kept.hello == "refreshed")
 }
+
+@Test func cachedVenuesReadsTheLastListWithoutTheNetwork() async throws {
+    let body = #"{"data":{"venues":{"list":{"nodes":[{"id":"v-1","name":"Purr","hidden":false,"order":1,"photoUrl":null,"bannerUrl":null,"locale":{"id":"l-1","name":"San Francisco","label":"SF","cityNames":null,"bannerUrl":null},"location":null,"tags":[]}]}}}}"#
+    let stub = Stub { _ in .json(status: 200, body: body) }
+    let cache = InMemoryGraphQLCache()
+    let (client, _) = cachingClient(stub, cache: cache)
+    #expect(await client.cachedVenues() == nil)
+
+    _ = try await client.venues()
+
+    // A relaunch: a new session that hasn't learned the audience's schema shape still finds the list.
+    let offline = Stub { _ in .failure(URLError(.notConnectedToInternet)) }
+    let (relaunched, _) = cachingClient(offline, cache: cache)
+    let kept = try #require(await relaunched.cachedVenues())
+    #expect(kept.map(\.id) == ["v-1"])
+    #expect(offline.requests.isEmpty)
+    #expect(await relaunched.cachedVenues(maxAge: -1) == nil)
+}

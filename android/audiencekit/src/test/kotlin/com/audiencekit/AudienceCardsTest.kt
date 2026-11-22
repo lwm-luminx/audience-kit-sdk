@@ -27,7 +27,7 @@ private fun cardsData(json: String): JsonObject = Json.parseToJsonElement(json).
 class AudienceCardsTest {
     @Test
     fun theAudiencesCardsParseWithoutPublishersAds() {
-        assertTrue(AudienceCards.CARDS_QUERY.startsWith("# endpoint: staff"))
+        assertTrue(AudienceCards.CARDS_QUERY.trimStart().startsWith("# endpoint: staff"))
         val list = AudienceCards.parseCards(
             cardsData(
                 """{"advertising":"SPONSORSHIPS","cardCategories":[{"key":"health","label":"Health",

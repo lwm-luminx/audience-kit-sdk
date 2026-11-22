@@ -187,16 +187,20 @@ public object AudienceCards {
         "linkLabel startsOn endsOn weekdays screens localeIds priceCents paused paymentStatus venue { id name } " +
         "event { id name } publication { id name } weeklyViewers { weekStart viewers fewerThan }"
 
-    public const val CARDS_QUERY: String = "# endpoint: staff\n" +
-        "query AudienceCards { advertising cardCategories { key label description hideable } " +
-        "promoPlacements { $CARD_FIELDS } }"
+    public const val CARDS_QUERY: String = """
+        # endpoint: staff
+        query AudienceCards { advertising cardCategories { key label description hideable } promoPlacements { $CARD_FIELDS } }
+    """
 
-    public const val SAVE_MUTATION: String = "# endpoint: staff\n" +
-        "mutation AudienceSaveCard(\$input: PromoPlacementSaveInput!) { savePromoPlacement(input: \$input) { " +
-        "promoPlacement { $CARD_FIELDS } } }"
+    public const val SAVE_MUTATION: String = """
+        # endpoint: staff
+        mutation AudienceSaveCard(${'$'}input: PromoPlacementSaveInput!) { savePromoPlacement(input: ${'$'}input) { promoPlacement { $CARD_FIELDS } } }
+    """
 
-    public const val DELETE_MUTATION: String = "# endpoint: staff\n" +
-        "mutation AudienceDeleteCard(\$id: ID!) { deletePromoPlacement(input: { id: \$id }) { deletedId } }"
+    public const val DELETE_MUTATION: String = """
+        # endpoint: staff
+        mutation AudienceDeleteCard(${'$'}id: ID!) { deletePromoPlacement(input: { id: ${'$'}id }) { deletedId } }
+    """
 
     // Variables
 

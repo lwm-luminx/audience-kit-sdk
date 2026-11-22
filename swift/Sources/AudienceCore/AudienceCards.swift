@@ -97,7 +97,11 @@ public enum AudienceCardStatus: String, Sendable, CaseIterable, Hashable, Identi
 
 /// One of the audience's own cards (`PromoPlacement` without a publication).
 public struct AudienceCard: Codable, Sendable, Hashable, Identifiable {
-    public struct Ref: Codable, Sendable, Hashable { public let id: String; public let name: String? }
+    public struct Ref: Codable, Sendable, Hashable {
+        public let id: String
+        public let name: String?
+        public init(id: String, name: String? = nil) { self.id = id; self.name = name }
+    }
 
     public let id: String
     public let category: String

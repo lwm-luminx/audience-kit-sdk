@@ -144,18 +144,6 @@ jobs:
         # check.mjs can't read these from the source (they interpolate their fields), so it skips them above.
         run: node scripts/graphql/check.mjs --schema graphql/schema.graphql --endpoint consumer rendered-documents
 
-  apple:
-    needs: changes
-    if: needs.changes.outputs.sdk == 'true'
-    # The update prompts' StoreKit, SwiftUI and UIKit code only builds on Apple platforms, which Linux skips.
-    runs-on: macos-15
-    steps:
-      - uses: actions/checkout@v4
-      - run: swift build
-      # The AudienceKitUI view tests (swift/Tests/AudienceKitTests/UI) host each view in a window, so they only run here.
-      - run: swift test
-      - run: xcodebuild build -scheme AudienceKit-Package -destination 'generic/platform=iOS Simulator' -quiet
-
   version:
     needs: changes
     if: needs.changes.outputs.sdk == 'true'
@@ -169,12 +157,13 @@ jobs:
       - run: scripts/check-version.sh origin/${{ github.base_ref || 'main' }}
 
   release:
-    # Publishes the Swift package: once everything above passes on main, tags each VERSION that has no tag yet (no "v",
+    # Publishes the Swift package: once everything above passes on main (the Apple build and tests run in Xcode Cloud,
+    # whose "AudienceKit | SDK | Test - iOS" check is required on pull requests into main), tags each VERSION that has no tag yet (no "v",
     # at the merge that set it) and opens its GitHub release from CHANGELOG.md. Swift Package Manager and Xcode resolve
     # `from: "X.Y.Z"` from these tags. The workflow's own token pushes them, so no secret is needed; the Xcode Cloud
     # workflow runs the same script and finds the tag there already (xcode-cloud/README.md).
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [swift, kotlin, graphql, apple, version]
+    needs: [swift, kotlin, graphql, version]
     runs-on: ubuntu-latest
     permissions:
       contents: write

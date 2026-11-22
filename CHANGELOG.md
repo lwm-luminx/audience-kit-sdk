@@ -3,6 +3,17 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.88.0 (2026-11-22)
+
+- An audience's own cards for staff apps (Swift and Kotlin; Rick, 2026-11-22, "Soapbox iOS lacks card / ad
+  management"). AudienceCore `AudienceCards` / `com.audiencekit.AudienceCards`: the staff-endpoint documents behind
+  Olympus Audience › Cards (`promoPlacements`, `savePromoPlacement`, `deletePromoPlacement`), so Soapbox's admins
+  add, change, pause and remove the audience's promoted, charity and announcement cards.
+  - `AudienceCard` (status from its dates and pause, `editable`, weekly viewers), `AudienceCardDraft` (with
+    `problems` checked before sending), `AudienceCardCategory`, `AudienceCardScreen`, `AudienceCardsLevel`.
+  - Publishers' ads come back in the same API list and are left out; they stay `SoapboxAds`.
+  - `AudienceCardsCopy` for the words the apps show.
+
 ## 0.87.0 (2026-11-21)
 
 - The Spotify bridge (Swift and Kotlin; Rick, 2026-11-21, "connects and bridges in the music from personal libraries

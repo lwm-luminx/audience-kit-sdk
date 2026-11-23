@@ -22,6 +22,19 @@ public data class EventVenue(
     val location: Location? = null,
 )
 
+/**
+ * Another event an event links to: the festival or conference it's part of ([Event.parentEvent]), or one of the
+ * events that are part of it ([Event.childEvents]).
+ */
+@Serializable
+public data class EventSummary(
+    val id: String,
+    val name: String? = null,
+    /** ISO 8601. */
+    val startAt: String? = null,
+    val endAt: String? = null,
+)
+
 /** The API's `venue` mixin on an event or series: a display name ("To be announced" when there is none) and the venue. */
 @Serializable
 public data class EventVenueMixin(val name: String? = null, val venue: EventVenue? = null)
@@ -102,7 +115,16 @@ public data class Event(
     val people: EventPeople? = null,
     val tickets: EventTickets? = null,
     @SerialName("socialLinks") val links: Connection<SocialLink>? = null,
+    /** The festival or conference it's part of, for a "Part of …" row; null for one standing on its own. */
+    val parentEvent: EventSummary? = null,
+    @SerialName("childEvents") val children: Connection<EventSummary>? = null,
 ) {
+    /**
+     * The events that are part of it when it's a festival or conference (a Pride's parade and parties), soonest first:
+     * asked for by [AudienceKitClient.event] only, null from lists and on APIs without `Event.childEvents`.
+     */
+    val childEvents: List<EventSummary>? get() = children?.items
+
     /**
      * Its links out, such as a conference's own Discord or Matrix space: asked for by [AudienceKitClient.event] only,
      * null from lists and on APIs without `Event.socialLinks`.
@@ -174,7 +196,11 @@ public fun Queries.eventFields(shape: SchemaShape): String = buildString {
         append(" people { hosts { nodes { id name avatarUrl } } lineup { nodes { id name avatarUrl } } }")
     }
     if (shape.has("Event", "tickets")) append(" ").append(eventTicketsFields(shape))
+    if (shape.has("Event", "parentEvent")) append(" parentEvent { $EVENT_SUMMARY_FIELDS }")
 }
+
+/** An [EventSummary]. */
+public const val EVENT_SUMMARY_FIELDS: String = "id name startAt endAt"
 
 /** The Venues module's part of an event or series. */
 public fun Queries.eventVenueFields(shape: SchemaShape): String {
@@ -200,9 +226,10 @@ public fun Queries.events(shape: SchemaShape): String = """
 /** One event's page: its fields and, where the API has them, its links out (lists leave those out to keep cost down). */
 public fun Queries.event(shape: SchemaShape): String {
     val links = if (shape.has("Event", "socialLinks")) " socialLinks { nodes { ${SocialLink.FIELDS} } }" else ""
+    val children = if (shape.has("Event", "childEvents")) " childEvents { nodes { $EVENT_SUMMARY_FIELDS } }" else ""
     return """
         query Event(${'$'}id: ID!) {
-          events { event(id: ${'$'}id) { ${eventFields(shape)}$links } }
+          events { event(id: ${'$'}id) { ${eventFields(shape)}$links$children } }
         }
     """.trimIndent()
 }

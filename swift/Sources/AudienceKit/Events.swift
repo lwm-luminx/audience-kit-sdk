@@ -38,6 +38,41 @@ public struct EventPerson: Codable, Sendable, Hashable, Identifiable {
     }
 }
 
+/// Another event an event links to: the festival or conference it's part of (``Event/parentEvent``), or one of the
+/// events that are part of it (``Event/childEvents``).
+public struct EventSummary: Codable, Sendable, Hashable, Identifiable {
+    public let id: String
+    public let name: String?
+    public let startAt: Date?
+    public let endAt: Date?
+
+    public init(id: String, name: String? = nil, startAt: Date? = nil, endAt: Date? = nil) {
+        self.id = id
+        self.name = name
+        self.startAt = startAt
+        self.endAt = endAt
+    }
+
+    private enum CodingKeys: String, CodingKey { case id, name, startAt, endAt }
+
+    /// Reads the dates as the ISO 8601 strings the API sends, whatever the decoder's date strategy.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        startAt = try container.decodeISO8601IfPresent(forKey: .startAt)
+        endAt = try container.decodeISO8601IfPresent(forKey: .endAt)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encodeIfPresent(name, forKey: .name)
+        try container.encodeIfPresent(startAt.map(ISO8601.string(from:)), forKey: .startAt)
+        try container.encodeIfPresent(endAt.map(ISO8601.string(from:)), forKey: .endAt)
+    }
+}
+
 /// The API's `venue` mixin on an event or series: a display name ("To be announced" when there is none) and the
 /// venue, if any.
 struct EventVenueMixin: Codable, Sendable, Hashable {
@@ -78,12 +113,19 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
     /// The audience's tags on it, by name.
     public let tags: [Tag]?
     public let rsvp: RSVP?
+    /// The festival or conference it's part of, for a "Part of …" row; nil for one standing on its own, or on APIs
+    /// without `Event.parentEvent`.
+    public let parentEvent: EventSummary?
+    /// The events that are part of it when it's a festival or conference (a Pride's parade and parties), soonest
+    /// first: asked for by ``AudienceSession/event(id:)`` only, nil from lists and on APIs without `Event.childEvents`.
+    public var childEvents: [EventSummary]? { children?.nodes }
     /// Its links out, such as a conference's own Discord or Matrix space: asked for by
     /// ``AudienceSession/event(id:)`` only, nil from lists and on APIs without `Event.socialLinks`.
     public var socialLinks: [SocialLink]? { links?.nodes }
     /// Its community chats elsewhere (``SocialLink/isCommunityChat``), to offer as Join buttons.
     public var communityChats: [SocialLink] { socialLinks?.filter(\.isCommunityChat) ?? [] }
     private let links: LinkNodes?
+    private let children: ChildNodes?
     private let venueMixin: EventVenueMixin?
     private let people: PeopleMixin?
     private let tickets: TicketsMixin?
@@ -110,7 +152,8 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
                 sourceUrl: String? = nil, locale: AudienceLocale? = nil, tags: [Tag]? = nil,
                 venue: EventVenue? = nil, venueName: String? = nil, rsvp: RSVP? = nil, hosts: [EventPerson]? = nil,
                 lineup: [EventPerson]? = nil, ticketURL: URL? = nil, ticketOffers: [AdmissionOffer]? = nil,
-                coverCharge: CoverCharge? = nil, socialLinks: [SocialLink]? = nil)
+                coverCharge: CoverCharge? = nil, socialLinks: [SocialLink]? = nil,
+                parentEvent: EventSummary? = nil, childEvents: [EventSummary]? = nil)
     {
         self.id = id
         self.name = name
@@ -124,6 +167,8 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
         self.locale = locale
         self.tags = tags
         self.rsvp = rsvp
+        self.parentEvent = parentEvent
+        children = childEvents.map { ChildNodes(nodes: $0) }
         links = socialLinks.map { LinkNodes(nodes: $0) }
         venueMixin = venue == nil && venueName == nil ? nil : EventVenueMixin(name: venueName, venue: venue)
         people = hosts == nil && lineup == nil ? nil
@@ -135,6 +180,7 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
 
     private struct Nodes: Codable, Sendable, Hashable { var nodes: [EventPerson?] }
     private struct LinkNodes: Codable, Sendable, Hashable { var nodes: [SocialLink] }
+    private struct ChildNodes: Codable, Sendable, Hashable { var nodes: [EventSummary] }
     private struct PeopleMixin: Codable, Sendable, Hashable {
         var hosts: Nodes?
         var lineup: Nodes?
@@ -150,9 +196,10 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, description, startAt, endAt, isFeatured, isCanceled, bannerUrl, sourceUrl, locale, tags, rsvp
-        case people, tickets
+        case people, tickets, parentEvent
         case venueMixin = "venue"
         case links = "socialLinks"
+        case children = "childEvents"
     }
 
     /// Reads the dates as the ISO 8601 strings the API sends, whatever the decoder's date strategy.
@@ -174,6 +221,8 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
         people = try container.decodeIfPresent(PeopleMixin.self, forKey: .people)
         tickets = try container.decodeIfPresent(TicketsMixin.self, forKey: .tickets)
         links = try container.decodeIfPresent(LinkNodes.self, forKey: .links)
+        parentEvent = try container.decodeIfPresent(EventSummary.self, forKey: .parentEvent)
+        children = try container.decodeIfPresent(ChildNodes.self, forKey: .children)
     }
 
     /// Writes the API's shape, so an encoded event decodes back the same.
@@ -195,6 +244,8 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
         try container.encodeIfPresent(people, forKey: .people)
         try container.encodeIfPresent(tickets, forKey: .tickets)
         try container.encodeIfPresent(links, forKey: .links)
+        try container.encodeIfPresent(parentEvent, forKey: .parentEvent)
+        try container.encodeIfPresent(children, forKey: .children)
     }
 }
 
@@ -302,8 +353,12 @@ extension Queries {
             fields += " people { hosts { nodes { id name avatarUrl } } lineup { nodes { id name avatarUrl } } }"
         }
         if shape.has("Event", "tickets") { fields += " " + eventTicketsFields(shape) }
+        if shape.has("Event", "parentEvent") { fields += " parentEvent { \(eventSummaryFields) }" }
         return fields
     }
+
+    /// An ``EventSummary``.
+    static let eventSummaryFields = "id name startAt endAt"
 
     /// The Venues module's part of an event or series: a display name and the venue.
     static func eventVenueFields(_ shape: SchemaShape) -> String {
@@ -330,13 +385,14 @@ extension Queries {
         """
     }
 
-    /// One event's page: its fields and, where the API has them, its links out (lists leave those out to keep
+    /// One event's page: its fields and, where the API has them, its links out and the events that are part of it (lists leave those out to keep
     /// their cost down).
     static func event(_ shape: SchemaShape) -> String {
         let links = shape.has("Event", "socialLinks") ? " socialLinks { nodes { \(socialLinkFields) } }" : ""
+        let children = shape.has("Event", "childEvents") ? " childEvents { nodes { \(eventSummaryFields) } }" : ""
         return """
         query Event($id: ID!) {
-          events { event(id: $id) { \(eventFields(shape))\(links) } }
+          events { event(id: $id) { \(eventFields(shape))\(links)\(children) } }
         }
         """
     }

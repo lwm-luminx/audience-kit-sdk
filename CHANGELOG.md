@@ -3,6 +3,17 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.89.0 (2026-11-23)
+
+- Festivals and the events that are part of them (Swift and Kotlin; Rick, 2026-11-22, Pride festivals as
+  super-events). Needs audience_kit_api #862; on an older API both are nil.
+  - `Event.parentEvent`: the festival or conference an event is part of (`EventSummary`: id, name, start, end), for a
+    "Part of …" row. Lists and `event(id:)` ask for it.
+  - `Event.childEvents`: the events that are part of a festival (its parade and the bars' parties), soonest first.
+    Only `event(id:)` asks for these.
+  - The API's city lists now leave a festival's parts out, so a festival shows once.
+- `graphql/schema.graphql` brought up to the API's next.
+
 ## 0.88.0 (2026-11-22)
 
 - An audience's own cards for staff apps (Swift and Kotlin; Rick, 2026-11-22, "Soapbox iOS lacks card / ad

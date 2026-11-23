@@ -3,6 +3,19 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.93.0 (2026-11-23)
+
+- Choosing a Soapbox publication to work on, like choosing a locale (Swift and Kotlin; Rick, 2026-11-23, "soapbox
+  needs a select publisher like selecting a locale - with search and near me for admins to use it"). Staff
+  documents (`# endpoint: staff`) for StaffKit's Soapbox; no API change.
+  - `PublisherChooserDocuments.publishersQuery` (`myPublications`, every publication for the audience's admins, with
+    its locale's ancestors and point) and `localesAtQuery` (`locales(at:)`), with their answers.
+  - `PublisherDirectory`: by name; `search(_:)` ranks names, then masthead or person, then the place covered
+    ("Utah" finds every Utah paper), ignoring case and accents; `nearby(_:containing:radius:limit:)` puts the
+    publications covering a locale the device is in first, then the closest within 150 km.
+  - `PublisherRecents`: the ones chosen last in an audience on the device, newest first (Swift keeps them in
+    `UserDefaults`; Kotlin gives the key and `adding`).
+
 ## 0.92.0 (2026-11-23)
 
 - Drops 0.91.0's KaraFun song search (Rick, 2026-11-23: "we dont want to say 'search karafun'"): `KaraokeSongbook`

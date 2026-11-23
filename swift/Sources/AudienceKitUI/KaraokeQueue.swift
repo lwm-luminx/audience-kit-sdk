@@ -57,7 +57,7 @@ public struct KaraokeQueue: View {
 
     public var body: some View {
         if let session = lineup.karaokeSession, session.isPartnerSessionTonight {
-            KaraokeJoinSection(session: session, title: title)
+            KaraokeJoinSection(session: session, title: title, hostNames: lineup.hostNames)
         } else if let window, window.permitted || !singers.isEmpty {
             VStack(alignment: .leading, spacing: DesignTokens.Spacing.s3) {
                 heading
@@ -572,7 +572,11 @@ public struct KaraokeSignupSheet: View {
 struct KaraokeJoinSection: View {
     let session: VenueKaraoke
     let title: String?
+    /// Who's hosting, for "Sign up in person with Dalton" when the session has no code.
+    var hostNames: [String] = []
     @State private var showingCode = false
+    @State private var songQuery = ""
+    @Environment(\.openURL) private var openURL
     @Environment(\.audiencePreset) private var preset
     @Environment(\.colorScheme) private var scheme
 
@@ -601,8 +605,21 @@ struct KaraokeJoinSection: View {
                     }
                     .buttonStyle(.plain).padding(.horizontal, DesignTokens.Spacing.s4)
                 } else {
-                    Label(String(localized: "Ask the host how to join the karaoke session."), systemImage: "music.mic")
-                        .foregroundStyle(Color(colors.inkMuted)).padding(DesignTokens.Spacing.s4)
+                    // No code (KaraFun run by the host): no queue here, singers sign up with the host in person.
+                    Label(KaraokeSignUpInPerson.text(hostNames: hostNames), systemImage: "person.wave.2")
+                        .foregroundStyle(Color(colors.ink)).padding(DesignTokens.Spacing.s4)
+                        .accessibilityIdentifier("karaoke.signUpInPerson")
+                    if KaraokeSongbook.searches(provider: session.provider) {
+                        Divider().overlay(Color(colors.border))
+                        HStack(spacing: DesignTokens.Spacing.s2) {
+                            Image(systemName: "magnifyingglass").foregroundStyle(Color(colors.inkMuted))
+                            TextField(String(localized: "Find a song in \(session.providerName ?? "KaraFun")"), text: $songQuery)
+                                .submitLabel(.search)
+                                .onSubmit(searchSongbook)
+                                .accessibilityIdentifier("karaoke.songSearch")
+                        }
+                        .frame(minHeight: 52).padding(.horizontal, DesignTokens.Spacing.s4)
+                    }
                 }
             }
             .font(TokenFont.label).foregroundStyle(Color(colors.accentInk))
@@ -613,6 +630,13 @@ struct KaraokeJoinSection: View {
         .sheet(isPresented: $showingCode) {
             if let url = session.joinURL { KaraokeJoinCodeSheet(url: url, title: joinTitle, sessionCode: session.sessionCode) }
         }
+    }
+}
+
+extension KaraokeJoinSection {
+    /// Opens the partner's songbook search for what was typed (its whole catalog when blank).
+    func searchSongbook() {
+        if let url = session.songbookSearchURL(songQuery) { openURL(url) }
     }
 }
 

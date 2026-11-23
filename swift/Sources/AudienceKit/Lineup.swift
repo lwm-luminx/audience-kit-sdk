@@ -547,20 +547,22 @@ public struct VenueLineup: Sendable, Hashable {
         }
     }
 
-    /// What a jockey's host row says under their name: "Your KJ tonight" (or DJ, VJ).
-    public var jockeyCaption: String { "Your \(jockeyLabel ?? "DJ") tonight" }
+    /// What a jockey's host row says under their name: "Your KJ tonight" (or DJ, VJ) beside a host, and "Your host
+    /// tonight" when the jockey is the only one: a lone KJ is the night's host (Rick, 2026-11-23).
+    public var jockeyCaption: String { featuredHost == nil ? "Your host tonight" : "Your \(jockeyLabel ?? "DJ") tonight" }
 
     /// A jockey as billed tonight: "KJ Dalton".
     public func jockeyTitle(_ person: LineupEntry.Person) -> String? {
         JockeyTitle.text(label: jockeyLabel, name: person.name)
     }
 
-    /// Who to sign up with in person, for "Sign up in person with Dalton": the featured host and the KJ (or DJ);
-    /// empty when nobody is hosting.
+    /// Who to sign up with in person, for "Sign up in person with KJ Dalton": the featured host, then the KJ (or DJ)
+    /// as billed; empty when nobody is hosting. A lone KJ is the night's host (Rick, 2026-11-23).
     public var hostNames: [String] {
-        let people = (featuredHost?.people ?? []) + jockeysTonight
+        let jockeys = jockeyIDs
         var seen = Set<String>()
-        return people.filter { seen.insert($0.id).inserted }.compactMap(\.name).filter { !$0.isEmpty }
+        let hosts = (featuredHost?.people ?? []).filter { !jockeys.contains($0.id) && seen.insert($0.id).inserted }
+        return (hosts.compactMap(\.name) + jockeysTonight.compactMap { jockeyTitle($0) }).filter { !$0.isEmpty }
     }
 
     /// Everyone who isn't a karaoke singer: hosts, DJs, performers, MCs and intermissions.

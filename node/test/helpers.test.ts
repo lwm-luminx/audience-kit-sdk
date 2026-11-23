@@ -234,13 +234,17 @@ describe("operations and endpoints", () => {
 
 describe("jockeys (KJ, DJ or VJ)", () => {
   it("bills a jockey by the night's label", async () => {
-    const { eventJockeyTitles, eventJockeys, jockeyTitle } = await import("../src/index.js");
+    const { eventHostedBy, eventJockeyTitles, eventJockeys, jockeyTitle } = await import("../src/index.js");
     const event = {
       id: "e-1",
       people: { jockeys: { nodes: [{ id: "p-2", name: "Dalton" }] }, jockeyLabel: "KJ" },
     };
     expect(eventJockeys(event)?.map((p) => p.name)).toEqual(["Dalton"]);
     expect(eventJockeyTitles(event)).toEqual(["KJ Dalton"]);
+    // A lone KJ hosts the night (Rick, 2026-11-23); beside a host, after them.
+    expect(eventHostedBy(event)).toEqual(["KJ Dalton"]);
+    const withHost = { ...event, people: { ...event.people, hosts: { nodes: [{ id: "p-1", name: "Mama Alma" }] } } };
+    expect(eventHostedBy(withHost)).toEqual(["Mama Alma", "KJ Dalton"]);
     expect(eventJockeys({ id: "e-2", people: {} })).toBeNull();
     expect(jockeyTitle("DJ", " Bea ")).toBe("DJ Bea");
     expect(jockeyTitle(null, "Bea")).toBe("Bea");

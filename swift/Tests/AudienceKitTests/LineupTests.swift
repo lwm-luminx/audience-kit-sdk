@@ -257,7 +257,7 @@ private func song(_ id: String, _ title: String, state: String = "QUEUED", mine:
         #expect(lineup.featuredJockeys.first?.displayName == "KJ Dalton")
         #expect(lineup.jockeyCaption == "Your KJ tonight")
         #expect(lineup.jockeyTitle(dalton) == "KJ Dalton")
-        #expect(lineup.hostNames == ["Mama Alma", "Dalton"])
+        #expect(lineup.hostNames == ["Mama Alma", "KJ Dalton"])
 
         // A karaoke night with only a KJ, who's on now as the host: featured as the KJ, not as the host too.
         let onNow = LineupEntry(id: "host", kind: .act, role: .host, people: [dalton], state: .on)
@@ -265,7 +265,10 @@ private func song(_ id: String, _ title: String, state: String = "QUEUED", mine:
                                  jockeysTonight: [dalton], jockeyLabel: "KJ")
         #expect(kjOnly.featuredHost == nil)
         #expect(kjOnly.featuredJockeys.count == 1)
-        #expect(kjOnly.hostNames == ["Dalton"])
+        #expect(kjOnly.hostNames == ["KJ Dalton"])
+        // A lone KJ is the night's host (Rick, 2026-11-23).
+        #expect(kjOnly.jockeyCaption == "Your host tonight")
+        #expect(KaraokeSignUpInPerson.text(hostNames: kjOnly.hostNames) == "Sign up in person with KJ Dalton")
 
         #expect(JockeyTitle.text(label: "DJ", name: " Bea ") == "DJ Bea")
         #expect(JockeyTitle.text(label: nil, name: "Bea") == "Bea")

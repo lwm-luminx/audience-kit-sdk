@@ -3,6 +3,21 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.90.0 (2026-11-23)
+
+- Privacy choices, per audience (Swift and Kotlin; Rick, 2026-11-23, "per audience data collection / ad choices /
+  dont-sell-my-data and buy-back-my-privacy"). Needs audience_kit_api's privacy choices (doc/PRIVACY_CHOICES.md); on an
+  older API `privacy()` fails, so apps should hide the row when it does.
+  - `privacy()`: what the audience offers (`PrivacyOffer`: `choices`, `passCents`, `passDays`) and what the member
+    chose (`PrivacyChoices`: the do-not-sell-or-share opt-out and how it was made, including a Global Privacy Control
+    signal, ad measurement, personalized ads, and a running privacy pass). Signed out, the defaults.
+  - `updatePrivacyChoices(...)` / `setPrivacyChoice(_:on:)`: one switch per call, the same call both ways.
+  - `startPrivacyPass(returnURL:)`: a one-off web Checkout for the audience's privacy pass (no paid cards, no optional
+    data use, nothing renews). Offer it only where `PrivacyChoicesCopy.isPassOffered` says: US storefronts, or the web.
+  - `PrivacyChoicesCopy`: the words for the screen ("Your privacy choices"), each choice and the pass, not yet
+    reviewed by a lawyer.
+- `graphql/schema.graphql` brought up to the API's next with the privacy choices.
+
 ## 0.89.0 (2026-11-23)
 
 - Festivals and the events that are part of them (Swift and Kotlin; Rick, 2026-11-22, Pride festivals as

@@ -433,28 +433,6 @@ public struct VenueKaraoke: Codable, Sendable, Hashable {
     /// code). The apps then take no signups and show ``KaraokeSignUpInPerson/text(hostNames:)`` instead.
     public var signsUpInPerson: Bool { isPartnerSessionTonight && joinURL == nil }
 
-    /// Where guests can look up songs in the partner's songbook without signing up, when it has a public one
-    /// (KaraFun). Nil for other providers.
-    public func songbookSearchURL(_ query: String) -> URL? {
-        KaraokeSongbook.searchURL(provider: provider, query: query)
-    }
-}
-
-/// A karaoke partner's public songbook, so guests can find a song before signing up with the host in person. Only
-/// KaraFun has one; its song catalog API is by partnership only, so the apps open its site's search instead.
-public enum KaraokeSongbook {
-    /// Whether `provider` has a public songbook to search.
-    public static func searches(provider: String?) -> Bool { provider?.lowercased() == "karafun" }
-
-    /// The songbook's search page for `query`, or its whole catalog when the query is blank; nil without a songbook.
-    public static func searchURL(provider: String?, query: String) -> URL? {
-        guard searches(provider: provider) else { return nil }
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return URL(string: "https://www.karafun.com/karaoke-song-list.html") }
-        var parts = URLComponents(string: "https://www.karafun.com/search/")
-        parts?.queryItems = [URLQueryItem(name: "query", value: trimmed)]
-        return parts?.url
-    }
 }
 
 /// What a partner's night with no session code tells singers (Rick, 2026-11-23: KaraFun nights without a code).

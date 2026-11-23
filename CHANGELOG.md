@@ -3,6 +3,12 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.92.0 (2026-11-23)
+
+- Drops 0.91.0's KaraFun song search (Rick, 2026-11-23: "we dont want to say 'search karafun'"): `KaraokeSongbook`
+  and `VenueKaraoke.songbookSearchURL(_:)` are gone, and `KaraokeQueue` on a KaraFun night with no code shows only
+  "Sign up in person with Dalton".
+
 ## 0.91.0 (2026-11-23)
 
 - KaraFun nights with no code (Swift; Rick, 2026-11-23, "search without queue with a sign up in person flow").

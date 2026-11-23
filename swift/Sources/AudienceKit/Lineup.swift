@@ -494,12 +494,19 @@ public struct VenueLineup: Sendable, Hashable {
     /// Song requests: whether they're taken, the user's own and the queue; nil when the API leaves them out.
     public let songRequests: SongRequestWindow?
     /// Who's hosting there now: the hosts on now, else the hosts of the event under way (its lineup's, else the ones
-    /// listed on it). Empty without one, and from an API before 2026-11-19.
+    /// listed on it). Empty without one, and from an API before 2026-11-19. Never its jockeys: they're in
+    /// ``jockeysTonight``.
     public let hostsTonight: [LineupEntry.Person]
+    /// Who's the KJ, DJ or VJ there now: the jockeys of the event under way (audience_kit_api #881). Empty without
+    /// one, and from an older API.
+    public let jockeysTonight: [LineupEntry.Person]
+    /// What ``jockeysTonight`` are billed as, by the kind of night: "KJ", "DJ" or "VJ"; nil with nothing under way.
+    public let jockeyLabel: String?
 
     public init(venueID: String, venueName: String, entries: [LineupEntry], onStageID: String? = nil,
                 upNextID: String? = nil, karaoke: KaraokeWindow? = nil, karaokeSession: VenueKaraoke? = nil,
-                songRequests: SongRequestWindow? = nil, hostsTonight: [LineupEntry.Person] = []) {
+                songRequests: SongRequestWindow? = nil, hostsTonight: [LineupEntry.Person] = [],
+                jockeysTonight: [LineupEntry.Person] = [], jockeyLabel: String? = nil) {
         self.venueID = venueID
         self.venueName = venueName
         self.entries = entries
@@ -509,19 +516,47 @@ public struct VenueLineup: Sendable, Hashable {
         self.karaokeSession = karaokeSession
         self.songRequests = songRequests
         self.hostsTonight = hostsTonight
+        self.jockeysTonight = jockeysTonight
+        self.jockeyLabel = jockeyLabel
     }
+
+    private var jockeyIDs: Set<String> { Set(jockeysTonight.map(\.id)) }
 
     /// The host to feature (Now's and the venue page's host row, with their links and Tip): the host entry on now,
     /// else the one taking karaoke signups, else the first of ``hostsTonight`` (an event's host nobody has put on yet)
     /// as an upcoming host entry. Nil when nobody is hosting.
+    ///
+    /// A host entry whose people are all jockeys (a KJ put on now as the host) isn't one: they're
+    /// ``featuredJockeys``.
     public var featuredHost: LineupEntry? {
-        if let on = entries.first(where: { $0.role == .host && $0.state == .on }) ?? karaoke?.host { return on }
-        guard let host = hostsTonight.first else { return nil }
+        let isJockey = { (entry: LineupEntry) in
+            !entry.people.isEmpty && entry.people.allSatisfy { self.jockeyIDs.contains($0.id) }
+        }
+        let on = entries.first { $0.role == .host && $0.state == .on && !isJockey($0) }
+            ?? karaoke?.host.flatMap { isJockey($0) ? nil : $0 }
+        if let on { return on }
+        guard let host = hostsTonight.first(where: { !jockeyIDs.contains($0.id) }) else { return nil }
         return LineupEntry(id: "host-tonight:\(host.id)", role: .host, people: [host])
     }
 
-    /// The featured host's names, for "Sign up in person with Dalton"; empty when nobody is hosting.
-    public var hostNames: [String] { featuredHost?.people.compactMap(\.name).filter { !$0.isEmpty } ?? [] }
+    /// The KJ, DJ or VJ to feature beside the host (Now's and the venue page's host row, with their links and Tip),
+    /// as entries billed "KJ Dalton" (``jockeyTitle(_:)``). A karaoke night with only a KJ features the KJ.
+    public var featuredJockeys: [LineupEntry] {
+        jockeysTonight.map { LineupEntry(id: "jockey-tonight:\($0.id)", role: .dj, people: [$0]) }
+    }
+
+    /// A jockey as billed tonight: "KJ Dalton".
+    public func jockeyTitle(_ person: LineupEntry.Person) -> String? {
+        JockeyTitle.text(label: jockeyLabel, name: person.name)
+    }
+
+    /// Who to sign up with in person, for "Sign up in person with Dalton": the featured host and the KJ (or DJ);
+    /// empty when nobody is hosting.
+    public var hostNames: [String] {
+        let people = (featuredHost?.people ?? []) + jockeysTonight
+        var seen = Set<String>()
+        return people.filter { seen.insert($0.id).inserted }.compactMap(\.name).filter { !$0.isEmpty }
+    }
 
     /// Everyone who isn't a karaoke singer: hosts, DJs, performers, MCs and intermissions.
     public var acts: [LineupEntry] { entries.filter { !$0.isSinger } }
@@ -587,9 +622,10 @@ extension Queries {
     /// The signup cutoff (an API from 2026-10-26 on).
     static let requestCutoffFields = "cutOff reopened closesAt"
 
-    /// A venue's lineup tonight. `hosts` asks for `hostsTonight` (an API from 2026-11-19 on) and `cutoff` for the
+    /// A venue's lineup tonight. `jockeys` asks for `jockeysTonight` (an API from audience_kit_api #881 on), `hosts`
+    /// for `hostsTonight` (an API from 2026-11-19 on) and `cutoff` for the
     /// signup cutoff (2026-10-26 on); ``AudienceSession/lineup(venueID:)`` leaves out what an older API refuses.
-    static func venueLineup(hosts: Bool = true, cutoff: Bool = true) -> String {
+    static func venueLineup(jockeys: Bool = true, hosts: Bool = true, cutoff: Bool = true) -> String {
         let cutoffFields = cutoff ? " \(requestCutoffFields)" : ""
         return """
         query VenueLineup($id: ID!) {
@@ -601,6 +637,7 @@ extension Queries {
                 onStage { id }
                 upNext { id }
                 \(hosts ? "hostsTonight { \(personSummaryFields) }" : "")
+                \(jockeys && hosts ? "jockeysTonight { \(personSummaryFields) } jockeyLabelTonight" : "")
               }
               karaoke { provider providerName joinUrl sessionCode tonight }
               requests {
@@ -647,6 +684,8 @@ struct VenueLineupResponse: Decodable, Sendable {
             var onStage: Ref?
             var upNext: Ref?
             var hostsTonight: [LineupEntry.Person]?
+            var jockeysTonight: [LineupEntry.Person]?
+            var jockeyLabelTonight: String?
         }
         struct Requests: Decodable, Sendable {
             var karaoke: KaraokeWindow?
@@ -668,7 +707,9 @@ struct VenueLineupResponse: Decodable, Sendable {
                                onStageID: LineupEntry.turnID(of: venue.people.onStage?.id, in: order, state: .on),
                                upNextID: LineupEntry.turnID(of: venue.people.upNext?.id, in: order, state: .upcoming),
                                karaoke: venue.requests?.karaoke, karaokeSession: venue.karaoke,
-                               songRequests: venue.requests?.song, hostsTonight: venue.people.hostsTonight ?? [])
+                               songRequests: venue.requests?.song, hostsTonight: venue.people.hostsTonight ?? [],
+                               jockeysTonight: venue.people.jockeysTonight ?? [],
+                               jockeyLabel: venue.people.jockeyLabelTonight)
         }
     }
 }
@@ -681,9 +722,10 @@ extension AudienceSession {
     /// A venue's lineup tonight with its karaoke singers and signups and its song requests, or `nil` when the venue
     /// doesn't exist.
     public func lineup(venueID: String) async throws -> VenueLineup? {
-        // An older API refuses the fields it doesn't have yet as invalid: `hostsTonight` (before 2026-11-19), then the
-        // signup cutoff (before 2026-10-26). Each try leaves out the next newest.
-        let attempts = [Queries.venueLineup(), Queries.venueLineup(hosts: false),
+        // An older API refuses the fields it doesn't have yet as invalid: `jockeysTonight` (before #881), then
+        // `hostsTonight` (before 2026-11-19), then the signup cutoff (before 2026-10-26). Each try leaves out the next
+        // newest.
+        let attempts = [Queries.venueLineup(), Queries.venueLineup(jockeys: false), Queries.venueLineup(hosts: false),
                         Queries.venueLineup(hosts: false, cutoff: false)]
         for (index, document) in attempts.enumerated() {
             do {

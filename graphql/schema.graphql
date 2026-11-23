@@ -4004,6 +4004,11 @@ type BannerPhoto implements HasPhotoFocus {
   textCoverage: Float
 
   """
+  A copy with its text painted out by an image model, to show behind your own words; null when there is none.
+  """
+  textFreeUrl: PhotoURL
+
+  """
   The image.
   """
   url: PhotoURL!
@@ -8618,6 +8623,37 @@ type EventPeopleView implements IEventPeople {
   ): PersonConnection!
 
   """
+  What its jockeys are billed as, by its kind of night: KJ (karaoke), VJ (video
+  or visuals) or DJ (anything else), as in "KJ Dalton".
+  """
+  jockeyLabel: String!
+
+  """
+  Who runs its music or screens: its KJ, DJ or VJ (jockeyLabel says which). Also on its lineup, not on its hosts.
+  """
+  jockeys(
+    """
+    Returns the elements in the list that come after the specified cursor.
+    """
+    after: String
+
+    """
+    Returns the elements in the list that come before the specified cursor.
+    """
+    before: String
+
+    """
+    Returns the first _n_ elements from the list.
+    """
+    first: Int
+
+    """
+    Returns the last _n_ elements from the list.
+    """
+    last: Int
+  ): PersonConnection!
+
+  """
   The latest earlier event at its venue with a lineup to copy (its lineupFile):
   one of its series, else one with its name. Null when there's none, and for
   anyone not working the show.
@@ -9047,7 +9083,8 @@ type EventPlaylist {
   Its songs in the playlist's order (up to 500), so the venue can shuffle it
   itself and show what plays next. Null when Spotify's catalog isn't available,
   or for a playlist no connected Spotify account (a performer's, the venue's or
-  the audience's) can read.
+  the audience's) can read and the event's lineup has none of its songs (its
+  playlist or sing-along segment).
   """
   tracks: [PlaylistTrack!]
 
@@ -9385,6 +9422,36 @@ type EventSeriesPeopleView implements IEventSeriesPeople {
   Its default hosts.
   """
   hosts(
+    """
+    Returns the elements in the list that come after the specified cursor.
+    """
+    after: String
+
+    """
+    Returns the elements in the list that come before the specified cursor.
+    """
+    before: String
+
+    """
+    Returns the first _n_ elements from the list.
+    """
+    first: Int
+
+    """
+    Returns the last _n_ elements from the list.
+    """
+    last: Int
+  ): PersonConnection!
+
+  """
+  What its jockeys are billed as: KJ on a karaoke series, VJ for video or visuals, else DJ.
+  """
+  jockeyLabel: String!
+
+  """
+  Its default jockeys (KJ, DJ or VJ): each occurrence gets them, as its hosts.
+  """
+  jockeys(
     """
     Returns the elements in the list that come after the specified cursor.
     """
@@ -10933,6 +11000,11 @@ interface HasPhotoFocus {
   How much of it has text in it, 0..1; null before it has been looked at.
   """
   textCoverage: Float
+
+  """
+  A copy with its text painted out by an image model, to show behind your own words; null when there is none.
+  """
+  textFreeUrl: PhotoURL
 
   """
   Its width in pixels, upright; null before it has been looked at.
@@ -12489,6 +12561,37 @@ interface IEventPeople @mixin(extensionKey: "people", field: "people", null: fal
   ): PersonConnection!
 
   """
+  What its jockeys are billed as, by its kind of night: KJ (karaoke), VJ (video
+  or visuals) or DJ (anything else), as in "KJ Dalton".
+  """
+  jockeyLabel: String!
+
+  """
+  Who runs its music or screens: its KJ, DJ or VJ (jockeyLabel says which). Also on its lineup, not on its hosts.
+  """
+  jockeys(
+    """
+    Returns the elements in the list that come after the specified cursor.
+    """
+    after: String
+
+    """
+    Returns the elements in the list that come before the specified cursor.
+    """
+    before: String
+
+    """
+    Returns the first _n_ elements from the list.
+    """
+    first: Int
+
+    """
+    Returns the last _n_ elements from the list.
+    """
+    last: Int
+  ): PersonConnection!
+
+  """
   The latest earlier event at its venue with a lineup to copy (its lineupFile):
   one of its series, else one with its name. Null when there's none, and for
   anyone not working the show.
@@ -12688,13 +12791,43 @@ interface IEventRSVP @mixin(extensionKey: "rsvp", field: "rsvp", null: false, on
 }
 
 """
-Who hosts a series' occurrences.
+Who hosts a series' occurrences, and who's their KJ, DJ or VJ.
 """
 interface IEventSeriesPeople @mixin(extensionKey: "people", field: "people", null: false, on: ["EventSeries"]) {
   """
   Its default hosts.
   """
   hosts(
+    """
+    Returns the elements in the list that come after the specified cursor.
+    """
+    after: String
+
+    """
+    Returns the elements in the list that come before the specified cursor.
+    """
+    before: String
+
+    """
+    Returns the first _n_ elements from the list.
+    """
+    first: Int
+
+    """
+    Returns the last _n_ elements from the list.
+    """
+    last: Int
+  ): PersonConnection!
+
+  """
+  What its jockeys are billed as: KJ on a karaoke series, VJ for video or visuals, else DJ.
+  """
+  jockeyLabel: String!
+
+  """
+  Its default jockeys (KJ, DJ or VJ): each occurrence gets them, as its hosts.
+  """
+  jockeys(
     """
     Returns the elements in the list that come after the specified cursor.
     """
@@ -14506,6 +14639,18 @@ interface IVenuePeople @mixin(extensionKey: "people", field: "people", null: fal
   hostsTonight: [Person!]!
 
   """
+  What jockeysTonight are billed as, by the kind of night under way: KJ, DJ or VJ. Null with no event under way.
+  """
+  jockeyLabelTonight: String
+
+  """
+  Who's the KJ, DJ or VJ here now, for the apps' host row beside hostsTonight:
+  the jockeys of the event under way (jockeyLabelTonight says which). Signed
+  out, only the Public ones.
+  """
+  jockeysTonight: [Person!]!
+
+  """
   The acts on a night that have a time (or have gone on), in running order.
   """
   lineup(
@@ -15102,6 +15247,16 @@ type Lineup implements Node {
   Its UUID.
   """
   id: ID!
+
+  """
+  What its event's jockeys are billed as (KJ, DJ or VJ); null for a zone's night.
+  """
+  jockeyLabel: String
+
+  """
+  Its event's jockeys (KJ, DJ or VJ): who runs the music or screens. Empty for a zone's night.
+  """
+  jockeys: [Person!]!
 
   """
   What it's billed as: its title, the event's name or the zone's.
@@ -18165,7 +18320,7 @@ Rockbot, Mood Media, TouchTunes).
 """
 type MusicLicenseOrganization {
   """
-  What its staff can do to playback from AudienceKit (controlVenueMusicService): skip, pause, play, volume.
+  What its staff can do to playback from AudienceKit (controlVenueMusicService): skip, pause, play, volume, block.
   """
   controls: [String!]!
 
@@ -21274,6 +21429,11 @@ type Photo implements HasPhoto & HasPhotoFocus & Node {
   How much of it has text in it, 0..1; null before it has been looked at.
   """
   textCoverage: Float
+
+  """
+  A copy with its text painted out by an image model, to show behind your own words; null when there is none.
+  """
+  textFreeUrl: PhotoURL
 
   """
   Its width in pixels, upright; null before it has been looked at.
@@ -25097,6 +25257,11 @@ type ScreenBackdrop implements HasPhotoFocus {
   How much of it has text in it, 0..1; null before it has been looked at.
   """
   textCoverage: Float
+
+  """
+  A copy with its text painted out by an image model, to show behind your own words; null when there is none.
+  """
+  textFreeUrl: PhotoURL
 
   """
   The image.
@@ -29957,6 +30122,18 @@ type VenuePeopleView implements IVenuePeople {
   on it), else none. Signed out, only the Public ones.
   """
   hostsTonight: [Person!]!
+
+  """
+  What jockeysTonight are billed as, by the kind of night under way: KJ, DJ or VJ. Null with no event under way.
+  """
+  jockeyLabelTonight: String
+
+  """
+  Who's the KJ, DJ or VJ here now, for the apps' host row beside hostsTonight:
+  the jockeys of the event under way (jockeyLabelTonight says which). Signed
+  out, only the Public ones.
+  """
+  jockeysTonight: [Person!]!
 
   """
   The acts on a night that have a time (or have gone on), in running order.

@@ -3,6 +3,20 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.94.0 (2026-11-23)
+
+- Jockeys: the KJ, DJ or VJ of a night (Swift, Kotlin and Node; audience_kit_api #881, Rick 2026-11-22: "KJ Dalton"
+  beside the host). One role, labelled by the kind of night: KJ at karaoke, VJ for video or visuals, else DJ. Needs
+  audience_kit_api #894; on an older API the fields are left out (SchemaShape, or the lineup's next try) and come back
+  empty.
+  - `Event.jockeys`, `jockeyLabel` and `jockeyTitles` (["KJ Dalton"]); `JockeyTitle.text(label:name:)`. Node:
+    `eventJockeys`, `eventJockeyTitles`, `jockeyTitle`.
+  - Swift `VenueLineup.jockeysTonight` and `jockeyLabel` (`jockeysTonight` / `jockeyLabelTonight`),
+    `featuredJockeys` for the host row beside `featuredHost`, and `jockeyTitle(_:)`. `featuredHost` skips a host
+    entry whose people are all jockeys (a KJ put on now as the host shows once, as the KJ), and `hostNames` adds the
+    jockeys, so "Sign up in person with Dalton" names the KJ.
+- graphql/schema.graphql: the API's next consumer schema with the jockey fields.
+
 ## 0.93.0 (2026-11-23)
 
 - Choosing a Soapbox publication to work on, like choosing a locale (Swift and Kotlin; Rick, 2026-11-23, "soapbox

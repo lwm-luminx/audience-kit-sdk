@@ -36,7 +36,7 @@ private let eventJSON = #"""
  "venue":{"name":"LVCC","venue":{"id":"v-1","name":"LVCC","photoUrl":null,
    "location":{"id":"loc-1","point":"POINT (-115.1523 36.1318)","address":"3150 Paradise Rd"}}},
  "rsvp":{"mine":"ATTENDING","count":12},
- "people":{"hosts":{"nodes":[{"id":"p-1","name":"Dark Tangent","avatarUrl":null}]},"lineup":{"nodes":[]}},
+ "people":{"hosts":{"nodes":[{"id":"p-1","name":"Dark Tangent","avatarUrl":null}]},"lineup":{"nodes":[]},"jockeys":{"nodes":[{"id":"p-2","name":"Dalton","avatarUrl":null}]},"jockeyLabel":"KJ"},
  "tickets":{"url":"https://defcon.org/tickets",
    "offers":{"nodes":[{"price":{"cents":46000,"currency":"usd"},"url":"https://defcon.org/tickets",
      "seller":{"key":"defcon","name":"DEF CON"}}]},
@@ -91,6 +91,9 @@ private func reducedSchema(_ request: RecordedRequest) -> StubResponse {
     #expect(event.venue?.location?.coordinate == Coordinate(latitude: 36.1318, longitude: -115.1523))
     #expect(event.rsvp == Event.RSVP(mine: .attending, count: 12))
     #expect(event.hosts?.map(\.name) == ["Dark Tangent"])
+    #expect(event.jockeys?.map(\.name) == ["Dalton"] && event.jockeyLabel == "KJ")
+    #expect(event.jockeyTitles == ["KJ Dalton"])
+    #expect(request.query.contains("jockeys { nodes { id name avatarUrl } } jockeyLabel"))
     #expect(event.lineup == [])
     #expect(event.ticketURL == URL(string: "https://defcon.org/tickets"))
     #expect(event.ticketOffers == [AdmissionOffer(price: Money(cents: 46000, currency: "usd"),

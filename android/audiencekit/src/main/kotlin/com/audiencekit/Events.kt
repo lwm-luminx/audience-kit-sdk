@@ -51,7 +51,24 @@ public data class EventRSVPSummary(val mine: RSVPState = RSVPState.UNSURE, val c
 public data class EventPeople(
     val hosts: Connection<EventPerson>? = null,
     val lineup: Connection<EventPerson>? = null,
+    /** Its KJ, DJ or VJ (audience_kit_api #881); null on an older API. */
+    val jockeys: Connection<EventPerson>? = null,
+    /** What its jockeys are billed as: "KJ", "DJ" or "VJ". */
+    val jockeyLabel: String? = null,
 )
+
+/**
+ * How a jockey is billed: their label by the kind of night, then their name ("KJ Dalton"). One role, three labels
+ * (audience_kit_api #881): KJ at karaoke, VJ for video or visuals, DJ otherwise.
+ */
+public object JockeyTitle {
+    /** "KJ Dalton"; the name alone without a label, and null without a name. */
+    public fun text(label: String?, name: String?): String? {
+        val trimmed = name?.trim().takeUnless { it.isNullOrEmpty() } ?: return null
+        val prefix = label?.trim().takeUnless { it.isNullOrEmpty() } ?: return trimmed
+        return "$prefix $trimmed"
+    }
+}
 
 /**
  * A way into an event or a venue night (the API's `IAdmissionOffer`): tickets on a ticketing partner, or the cover
@@ -141,6 +158,15 @@ public data class Event(
     val venueName: String? get() = venueMixin?.name
 
     val hosts: List<EventPerson>? get() = people?.hosts?.items
+
+    /** Who runs its music or screens: its KJ, DJ or VJ ([jockeyLabel] says which). On [lineup], never on [hosts]. */
+    val jockeys: List<EventPerson>? get() = people?.jockeys?.items
+
+    /** What its jockeys are billed as, by its kind of night: "KJ" (karaoke), "VJ" (video or visuals) or "DJ". */
+    val jockeyLabel: String? get() = people?.jockeyLabel
+
+    /** Its jockeys as billed, e.g. "KJ Dalton"; empty without any. */
+    val jockeyTitles: List<String> get() = jockeys.orEmpty().mapNotNull { JockeyTitle.text(jockeyLabel, it.name) }
     val lineup: List<EventPerson>? get() = people?.lineup?.items
     val ticketUrl: String? get() = tickets?.url
 
@@ -175,7 +201,7 @@ public data class EventSeries(
 }
 
 /** The types whose fields the event documents depend on. */
-internal val EVENT_TYPES: List<String> = Queries.LISTING_TYPES + "EventSeries" + "EventTickets"
+internal val EVENT_TYPES: List<String> = Queries.LISTING_TYPES + "EventSeries" + "EventTickets" + "EventPeopleView"
 
 /** An [AdmissionOffer]. */
 public const val ADMISSION_OFFER_FIELDS: String = "price { ${Queries.MONEY_FIELDS} } url seller { key name }"
@@ -193,7 +219,10 @@ public fun Queries.eventFields(shape: SchemaShape): String = buildString {
     if (shape.has("Event", "venue")) append(" ").append(eventVenueFields(shape))
     if (shape.has("Event", "rsvp")) append(" rsvp { mine count }")
     if (shape.has("Event", "people")) {
-        append(" people { hosts { nodes { id name avatarUrl } } lineup { nodes { id name avatarUrl } } }")
+        append(" people { hosts { nodes { id name avatarUrl } } lineup { nodes { id name avatarUrl } }")
+        // Its KJ, DJ or VJ: an API from audience_kit_api #881 on.
+        if (shape.has("EventPeopleView", "jockeys")) append(" jockeys { nodes { id name avatarUrl } } jockeyLabel")
+        append(" }")
     }
     if (shape.has("Event", "tickets")) append(" ").append(eventTicketsFields(shape))
     if (shape.has("Event", "parentEvent")) append(" parentEvent { $EVENT_SUMMARY_FIELDS }")

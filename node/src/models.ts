@@ -412,6 +412,10 @@ export interface EventRSVPSummary {
 export interface EventPeople {
   hosts?: Connection<EventPerson> | null;
   lineup?: Connection<EventPerson> | null;
+  /** Its KJ, DJ or VJ (audience_kit_api #881); absent on an older API. */
+  jockeys?: Connection<EventPerson> | null;
+  /** What its jockeys are billed as: "KJ", "DJ" or "VJ". */
+  jockeyLabel?: string | null;
 }
 
 /** Who sells an admission (the API's `IProvider`): a ticketing partner, or AudienceKit itself. */
@@ -469,6 +473,25 @@ export function eventVenue(event: Event | EventSeries): EventVenue | null {
 /** An event's hosts, or null without the People module. */
 export function eventHosts(event: Event): EventPerson[] | null {
   return event.people ? connectionItems(event.people.hosts) : null;
+}
+
+/** An event's jockeys (KJ, DJ or VJ), or null without the People module or on an older API. */
+export function eventJockeys(event: Event): EventPerson[] | null {
+  return event.people?.jockeys ? connectionItems(event.people.jockeys) : null;
+}
+
+/** How a jockey is billed: "KJ Dalton"; the name alone without a label, and null without a name. */
+export function jockeyTitle(label: string | null | undefined, name: string | null | undefined): string | null {
+  const trimmed = name?.trim();
+  if (!trimmed) return null;
+  const prefix = label?.trim();
+  return prefix ? `${prefix} ${trimmed}` : trimmed;
+}
+
+/** An event's jockeys as billed, e.g. ["KJ Dalton"]; empty without any. */
+export function eventJockeyTitles(event: Event): string[] {
+  const label = event.people?.jockeyLabel;
+  return (eventJockeys(event) ?? []).flatMap((person) => jockeyTitle(label, person.name) ?? []);
 }
 
 /** An event's lineup, or null without the People module. */

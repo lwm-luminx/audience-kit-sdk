@@ -38,6 +38,17 @@ public struct EventPerson: Codable, Sendable, Hashable, Identifiable {
     }
 }
 
+/// How a jockey is billed: their label by the kind of night, then their name ("KJ Dalton"). One role, three labels
+/// (audience_kit_api #881): KJ at karaoke, VJ for video or visuals, DJ otherwise.
+public enum JockeyTitle {
+    /// "KJ Dalton"; the name alone without a label, and nil without a name.
+    public static func text(label: String?, name: String?) -> String? {
+        guard let name = name?.trimmingCharacters(in: .whitespaces), !name.isEmpty else { return nil }
+        guard let label = label?.trimmingCharacters(in: .whitespaces), !label.isEmpty else { return name }
+        return "\(label) \(name)"
+    }
+}
+
 /// Another event an event links to: the festival or conference it's part of (``Event/parentEvent``), or one of the
 /// events that are part of it (``Event/childEvents``).
 public struct EventSummary: Codable, Sendable, Hashable, Identifiable {
@@ -136,6 +147,15 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
     public var venueName: String? { venueMixin?.name }
     /// Who hosts it; nil without the People module.
     public var hosts: [EventPerson]? { people?.hosts?.nodes.compactMap { $0 } }
+    /// Who runs its music or screens: its KJ, DJ or VJ (``jockeyLabel`` says which). Also on ``lineup``, never on
+    /// ``hosts``. Nil without the People module and on an API before the jockey role (audience_kit_api #881).
+    public var jockeys: [EventPerson]? { people?.jockeys?.nodes.compactMap { $0 } }
+    /// What its jockeys are billed as, by its kind of night: "KJ" (karaoke), "VJ" (video or visuals) or "DJ".
+    public var jockeyLabel: String? { people?.jockeyLabel }
+    /// Its jockeys as billed, e.g. "KJ Dalton"; empty without any.
+    public var jockeyTitles: [String] {
+        (jockeys ?? []).compactMap { JockeyTitle.text(label: jockeyLabel, name: $0.name) }
+    }
     /// Who performs or speaks at it; nil without the People module.
     public var lineup: [EventPerson]? { people?.lineup?.nodes.compactMap { $0 } }
     /// Where to buy tickets elsewhere, if anywhere; nil without the Ticketing module.
@@ -184,6 +204,8 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
     private struct PeopleMixin: Codable, Sendable, Hashable {
         var hosts: Nodes?
         var lineup: Nodes?
+        var jockeys: Nodes?
+        var jockeyLabel: String?
     }
 
     private struct OfferNodes: Codable, Sendable, Hashable { var nodes: [AdmissionOffer] }
@@ -330,7 +352,7 @@ public struct EventSeries: Codable, Sendable, Hashable, Identifiable {
 
 extension Queries {
     /// The types whose fields the event documents depend on.
-    static let eventTypes = listingTypes + ["EventSeries", "EventTickets"]
+    static let eventTypes = listingTypes + ["EventSeries", "EventTickets", "EventPeopleView"]
 
     /// An ``AdmissionOffer``.
     static let admissionOfferFields = "price { \(moneyFields) } url seller { key name }"
@@ -350,7 +372,11 @@ extension Queries {
         if shape.has("Event", "venue") { fields += " " + eventVenueFields(shape) }
         if shape.has("Event", "rsvp") { fields += " rsvp { mine count }" }
         if shape.has("Event", "people") {
-            fields += " people { hosts { nodes { id name avatarUrl } } lineup { nodes { id name avatarUrl } } }"
+            // Its KJ, DJ or VJ: an API from audience_kit_api #881 on.
+            let jockeys = shape.has("EventPeopleView", "jockeys")
+                ? " jockeys { nodes { id name avatarUrl } } jockeyLabel" : ""
+            fields += " people { hosts { nodes { id name avatarUrl } } lineup { nodes { id name avatarUrl } }"
+                + "\(jockeys) }"
         }
         if shape.has("Event", "tickets") { fields += " " + eventTicketsFields(shape) }
         if shape.has("Event", "parentEvent") { fields += " parentEvent { \(eventSummaryFields) }" }

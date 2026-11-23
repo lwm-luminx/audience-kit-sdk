@@ -42,14 +42,19 @@ public struct VenueHostRow: View {
     private let links: [HostLink]
     private let onTip: (() -> Void)?
     private let onSelect: (() -> Void)?
+    private let caption: String?
     @Environment(\.audiencePreset) private var preset
     @Environment(\.colorScheme) private var scheme
 
-    public init(host: LineupEntry, links: [HostLink] = [], onTip: (() -> Void)? = nil, onSelect: (() -> Void)? = nil) {
+    /// `caption` goes under the name: "Your host tonight" unless it says otherwise (a jockey's row: "Your KJ tonight",
+    /// from ``VenueLineup/jockeyCaption``).
+    public init(host: LineupEntry, links: [HostLink] = [], onTip: (() -> Void)? = nil, onSelect: (() -> Void)? = nil,
+                caption: String? = nil) {
         self.host = host
         self.links = links
         self.onTip = onTip
         self.onSelect = onSelect
+        self.caption = caption
     }
 
     public var body: some View {
@@ -60,7 +65,7 @@ public struct VenueHostRow: View {
                     Avatars(entry: host, size: 48)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(host.displayName).font(TokenFont.subheading).foregroundStyle(Color(colors.ink))
-                        Text(String(localized: "Your host tonight")).font(TokenFont.bodySm)
+                        Text(caption ?? String(localized: "Your host tonight")).font(TokenFont.bodySm)
                             .foregroundStyle(Color(colors.inkMuted))
                     }
                 }

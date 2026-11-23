@@ -30,7 +30,7 @@ export const CHAT_MESSAGE_FIELDS = "id body message name userId avatarUrl photoU
 /** The types whose fields the listing documents depend on. */
 export const LISTING_TYPES = ["Locale", "ListingProfile", "Venue", "Location", "Person", "Event"] as const;
 /** The types whose fields the event documents depend on. */
-export const EVENT_TYPES = [...LISTING_TYPES, "EventSeries", "EventTickets"] as const;
+export const EVENT_TYPES = [...LISTING_TYPES, "EventSeries", "EventTickets", "EventPeopleView"] as const;
 /** The types `venueCover` and `venueOffers` depend on. */
 export const VENUE_TICKET_TYPES = ["Venue", "VenueTickets"] as const;
 
@@ -210,7 +210,9 @@ export function eventFields(shape: SchemaShape = EVERYTHING): string {
   if (shape.has("Event", "venue")) fields += ` ${eventVenueFields(shape)}`;
   if (shape.has("Event", "rsvp")) fields += " rsvp { mine count }";
   if (shape.has("Event", "people")) {
-    fields += " people { hosts { nodes { id name avatarUrl } } lineup { nodes { id name avatarUrl } } }";
+    // Its KJ, DJ or VJ: an API from audience_kit_api #881 on.
+    const jockeys = shape.has("EventPeopleView", "jockeys") ? " jockeys { nodes { id name avatarUrl } } jockeyLabel" : "";
+    fields += ` people { hosts { nodes { id name avatarUrl } } lineup { nodes { id name avatarUrl } }${jockeys} }`;
   }
   if (shape.has("Event", "tickets")) fields += ` ${eventTicketsFields(shape)}`;
   return fields;

@@ -97,8 +97,8 @@ private func song(_ id: String, _ title: String, state: String = "QUEUED", mine:
             return .json(status: 200, body: lineupJSON)
         }
         let window2 = try #require(try await lineupClient(older).lineup(venueID: "v-1")?.karaoke)
-        // Without hostsTonight first, then without the cutoff.
-        #expect(older.requests.count == 3)
+        // Without jockeysTonight first, then hostsTonight, then without the cutoff.
+        #expect(older.requests.count == 4)
         #expect(window2.paused && window2.closed && !window2.cutOff && window2.closesAt == nil)
     }
 
@@ -133,7 +133,8 @@ private func song(_ id: String, _ title: String, state: String = "QUEUED", mine:
             return .json(status: 200, body: lineupJSON)
         }
         let lineup = try #require(try await lineupClient(older).lineup(venueID: "v-1"))
-        #expect(older.requests.count == 2)
+        // Without jockeysTonight first (it still asks hostsTonight), then without hostsTonight.
+        #expect(older.requests.count == 3)
         #expect(lineup.hostsTonight.isEmpty && lineup.featuredHost?.id == "host")
         #expect((try #require(older.requests.last).jsonBody()["query"] as? String)?.contains("cutOff") == true)
     }
@@ -243,6 +244,40 @@ private func song(_ id: String, _ title: String, state: String = "QUEUED", mine:
         #expect(KaraokeSignUpInPerson.text(hostNames: lineup.hostNames) == "Sign up in person with Dalton")
         #expect(KaraokeSignUpInPerson.text(hostNames: [" "]) == "Sign up in person with the host")
         #expect(KaraokeSignUpInPerson.text(hostNames: ["Dalton", "Sequoia"]) == "Sign up in person with Dalton or Sequoia")
+    }
+
+    @Test func featuresTheKJBesideTheHost() async throws {
+        let dalton = LineupEntry.Person(id: "p-2", name: "Dalton", avatarUrl: nil)
+        let alma = LineupEntry.Person(id: "p-1", name: "Mama Alma", avatarUrl: nil)
+        let lineup = VenueLineup(venueID: "v-1", venueName: "The SunTrapp", entries: [], hostsTonight: [alma],
+                                 jockeysTonight: [dalton], jockeyLabel: "KJ")
+        #expect(lineup.featuredHost?.people.map(\.name) == ["Mama Alma"])
+        #expect(lineup.featuredJockeys.map(\.id) == ["jockey-tonight:p-2"])
+        #expect(lineup.featuredJockeys.first?.role == .dj)
+        #expect(lineup.featuredJockeys.first?.displayName == "KJ Dalton")
+        #expect(lineup.jockeyCaption == "Your KJ tonight")
+        #expect(lineup.jockeyTitle(dalton) == "KJ Dalton")
+        #expect(lineup.hostNames == ["Mama Alma", "Dalton"])
+
+        // A karaoke night with only a KJ, who's on now as the host: featured as the KJ, not as the host too.
+        let onNow = LineupEntry(id: "host", kind: .act, role: .host, people: [dalton], state: .on)
+        let kjOnly = VenueLineup(venueID: "v-1", venueName: "The SunTrapp", entries: [onNow],
+                                 jockeysTonight: [dalton], jockeyLabel: "KJ")
+        #expect(kjOnly.featuredHost == nil)
+        #expect(kjOnly.featuredJockeys.count == 1)
+        #expect(kjOnly.hostNames == ["Dalton"])
+
+        #expect(JockeyTitle.text(label: "DJ", name: " Bea ") == "DJ Bea")
+        #expect(JockeyTitle.text(label: nil, name: "Bea") == "Bea")
+        #expect(JockeyTitle.text(label: "VJ", name: " ") == nil)
+
+        let withJockeys = lineupJSON.replacingOccurrences(
+            of: #""upNext":{"id":"break"}"#,
+            with: #""upNext":{"id":"break"},"jockeysTonight":[{"id":"p-2","name":"Dalton","avatarUrl":null}],"jockeyLabelTonight":"KJ""#)
+        let stub = Stub { _ in .json(status: 200, body: withJockeys) }
+        let decoded = try #require(try await lineupClient(stub).lineup(venueID: "v-1"))
+        #expect(decoded.jockeysTonight.map(\.name) == ["Dalton"] && decoded.jockeyLabel == "KJ")
+        #expect((try #require(stub.requests.first).jsonBody()["query"] as? String)?.contains("jockeysTonight") == true)
     }
 
     @Test func roundTripsALineupEntry() throws {

@@ -48,7 +48,7 @@ private const val EVENT_JSON = """
  "locale":{"id":"l-1","name":"Las Vegas"},"tags":[],
  "venue":{"name":"LVCC","venue":{"id":"v-1","name":"LVCC","location":{"id":"loc-1","point":"POINT (-115.1523 36.1318)"}}},
  "rsvp":{"mine":"ATTENDING","count":12},
- "people":{"hosts":{"nodes":[{"id":"p-1","name":"Dark Tangent"}]},"lineup":{"nodes":[]}},
+ "people":{"hosts":{"nodes":[{"id":"p-1","name":"Dark Tangent"}]},"lineup":{"nodes":[]},"jockeys":{"nodes":[{"id":"p-2","name":"Dalton"}]},"jockeyLabel":"KJ"},
  "tickets":{"url":"https://defcon.org/tickets",
    "offers":{"nodes":[{"price":{"cents":46000,"currency":"usd"},"url":"https://defcon.org/tickets",
      "seller":{"key":"defcon","name":"DEF CON"}}]},
@@ -72,6 +72,10 @@ class EventsTest {
         assertEquals(36.1318, event.venue?.location?.coordinate?.latitude)
         assertEquals(RSVPState.ATTENDING, event.rsvp?.mine)
         assertEquals(listOf("Dark Tangent"), event.hosts?.map { it.name })
+        assertEquals(listOf("KJ Dalton"), event.jockeyTitles)
+        assertEquals("DJ Bea", JockeyTitle.text("DJ", " Bea "))
+        assertEquals("Bea", JockeyTitle.text(null, "Bea"))
+        assertNull(JockeyTitle.text("VJ", " "))
         assertEquals("https://defcon.org/tickets", event.ticketUrl)
         assertEquals(
             listOf(AdmissionOffer(Money(46000, "usd"), "https://defcon.org/tickets", AdmissionOffer.Seller("defcon", "DEF CON"))),

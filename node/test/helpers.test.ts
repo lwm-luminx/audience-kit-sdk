@@ -231,3 +231,19 @@ describe("operations and endpoints", () => {
     expect(resolveConfiguration({ baseUrl: "http://localhost:3000//" }).baseUrl).toBe("http://localhost:3000");
   });
 });
+
+describe("jockeys (KJ, DJ or VJ)", () => {
+  it("bills a jockey by the night's label", async () => {
+    const { eventJockeyTitles, eventJockeys, jockeyTitle } = await import("../src/index.js");
+    const event = {
+      id: "e-1",
+      people: { jockeys: { nodes: [{ id: "p-2", name: "Dalton" }] }, jockeyLabel: "KJ" },
+    };
+    expect(eventJockeys(event)?.map((p) => p.name)).toEqual(["Dalton"]);
+    expect(eventJockeyTitles(event)).toEqual(["KJ Dalton"]);
+    expect(eventJockeys({ id: "e-2", people: {} })).toBeNull();
+    expect(jockeyTitle("DJ", " Bea ")).toBe("DJ Bea");
+    expect(jockeyTitle(null, "Bea")).toBe("Bea");
+    expect(jockeyTitle("VJ", " ")).toBeNull();
+  });
+});

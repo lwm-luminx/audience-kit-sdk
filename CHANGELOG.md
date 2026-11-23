@@ -14,7 +14,8 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   - Swift `VenueLineup.jockeysTonight` and `jockeyLabel` (`jockeysTonight` / `jockeyLabelTonight`),
     `featuredJockeys` for the host row beside `featuredHost`, and `jockeyTitle(_:)`. `featuredHost` skips a host
     entry whose people are all jockeys (a KJ put on now as the host shows once, as the KJ), and `hostNames` adds the
-    jockeys, so "Sign up in person with Dalton" names the KJ.
+    jockeys, so "Sign up in person with Dalton" names the KJ. `featuredJockeys` entries are titled "KJ Dalton", and
+    `jockeyCaption` ("Your KJ tonight") goes under them: `VenueHostRow(host:links:onTip:onSelect:caption:)`.
 - graphql/schema.graphql: the API's next consumer schema with the jockey fields.
 
 ## 0.93.0 (2026-11-23)

@@ -254,6 +254,8 @@ private func song(_ id: String, _ title: String, state: String = "QUEUED", mine:
         #expect(lineup.featuredHost?.people.map(\.name) == ["Mama Alma"])
         #expect(lineup.featuredJockeys.map(\.id) == ["jockey-tonight:p-2"])
         #expect(lineup.featuredJockeys.first?.role == .dj)
+        #expect(lineup.featuredJockeys.first?.displayName == "KJ Dalton")
+        #expect(lineup.jockeyCaption == "Your KJ tonight")
         #expect(lineup.jockeyTitle(dalton) == "KJ Dalton")
         #expect(lineup.hostNames == ["Mama Alma", "Dalton"])
 

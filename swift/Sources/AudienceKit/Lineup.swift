@@ -540,10 +540,15 @@ public struct VenueLineup: Sendable, Hashable {
     }
 
     /// The KJ, DJ or VJ to feature beside the host (Now's and the venue page's host row, with their links and Tip),
-    /// as entries billed "KJ Dalton" (``jockeyTitle(_:)``). A karaoke night with only a KJ features the KJ.
+    /// as entries titled "KJ Dalton" (``jockeyTitle(_:)``). A karaoke night with only a KJ features the KJ.
     public var featuredJockeys: [LineupEntry] {
-        jockeysTonight.map { LineupEntry(id: "jockey-tonight:\($0.id)", role: .dj, people: [$0]) }
+        jockeysTonight.map {
+            LineupEntry(id: "jockey-tonight:\($0.id)", role: .dj, title: jockeyTitle($0), people: [$0])
+        }
     }
+
+    /// What a jockey's host row says under their name: "Your KJ tonight" (or DJ, VJ).
+    public var jockeyCaption: String { "Your \(jockeyLabel ?? "DJ") tonight" }
 
     /// A jockey as billed tonight: "KJ Dalton".
     public func jockeyTitle(_ person: LineupEntry.Person) -> String? {

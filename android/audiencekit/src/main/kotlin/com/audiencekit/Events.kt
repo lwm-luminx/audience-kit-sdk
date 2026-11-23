@@ -167,6 +167,19 @@ public data class Event(
 
     /** Its jockeys as billed, e.g. "KJ Dalton"; empty without any. */
     val jockeyTitles: List<String> get() = jockeys.orEmpty().mapNotNull { JockeyTitle.text(jockeyLabel, it.name) }
+
+    /**
+     * Who hosts it, as billed after "Hosted by": its hosts, then its jockeys ("Mama Alma", "KJ Dalton"). A night whose
+     * only person is its KJ, DJ or VJ is hosted by them (Rick, 2026-11-23): ["KJ Dalton"]. Empty when nobody hosts.
+     */
+    val hostedBy: List<String>
+        get() {
+            val jockeyIds = jockeys.orEmpty().map { it.id }.toSet()
+            return hosts.orEmpty().filter { it.id !in jockeyIds }.mapNotNull { it.name } + jockeyTitles
+        }
+
+    /** Whether its only host is its jockey: billed "Hosted by KJ Dalton", not on a line of their own. */
+    val isHostedByJockey: Boolean get() = hosts.isNullOrEmpty() && jockeyTitles.isNotEmpty()
     val lineup: List<EventPerson>? get() = people?.lineup?.items
     val ticketUrl: String? get() = tickets?.url
 

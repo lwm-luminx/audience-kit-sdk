@@ -93,6 +93,7 @@ private func reducedSchema(_ request: RecordedRequest) -> StubResponse {
     #expect(event.hosts?.map(\.name) == ["Dark Tangent"])
     #expect(event.jockeys?.map(\.name) == ["Dalton"] && event.jockeyLabel == "KJ")
     #expect(event.jockeyTitles == ["KJ Dalton"])
+    #expect(event.hostedBy == ["Dark Tangent", "KJ Dalton"] && !event.isHostedByJockey)
     #expect(request.query.contains("jockeys { nodes { id name avatarUrl } } jockeyLabel"))
     #expect(event.lineup == [])
     #expect(event.ticketURL == URL(string: "https://defcon.org/tickets"))

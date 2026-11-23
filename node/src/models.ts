@@ -494,6 +494,16 @@ export function eventJockeyTitles(event: Event): string[] {
   return (eventJockeys(event) ?? []).flatMap((person) => jockeyTitle(label, person.name) ?? []);
 }
 
+/**
+ * Who hosts an event, as billed after "Hosted by": its hosts, then its jockeys (["Mama Alma", "KJ Dalton"]). A night
+ * whose only person is its KJ, DJ or VJ is hosted by them (Rick, 2026-11-23): ["KJ Dalton"]. Empty when nobody hosts.
+ */
+export function eventHostedBy(event: Event): string[] {
+  const jockeyIds = new Set((eventJockeys(event) ?? []).map((person) => person.id));
+  const hosts = (eventHosts(event) ?? []).filter((person) => !jockeyIds.has(person.id));
+  return [...hosts.flatMap((person) => person.name ?? []), ...eventJockeyTitles(event)];
+}
+
 /** An event's lineup, or null without the People module. */
 export function eventLineup(event: Event): EventPerson[] | null {
   return event.people ? connectionItems(event.people.lineup) : null;

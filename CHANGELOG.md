@@ -3,6 +3,16 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.95.0 (2026-11-23)
+
+- A lone KJ, DJ or VJ hosts the night (Rick, 2026-11-23: "if the only linked person is a KJ they are a defacto
+  host").
+  - `Event.hostedBy` (Swift, Kotlin; Node `eventHostedBy`): who to bill after "Hosted by": hosts, then jockeys as
+    billed (["Mama Alma", "KJ Dalton"]), or ["KJ Dalton"] alone. `Event.isHostedByJockey` when the jockey is the only
+    host.
+  - Swift `VenueLineup.jockeyCaption` says "Your host tonight" when the jockey is the only one, and `hostNames` bills
+    jockeys ("Sign up in person with KJ Dalton").
+
 ## 0.94.0 (2026-11-23)
 
 - Jockeys: the KJ, DJ or VJ of a night (Swift, Kotlin and Node; audience_kit_api #881, Rick 2026-11-22: "KJ Dalton"

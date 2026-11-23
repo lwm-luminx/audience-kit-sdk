@@ -73,6 +73,8 @@ class EventsTest {
         assertEquals(RSVPState.ATTENDING, event.rsvp?.mine)
         assertEquals(listOf("Dark Tangent"), event.hosts?.map { it.name })
         assertEquals(listOf("KJ Dalton"), event.jockeyTitles)
+        assertEquals(listOf("Dark Tangent", "KJ Dalton"), event.hostedBy)
+        assertEquals(false, event.isHostedByJockey)
         assertEquals("DJ Bea", JockeyTitle.text("DJ", " Bea "))
         assertEquals("Bea", JockeyTitle.text(null, "Bea"))
         assertNull(JockeyTitle.text("VJ", " "))

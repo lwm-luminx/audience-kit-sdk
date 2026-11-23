@@ -156,6 +156,15 @@ public struct Event: Codable, Sendable, Hashable, Identifiable {
     public var jockeyTitles: [String] {
         (jockeys ?? []).compactMap { JockeyTitle.text(label: jockeyLabel, name: $0.name) }
     }
+    /// Who hosts it, as billed after "Hosted by": its hosts, then its jockeys ("Mama Alma", "KJ Dalton"). A night whose
+    /// only person is its KJ, DJ or VJ is hosted by them (Rick, 2026-11-23: "if the only linked person is a KJ they are
+    /// a defacto host"): ["KJ Dalton"]. Empty when nobody hosts.
+    public var hostedBy: [String] {
+        let jockeyIDs = Set((jockeys ?? []).map(\.id))
+        return (hosts ?? []).filter { !jockeyIDs.contains($0.id) }.compactMap(\.name) + jockeyTitles
+    }
+    /// Whether its only host is its jockey: billed "Hosted by KJ Dalton", not on a line of their own.
+    public var isHostedByJockey: Bool { (hosts ?? []).isEmpty && !jockeyTitles.isEmpty }
     /// Who performs or speaks at it; nil without the People module.
     public var lineup: [EventPerson]? { people?.lineup?.nodes.compactMap { $0 } }
     /// Where to buy tickets elsewhere, if anywhere; nil without the Ticketing module.

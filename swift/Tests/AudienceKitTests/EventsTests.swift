@@ -351,13 +351,37 @@ private func reducedSchema(_ request: RecordedRequest) -> StubResponse {
     #expect(decoded == event)
 }
 
+@Test func aFestivalsPageListsItsPartsAndAPartNamesItsFestival() async throws {
+    let parent = #""parentEvent":{"id":"e-0","name":"Utah Pride Festival","startAt":"2027-06-04T16:00:00Z","endAt":null},"#
+    let children = #""childEvents":{"nodes":[{"id":"e-2","name":"Pride Party","startAt":"2027-06-05T03:00:00Z","#
+        + #""endAt":"2027-06-05T08:00:00Z"}]}"#
+    let body = String(eventJSON.trimmingCharacters(in: .whitespacesAndNewlines).dropLast()) + "," + parent + children
+        + "}"
+    let stub = Stub { _ in .json(status: 200, body: #"{"data":{"events":{"event":\#(body)}}}"#) }
+
+    let event = try #require(try await eventsClient(stub).event(id: "e-1"))
+
+    let query = try #require(stub.requests.first?.query)
+    #expect(query.contains("parentEvent { id name startAt endAt }"))
+    #expect(query.contains("childEvents { nodes { id name startAt endAt } }"))
+    #expect(event.parentEvent?.name == "Utah Pride Festival")
+    #expect(event.parentEvent?.startAt == ISO8601.date(from: "2027-06-04T16:00:00Z"))
+    #expect(event.childEvents?.map(\.name) == ["Pride Party"])
+    let decoded = try JSONDecoder().decode(Event.self, from: JSONEncoder().encode(event))
+    #expect(decoded == event)
+    let built = Event(id: "e-3", parentEvent: EventSummary(id: "e-0"), childEvents: [])
+    #expect(built.childEvents == [])
+}
+
 @Test func eventListsLeaveLinksOut() async throws {
     let stub = Stub { _ in .json(status: 200, body: #"{"data":{"events":{"list":{"nodes":[\#(eventJSON)]}}}}"#) }
 
     let event = try #require(try await eventsClient(stub).events().first)
 
     #expect(stub.requests.first?.query.contains("socialLinks") == false)
+    #expect(stub.requests.first?.query.contains("childEvents") == false)
     #expect(event.socialLinks == nil)
+    #expect(event.childEvents == nil)
     #expect(event.communityChats.isEmpty)
 }
 

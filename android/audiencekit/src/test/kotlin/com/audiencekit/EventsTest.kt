@@ -102,13 +102,32 @@ class EventsTest {
     }
 
     @Test
+    fun aFestivalsPageListsItsPartsAndAPartNamesItsFestival() = runTest {
+        val parent = """"parentEvent":{"id":"e-0","name":"Utah Pride Festival","startAt":"2027-06-04T16:00:00Z"},"""
+        val children = """"childEvents":{"nodes":[{"id":"e-2","name":"Pride Party","startAt":"2027-06-05T03:00:00Z"}]}"""
+        val stub = StubTransport {
+            StubTransport.json(200, """{"data":{"events":{"event":${EVENT_JSON.trim().dropLast(1)},$parent$children}}}}""")
+        }
+
+        val event = eventsClient(stub).event("e-1")!!
+
+        val document = stub.requests.single().document()
+        assertTrue("parentEvent { id name startAt endAt }" in document)
+        assertTrue("childEvents { nodes { id name startAt endAt } }" in document)
+        assertEquals("Utah Pride Festival", event.parentEvent?.name)
+        assertEquals(listOf("Pride Party"), event.childEvents?.map { it.name })
+    }
+
+    @Test
     fun eventListsLeaveLinksOut() = runTest {
         val stub = StubTransport { StubTransport.json(200, """{"data":{"events":{"list":{"nodes":[$EVENT_JSON]}}}}""") }
 
         val event = eventsClient(stub).events().single()
 
         assertFalse("socialLinks" in stub.requests.single().document())
+        assertFalse("childEvents" in stub.requests.single().document())
         assertNull(event.socialLinks)
+        assertNull(event.childEvents)
         assertEquals(emptyList(), event.communityChats)
     }
 

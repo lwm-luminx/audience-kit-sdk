@@ -230,6 +230,31 @@ private func song(_ id: String, _ title: String, state: String = "QUEUED", mine:
         #expect(!VenueKaraoke(provider: "audiencekit", tonight: true).isPartnerSessionTonight)
     }
 
+    @Test func aPartnerNightWithNoCodeSignsUpInPersonWithTheHost() throws {
+        let noCode = VenueKaraoke(provider: "karafun", providerName: "KaraFun", tonight: true)
+        #expect(noCode.signsUpInPerson)
+        #expect(!VenueKaraoke(provider: "karafun", joinUrl: "https://www.karafun.com/123456/", tonight: true).signsUpInPerson)
+        #expect(!VenueKaraoke(provider: "audiencekit", tonight: true).signsUpInPerson)
+        #expect(!VenueKaraoke(provider: "karafun", tonight: false).signsUpInPerson)
+
+        let lineup = VenueLineup(venueID: "v-1", venueName: "The SunTrapp", entries: [], karaokeSession: noCode,
+                                 hostsTonight: [.init(id: "p-1", name: "Dalton", avatarUrl: nil)])
+        #expect(lineup.hostNames == ["Dalton"])
+        #expect(KaraokeSignUpInPerson.text(hostNames: lineup.hostNames) == "Sign up in person with Dalton")
+        #expect(KaraokeSignUpInPerson.text(hostNames: [" "]) == "Sign up in person with the host")
+        #expect(KaraokeSignUpInPerson.text(hostNames: ["Dalton", "Sequoia"]) == "Sign up in person with Dalton or Sequoia")
+    }
+
+    @Test func searchesKaraFunsSongbookOnly() throws {
+        let karafun = VenueKaraoke(provider: "karafun", providerName: "KaraFun", tonight: true)
+        #expect(karafun.songbookSearchURL(" Bohemian Rhapsody ")?.absoluteString
+            == "https://www.karafun.com/search/?query=Bohemian%20Rhapsody")
+        #expect(karafun.songbookSearchURL("  ")?.absoluteString == "https://www.karafun.com/karaoke-song-list.html")
+        #expect(VenueKaraoke(provider: "custom_url").songbookSearchURL("Waterloo") == nil)
+        #expect(KaraokeSongbook.searches(provider: "KaraFun"))
+        #expect(!KaraokeSongbook.searches(provider: nil))
+    }
+
     @Test func roundTripsALineupEntry() throws {
         let entry = LineupEntry(id: "s1", role: .singer, title: "Ada", people: [.init(id: "p1", name: "Ada")],
                                 songRequest: SongRequest(id: "r1", title: "Waterloo", mine: true))

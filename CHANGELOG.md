@@ -3,6 +3,16 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.91.0 (2026-11-23)
+
+- KaraFun nights with no code (Swift; Rick, 2026-11-23, "search without queue with a sign up in person flow").
+  - `VenueKaraoke.signsUpInPerson`: a partner's night tonight with no session to join. `KaraokeQueue` shows "Sign up
+    in person with Dalton" (`KaraokeSignUpInPerson.text(hostNames:)`, from `VenueLineup.hostNames`, the featured
+    host) in place of "Ask the host how to join the karaoke session.", and still no queue or Sign up to sing.
+  - Find a song: on a KaraFun night `KaraokeQueue` has a search box that opens KaraFun's songbook search
+    (`KaraokeSongbook.searchURL(provider:query:)`, `VenueKaraoke.songbookSearchURL(_:)`), so guests can pick a song
+    without signing up in the app. KaraFun's catalog API is partnership-only, so this opens its site.
+
 ## 0.90.0 (2026-11-23)
 
 - Privacy choices, per audience (Swift and Kotlin; Rick, 2026-11-23, "per audience data collection / ad choices /

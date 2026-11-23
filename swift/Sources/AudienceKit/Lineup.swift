@@ -428,6 +428,44 @@ public struct VenueKaraoke: Codable, Sendable, Hashable {
 
     /// The join link, when the partner session has one.
     public var joinURL: URL? { joinUrl.flatMap(URL.init(string:)) }
+
+    /// Whether singers sign up with the host in person: a partner's night with no session to join (KaraFun with no
+    /// code). The apps then take no signups and show ``KaraokeSignUpInPerson/text(hostNames:)`` instead.
+    public var signsUpInPerson: Bool { isPartnerSessionTonight && joinURL == nil }
+
+    /// Where guests can look up songs in the partner's songbook without signing up, when it has a public one
+    /// (KaraFun). Nil for other providers.
+    public func songbookSearchURL(_ query: String) -> URL? {
+        KaraokeSongbook.searchURL(provider: provider, query: query)
+    }
+}
+
+/// A karaoke partner's public songbook, so guests can find a song before signing up with the host in person. Only
+/// KaraFun has one; its song catalog API is by partnership only, so the apps open its site's search instead.
+public enum KaraokeSongbook {
+    /// Whether `provider` has a public songbook to search.
+    public static func searches(provider: String?) -> Bool { provider?.lowercased() == "karafun" }
+
+    /// The songbook's search page for `query`, or its whole catalog when the query is blank; nil without a songbook.
+    public static func searchURL(provider: String?, query: String) -> URL? {
+        guard searches(provider: provider) else { return nil }
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return URL(string: "https://www.karafun.com/karaoke-song-list.html") }
+        var parts = URLComponents(string: "https://www.karafun.com/search/")
+        parts?.queryItems = [URLQueryItem(name: "query", value: trimmed)]
+        return parts?.url
+    }
+}
+
+/// What a partner's night with no session code tells singers (Rick, 2026-11-23: KaraFun nights without a code).
+public enum KaraokeSignUpInPerson {
+    /// "Sign up in person with Dalton", "… with Dalton or Sequoia", or "… with the host" when nobody is named.
+    public static func text(hostNames: [String]) -> String {
+        let names = hostNames.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        guard let last = names.last else { return "Sign up in person with the host" }
+        let list = names.count == 1 ? last : names.dropLast().joined(separator: ", ") + " or " + last
+        return "Sign up in person with \(list)"
+    }
 }
 
 /// What a karaoke signup asks for: the song, and optionally its artist, who's singing (the signed-in user when left
@@ -503,6 +541,9 @@ public struct VenueLineup: Sendable, Hashable {
         guard let host = hostsTonight.first else { return nil }
         return LineupEntry(id: "host-tonight:\(host.id)", role: .host, people: [host])
     }
+
+    /// The featured host's names, for "Sign up in person with Dalton"; empty when nobody is hosting.
+    public var hostNames: [String] { featuredHost?.people.compactMap(\.name).filter { !$0.isEmpty } ?? [] }
 
     /// Everyone who isn't a karaoke singer: hosts, DJs, performers, MCs and intermissions.
     public var acts: [LineupEntry] { entries.filter { !$0.isSinger } }

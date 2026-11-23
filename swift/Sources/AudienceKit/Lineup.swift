@@ -462,8 +462,9 @@ public enum KaraokeSignUpInPerson {
     /// "Sign up in person with Dalton", "… with Dalton or Sequoia", or "… with the host" when nobody is named.
     public static func text(hostNames: [String]) -> String {
         let names = hostNames.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        guard !names.isEmpty else { return String(localized: "Sign up in person with the host") }
-        return String(localized: "Sign up in person with \(names.formatted(.list(type: .or)))")
+        guard let last = names.last else { return "Sign up in person with the host" }
+        let list = names.count == 1 ? last : names.dropLast().joined(separator: ", ") + " or " + last
+        return "Sign up in person with \(list)"
     }
 }
 

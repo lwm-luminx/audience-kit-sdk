@@ -63,6 +63,46 @@ private func withoutSoapbox(_ request: RecordedRequest) -> StubResponse {
     #expect(request.variables["publicationId"] == nil)
 }
 
+@Test func aPageOfALocalesNewsSaysWhereTheNextStarts() async throws {
+    let stub = Stub { request in
+        let more = request.variables["after"] == nil
+        return .json(status: 200, body: #"{"data":{"soapbox":{"articles":{"nodes":["# + articleJSON + #",null],"pageInfo":"#
+            + (more ? #"{"endCursor":"c-1","hasNextPage":true}"# : #"{"endCursor":"c-2","hasNextPage":false}"#)
+            + "}}}}")
+    }
+    let client = soapboxClient(stub)
+
+    let first = try await client.articlesPage(localeID: "l-1", first: 2)
+    #expect(first.articles.map(\.title) == ["Pride 2027"])
+    #expect(first.hasNextPage)
+    #expect(first.endCursor == "c-1")
+    let request = try #require(stub.requests.first)
+    #expect(request.operationName == "ArticlesPage")
+    #expect(request.query.contains("pageInfo { endCursor hasNextPage }"))
+    #expect(request.variables["localeId"] as? String == "l-1")
+    #expect(request.variables["first"] as? Int == 2)
+
+    let last = try await client.articlesPage(localeID: "l-1", first: 2, after: first.endCursor)
+    #expect(!last.hasNextPage)
+    #expect(last.endCursor == nil)
+    #expect(stub.requests.last?.variables["after"] as? String == "c-1")
+}
+
+@Test func localPublicationsAreTheOnesCoveringTheLocale() async throws {
+    let stub = Stub { _ in
+        .json(status: 200, body: #"""
+        {"data":{"soapbox":{"publications":[
+         {"id":"pub-1","name":"QSaltLake","trusted":true,"acceptsOpEds":true,"locale":{"id":"L-1","name":"Salt Lake"}},
+         {"id":"pub-2","name":"Bay Times","trusted":true,"acceptsOpEds":false,"locale":{"id":"l-2","name":"SF"}},
+         {"id":"pub-3","name":"Candidate","trusted":true,"acceptsOpEds":false}]}}}
+        """#)
+    }
+
+    let local = try await soapboxClient(stub).localPublications(localeID: "l-1")
+
+    #expect(local.map(\.name) == ["QSaltLake"])
+}
+
 @Test func nationalNewsAsksForTheFeaturedArticles() async throws {
     let stub = Stub { _ in .json(status: 200, body: #"{"data":{"soapbox":{"articles":{"nodes":["# + articleJSON + "]}}}}") }
 
@@ -142,11 +182,13 @@ private func withoutSoapbox(_ request: RecordedRequest) -> StubResponse {
     #expect(try await client.articles().isEmpty)
     #expect(try await client.article(id: "a-1") == nil)
     #expect(try await client.publications().isEmpty)
+    #expect(try await client.articlesPage(localeID: "l-1") == .empty)
     #expect(try await client.publication(id: "pub-1") == nil)
     #expect(try await client.myOpEds().isEmpty)
     #expect(try await client.articles(about: .venue("v-1")).isEmpty)
     #expect(stub.requests.map(\.operationName) == [
-        "Articles", "SchemaFields", "Articles", "Article", "Publications", "Publication", "MyOpEds", "ArticlesAbout",
+        "Articles", "SchemaFields", "Articles", "Article", "Publications", "ArticlesPage", "Publication", "MyOpEds",
+        "ArticlesAbout",
     ])
     #expect(stub.requests.last?.query == "query ArticlesAbout { id }")
 }

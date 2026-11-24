@@ -115,6 +115,19 @@ public data class Article(
     val isOpEd: Boolean get() = kind == ArticleKind.OP_ED
 }
 
+/** One page of a longer list of articles ("Show more" on a locale's news), and where the next page starts. */
+public data class ArticlesPage(
+    val articles: List<Article>,
+    /** Pass it as `after` for the next page; null when there is none. */
+    val endCursor: String? = null,
+    val hasNextPage: Boolean = false,
+) {
+    public companion object {
+        /** Nothing, and nothing more: an audience without Soapbox. */
+        public val EMPTY: ArticlesPage = ArticlesPage(emptyList())
+    }
+}
+
 /** What [articlesAbout] lists articles about. */
 public sealed class ArticleTopic(public val id: String) {
     public class Venue(id: String) : ArticleTopic(id)
@@ -143,6 +156,24 @@ public suspend fun AudienceKitClient.articles(
     "Articles",
     SoapboxQueries::articles,
 ).soapbox?.articles?.items.orEmpty()
+
+/**
+ * A page of the audience's live articles, pinned first, then newest: a locale's news ("Show more" under "News in Salt
+ * Lake"), or one publication's, when given. Pass the last page's [ArticlesPage.endCursor] as [after] for the next.
+ * Empty when the audience doesn't have Soapbox.
+ */
+public suspend fun AudienceKitClient.articlesPage(
+    localeId: String? = null,
+    publicationId: String? = null,
+    first: Int = 20,
+    after: String? = null,
+): ArticlesPage = graphQL(
+    SoapboxQueries.TYPES,
+    ArticlesPageResponse.serializer(),
+    graphQLVariables("localeId" to localeId, "publicationId" to publicationId, "first" to first, "after" to after),
+    "ArticlesPage",
+    SoapboxQueries::articlesPage,
+).page
 
 /**
  * The audience's national news: articles from any locale its admins featured nationally in the last 14 days, most
@@ -186,6 +217,13 @@ public suspend fun AudienceKitClient.publications(): List<Publication> = graphQL
     "Publications",
     SoapboxQueries::publications,
 ).soapbox?.publications.orEmpty()
+
+/**
+ * The publications covering a locale (QSaltLake for Salt Lake), by name: the local publishers atop a locale's
+ * news. Empty when it has none, or the audience doesn't have Soapbox.
+ */
+public suspend fun AudienceKitClient.localPublications(localeId: String): List<Publication> =
+    publications().filter { it.locale?.id.equals(localeId, ignoreCase = true) }
 
 /** One publication, for its page and its "Write an op-ed" button. */
 public suspend fun AudienceKitClient.publication(id: String): Publication? = graphQL(
@@ -279,6 +317,19 @@ internal object SoapboxQueries {
         }
     """.trimIndent()
 
+    /** A page of the audience's live articles, for lists that load more as they scroll. */
+    fun articlesPage(shape: SchemaShape): String =
+        if (!shape.has("Audience", "soapbox")) noSoapbox("ArticlesPage") else """
+        query ArticlesPage(${'$'}localeId: ID, ${'$'}publicationId: ID, ${'$'}first: Int, ${'$'}after: String) {
+          soapbox {
+            articles(localeId: ${'$'}localeId, publicationId: ${'$'}publicationId, first: ${'$'}first, after: ${'$'}after) {
+              nodes { ${articleFields(shape)} }
+              pageInfo { endCursor hasNextPage }
+            }
+          }
+        }
+        """.trimIndent()
+
     /** National news; an API from before it has no `Article.featuredNationally`, and nothing comes back. */
     fun nationalArticles(shape: SchemaShape): String =
         if (!shape.has("Audience", "soapbox") || !shape.has("Article", "featuredNationally")) {
@@ -352,6 +403,26 @@ internal data class SoapboxResponse(val soapbox: Mixin? = null) {
         val publication: Publication? = null,
         val myOpEds: List<Article>? = null,
     )
+}
+
+@Serializable
+internal data class ArticlesPageResponse(val soapbox: Mixin? = null) {
+    @Serializable
+    data class PageInfo(val endCursor: String? = null, val hasNextPage: Boolean = false)
+
+    @Serializable
+    data class Page(val nodes: List<Article?> = emptyList(), val pageInfo: PageInfo? = null)
+
+    @Serializable
+    data class Mixin(val articles: Page? = null)
+
+    val page: ArticlesPage
+        get() {
+            val connection = soapbox?.articles ?: return ArticlesPage.EMPTY
+            val pageInfo = connection.pageInfo
+            val cursor = if (pageInfo?.hasNextPage == true) pageInfo.endCursor else null
+            return ArticlesPage(connection.nodes.filterNotNull(), cursor, cursor != null)
+        }
 }
 
 @Serializable

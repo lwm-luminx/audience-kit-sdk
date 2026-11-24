@@ -67,6 +67,51 @@ class SoapboxTest {
     }
 
     @Test
+    fun aPageOfALocalesNewsSaysWhereTheNextStarts() = runTest {
+        val stub = StubTransport { request ->
+            val pageInfo = if (request.variable("after") == JsonNull) {
+                """{"endCursor":"c-1","hasNextPage":true}"""
+            } else {
+                """{"endCursor":"c-2","hasNextPage":false}"""
+            }
+            StubTransport.json(200, """{"data":{"soapbox":{"articles":{"nodes":[$ARTICLE_JSON,null],"pageInfo":$pageInfo}}}}""")
+        }
+        val client = soapboxClient(stub)
+
+        val first = client.articlesPage(localeId = "l-1", first = 2)
+        assertEquals(listOf("Pride 2027"), first.articles.map { it.title })
+        assertTrue(first.hasNextPage)
+        assertEquals("c-1", first.endCursor)
+        val request = stub.requests.single()
+        assertEquals("ArticlesPage", request.operation())
+        assertTrue("pageInfo { endCursor hasNextPage }" in request.document())
+        assertEquals("l-1", request.variable("localeId")!!.jsonPrimitive.content)
+        assertEquals("2", request.variable("first")!!.jsonPrimitive.content)
+
+        val last = client.articlesPage(localeId = "l-1", first = 2, after = first.endCursor)
+        assertFalse(last.hasNextPage)
+        assertNull(last.endCursor)
+        assertEquals("c-1", stub.requests.last().variable("after")!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun localPublicationsAreTheOnesCoveringTheLocale() = runTest {
+        val stub = StubTransport {
+            StubTransport.json(
+                200,
+                """{"data":{"soapbox":{"publications":[
+                {"id":"pub-1","name":"QSaltLake","trusted":true,"acceptsOpEds":true,"locale":{"id":"L-1","name":"Salt Lake"}},
+                {"id":"pub-2","name":"Bay Times","trusted":true,"acceptsOpEds":false,"locale":{"id":"l-2","name":"SF"}},
+                {"id":"pub-3","name":"Candidate","trusted":true,"acceptsOpEds":false}]}}}""",
+            )
+        }
+
+        val local = soapboxClient(stub).localPublications("l-1")
+
+        assertEquals(listOf("QSaltLake"), local.map { it.name })
+    }
+
+    @Test
     fun nationalNewsAsksForTheFeaturedArticles() = runTest {
         val stub = StubTransport {
             StubTransport.json(200, """{"data":{"soapbox":{"articles":{"nodes":[$ARTICLE_JSON]}}}}""")
@@ -149,11 +194,15 @@ class SoapboxTest {
         assertEquals(emptyList(), client.articles())
         assertNull(client.article("a-1"))
         assertEquals(emptyList(), client.publications())
+        assertEquals(ArticlesPage.EMPTY, client.articlesPage(localeId = "l-1"))
         assertNull(client.publication("pub-1"))
         assertEquals(emptyList(), client.myOpEds())
         assertEquals(emptyList(), client.articlesAbout(ArticleTopic.Venue("v-1")))
         assertEquals(
-            listOf("Articles", "SchemaFields", "Articles", "Article", "Publications", "Publication", "MyOpEds", "ArticlesAbout"),
+            listOf(
+                "Articles", "SchemaFields", "Articles", "Article", "Publications", "ArticlesPage", "Publication", "MyOpEds",
+                "ArticlesAbout",
+            ),
             stub.requests.map { it.operation() },
         )
         assertEquals("query ArticlesAbout { id }", stub.requests.last().document())

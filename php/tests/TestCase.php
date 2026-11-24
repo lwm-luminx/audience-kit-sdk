@@ -96,6 +96,17 @@ abstract class TestCase extends BaseTestCase
         return json_decode((string) $request->getBody(), true, 512, JSON_THROW_ON_ERROR);
     }
 
+    /**
+     * The API's JSON behind each model.
+     *
+     * @param list<\AudienceKit\Model\Model> $models
+     * @return list<array<string, mixed>>
+     */
+    protected static function raw(array $models): array
+    {
+        return array_map(static fn (\AudienceKit\Model\Model $model) => $model->raw(), $models);
+    }
+
     protected function sentQuery(int $index = -1): string
     {
         return $this->sentJson($index)['query'];

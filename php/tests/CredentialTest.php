@@ -55,8 +55,32 @@ final class CredentialTest extends TestCase
     public function testRejectsMissingKeys(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('no role');
-        Credential::fromArray(['token' => 't', 'userId' => 'u', 'endpoint' => 'x']);
+        $this->expectExceptionMessage('no endpoint');
+        Credential::fromArray(['token' => 't', 'userId' => 'u', 'role' => 'member']);
+    }
+
+    public function testAServiceTokensSession(): void
+    {
+        $credential = Credential::fromArray([
+            'token' => 't', 'audienceId' => 'a', 'role' => 'service', 'endpoint' => 'https://api.audiencekit.com/v1/graphql',
+            'expiresAt' => '2026-11-24T23:00:00Z', 'scopes' => ['public:read', 5], 'audience' => 'Hot Mess',
+        ]);
+        self::assertNull($credential->userId);
+        self::assertTrue($credential->isService());
+        self::assertTrue($credential->hasScope('public:read'));
+        self::assertFalse($credential->hasScope('moderation'));
+        self::assertSame('Hot Mess', $credential->audience);
+        self::assertSame(['public:read'], $credential->toArray()['scopes']);
+        self::assertTrue($credential->expiresWithin(60, new \DateTimeImmutable('2026-11-24T22:59:30Z')));
+        self::assertFalse($credential->expiresWithin(60, new \DateTimeImmutable('2026-11-24T22:58:00Z')));
+        self::assertSame('<redacted>', $credential->__debugInfo()['token']);
+        ob_start();
+        var_dump($credential);
+        self::assertStringContainsString('<redacted>', (string) ob_get_clean());
+        $person = Credential::fromArray(['token' => 't', 'userId' => 'u', 'endpoint' => 'x']);
+        self::assertSame('member', $person->role);
+        self::assertFalse($person->expiresWithin(60));
+        self::assertArrayNotHasKey('scopes', $person->toArray());
     }
 
     public function testRejectsABadExpiry(): void

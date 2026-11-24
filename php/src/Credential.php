@@ -21,24 +21,28 @@ final class Credential
 {
     /**
      * @param string                 $token         The session JWT, sent as `Authorization: Bearer <token>`.
-     * @param string                 $userId        The signed-in user's ID.
+     * @param string|null            $userId        The signed-in user's ID; null for a service token's session.
      * @param string|null            $audienceId    The audience the session is bound to; null for a platform-console
      *                                              session.
-     * @param string                 $role          `member`, `listing`, `admin` or `venue_device` today.
+     * @param string                 $role          `member`, `listing`, `admin`, `venue_device` or `service` today.
      * @param string                 $endpoint      The GraphQL endpoint the token was issued for, as a full URL.
      * @param string|null            $venueDeviceId The venue device this session runs on, for venue-device sessions.
      * @param DateTimeImmutable|null $expiresAt     When the session expires; null when it only ends by signing out.
      * @param string                 $apiVersion    The API version the credential was issued under.
+     * @param list<string>           $scopes        A service token's scopes, e.g. `public:read`.
+     * @param string|null            $audience      A service token's audience name.
      */
     public function __construct(
         public readonly string $token,
-        public readonly string $userId,
+        public readonly ?string $userId,
         public readonly ?string $audienceId,
         public readonly string $role,
         public readonly string $endpoint,
         public readonly ?string $venueDeviceId = null,
         public readonly ?DateTimeImmutable $expiresAt = null,
         public readonly string $apiVersion = AudienceKit::API_VERSION,
+        public readonly array $scopes = [],
+        public readonly ?string $audience = null,
     ) {
     }
 
@@ -50,7 +54,7 @@ final class Credential
      */
     public static function fromArray(array $data): self
     {
-        foreach (['token', 'userId', 'role', 'endpoint'] as $key) {
+        foreach (['token', 'endpoint'] as $key) {
             if (!isset($data[$key]) || !is_string($data[$key])) {
                 throw new InvalidArgumentException("The credential has no $key.");
             }
@@ -68,15 +72,18 @@ final class Credential
 
         return new self(
             token: $data['token'],
-            userId: $data['userId'],
+            userId: isset($data['userId']) && is_string($data['userId']) ? $data['userId'] : null,
             audienceId: isset($data['audienceId']) && is_string($data['audienceId']) ? $data['audienceId'] : null,
-            role: $data['role'],
+            role: isset($data['role']) && is_string($data['role']) ? $data['role'] : 'member',
             endpoint: $data['endpoint'],
             venueDeviceId: isset($data['venueDeviceId']) && is_string($data['venueDeviceId'])
                 ? $data['venueDeviceId'] : null,
             expiresAt: $expiresAt,
             apiVersion: isset($data['apiVersion']) && is_string($data['apiVersion'])
                 ? $data['apiVersion'] : AudienceKit::API_VERSION,
+            scopes: isset($data['scopes']) && is_array($data['scopes'])
+                ? array_values(array_filter($data['scopes'], 'is_string')) : [],
+            audience: isset($data['audience']) && is_string($data['audience']) ? $data['audience'] : null,
         );
     }
 
@@ -92,7 +99,7 @@ final class Credential
             'venueDeviceId' => $this->venueDeviceId,
             'expiresAt' => $this->expiresAt?->format(DateTimeInterface::RFC3339_EXTENDED),
             'apiVersion' => $this->apiVersion,
-        ];
+        ] + array_filter(['scopes' => $this->scopes, 'audience' => $this->audience], static fn ($value) => $value !== [] && $value !== null);
     }
 
     /** Whether the session has expired at `$at` (now by default). Sessions with no expiry never do. */
@@ -103,6 +110,35 @@ final class Credential
         }
 
         return $this->expiresAt <= ($at ?? new DateTimeImmutable());
+    }
+
+    /** Whether the session expires within `$seconds` of `$at` (now by default). */
+    public function expiresWithin(int $seconds, ?DateTimeInterface $at = null): bool
+    {
+        if ($this->expiresAt === null) {
+            return false;
+        }
+        $now = DateTimeImmutable::createFromInterface($at ?? new DateTimeImmutable());
+
+        return $this->expiresAt <= $now->modify("+$seconds seconds");
+    }
+
+    /** Whether this is a service token's session (no person behind it). */
+    public function isService(): bool
+    {
+        return $this->role === 'service';
+    }
+
+    /** Whether a service token's session may do what `$scope` covers, e.g. `public:read`. */
+    public function hasScope(string $scope): bool
+    {
+        return in_array($scope, $this->scopes, true);
+    }
+
+    /** Keeps the token out of var_dump() and print_r() output. @return array<string, mixed> */
+    public function __debugInfo(): array
+    {
+        return ['token' => '<redacted>'] + $this->toArray();
     }
 
     /** The API instance the endpoint is on: its scheme, host and port, and nothing else. */

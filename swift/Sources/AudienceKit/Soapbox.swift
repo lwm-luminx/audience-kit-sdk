@@ -183,6 +183,23 @@ public struct Article: Codable, Sendable, Hashable, Identifiable {
     public var isOpEd: Bool { kind == .opEd }
 }
 
+/// One page of a longer list of articles ("Show more" on a locale's news), and where the next page starts.
+public struct ArticlesPage: Sendable, Hashable {
+    public let articles: [Article]
+    /// Pass it as `after` for the next page; nil when there is none.
+    public let endCursor: String?
+    public let hasNextPage: Bool
+
+    public init(articles: [Article], endCursor: String? = nil, hasNextPage: Bool = false) {
+        self.articles = articles
+        self.endCursor = endCursor
+        self.hasNextPage = hasNextPage
+    }
+
+    /// Nothing, and nothing more: an audience without Soapbox.
+    public static let empty = ArticlesPage(articles: [])
+}
+
 /// What ``AudienceSession/articles(about:first:)`` lists articles about.
 public enum ArticleTopic: Sendable, Hashable {
     case venue(String)
@@ -231,6 +248,21 @@ extension Queries {
           soapbox {
             articles(localeId: $localeId, publicationId: $publicationId, first: $first) {
               nodes { \(articleFieldsFor(shape)) }
+            }
+          }
+        }
+        """
+    }
+
+    /// A page of the audience's live articles (pinned first, then newest), for lists that load more as they scroll.
+    static func articlesPage(_ shape: SchemaShape) -> String {
+        guard shape.has("Audience", "soapbox") else { return noSoapbox("ArticlesPage") }
+        return """
+        query ArticlesPage($localeId: ID, $publicationId: ID, $first: Int, $after: String) {
+          soapbox {
+            articles(localeId: $localeId, publicationId: $publicationId, first: $first, after: $after) {
+              nodes { \(articleFieldsFor(shape)) }
+              pageInfo { endCursor hasNextPage }
             }
           }
         }
@@ -322,6 +354,31 @@ struct SoapboxResponse: Decodable, Sendable {
     var soapbox: Mixin?
 }
 
+/// `soapbox { articles { nodes pageInfo } }`: one page of `articlesPage(localeID:publicationID:first:after:)`.
+struct ArticlesPageResponse: Decodable, Sendable {
+    struct PageInfo: Decodable, Sendable {
+        var endCursor: String?
+        var hasNextPage: Bool
+    }
+
+    struct Connection: Decodable, Sendable {
+        var nodes: [Article?]
+        var pageInfo: PageInfo?
+    }
+
+    struct Mixin: Decodable, Sendable { var articles: Connection? }
+
+    var soapbox: Mixin?
+
+    var page: ArticlesPage {
+        guard let connection = soapbox?.articles else { return .empty }
+        let hasNextPage = connection.pageInfo?.hasNextPage ?? false
+        return ArticlesPage(articles: connection.nodes.compactMap { $0 },
+                            endCursor: hasNextPage ? connection.pageInfo?.endCursor : nil,
+                            hasNextPage: hasNextPage && connection.pageInfo?.endCursor != nil)
+    }
+}
+
 /// A listing's `articles { list { nodes } }`, under whichever root field reads the listing.
 struct ArticlesAboutResponse: Decodable, Sendable {
     struct Listing: Decodable, Sendable {
@@ -365,6 +422,20 @@ extension AudienceSession {
                                  as: SoapboxResponse.self, document: Queries.articles).soapbox?.articles?.nodes ?? []
     }
 
+    /// A page of the audience's live articles, pinned first, then newest: a locale's news ("Show more" under "News in
+    /// Salt Lake"), or one publication's, when given. Pass the last page's ``ArticlesPage/endCursor`` as `after` for
+    /// the next. Empty when the audience doesn't have Soapbox.
+    public func articlesPage(localeID: String? = nil, publicationID: String? = nil, first: Int = 20,
+                             after: String? = nil) async throws -> ArticlesPage
+    {
+        var variables: [String: GraphQLValue] = ["first": .int(first)]
+        if let localeID { variables["localeId"] = .string(localeID) }
+        if let publicationID { variables["publicationId"] = .string(publicationID) }
+        if let after { variables["after"] = .string(after) }
+        return try await graphQL(types: Queries.soapboxTypes, variables: variables, operationName: "ArticlesPage",
+                                 as: ArticlesPageResponse.self, document: Queries.articlesPage).page
+    }
+
     /// The audience's national news: articles from any locale its admins featured nationally in the last 14 days,
     /// most recently featured first (a locale's share of it, when given). Arbiter recommends which, and a person
     /// decides. Empty when the audience doesn't have Soapbox, or its API has no national news yet.
@@ -400,6 +471,12 @@ extension AudienceSession {
     public func publications() async throws -> [Publication] {
         try await graphQL(types: Queries.soapboxTypes, operationName: "Publications", as: SoapboxResponse.self,
                           document: Queries.publications).soapbox?.publications ?? []
+    }
+
+    /// The publications covering a locale (QSaltLake for Salt Lake), by name: the "local publishers" at the top of a
+    /// locale's news. Empty when it has none, or the audience doesn't have Soapbox.
+    public func localPublications(localeID: String) async throws -> [Publication] {
+        try await publications().filter { $0.locale?.id.caseInsensitiveCompare(localeID) == .orderedSame }
     }
 
     /// One publication, for its page and its "Write an op-ed" button.

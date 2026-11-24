@@ -3,6 +3,15 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.96.0 (2026-11-24)
+
+- "Show more" news (Rick, 2026-11-24: Hot Mess 2.10 "ensure news has a show more view", "with local publishers at the
+  top and a combined list of articles after"). Swift and Kotlin:
+  - `articlesPage(localeID:publicationID:first:after:)` (Kotlin `articlesPage(localeId, publicationId, first,
+    after)`): a page of `soapbox.articles` with `ArticlesPage.endCursor` and `hasNextPage`, for lists that load more
+    as they scroll. `ArticlesPage.empty` / `EMPTY` without Soapbox.
+  - `localPublications(localeID:)`: the publications covering a locale, for the publishers at the top of its news.
+
 ## 0.95.0 (2026-11-23)
 
 - A lone KJ, DJ or VJ hosts the night (Rick, 2026-11-23: "if the only linked person is a KJ they are a defacto

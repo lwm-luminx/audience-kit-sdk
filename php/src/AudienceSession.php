@@ -36,6 +36,11 @@ class AudienceSession
     private ?string $resolvedAudienceId = null;
     /** @var array<string, list<string>> The fields each type has, by "audience|endpoint|type" ({@see schemaFields()}). */
     private array $schemaFieldCache = [];
+    /** The service token ({@see useServiceToken()}) the session is traded from and renewed with. */
+    private ?string $serviceToken = null;
+
+    /** How long before a service token's session expires the SDK trades the token again, in seconds. */
+    public const SERVICE_RENEW_BEFORE = 60;
 
     public function __construct(
         public readonly Configuration $configuration = new Configuration(),
@@ -47,6 +52,49 @@ class AudienceSession
         $this->http = $http ?? Psr18ClientDiscovery::find();
         $this->requests = $requests ?? Psr17FactoryDiscovery::findRequestFactory();
         $this->streams = $streams ?? Psr17FactoryDiscovery::findStreamFactory();
+    }
+
+    /**
+     * A session configured from the environment, for servers and scripts: `AUDIENCEKIT_TOKEN` (a service token,
+     * `akst_…`, or another bearer value such as an application API key) and, when set, `AUDIENCEKIT_BASE_URL`,
+     * `AUDIENCEKIT_AUDIENCE_ID`, `AUDIENCEKIT_HOST` and `AUDIENCEKIT_ENVIRONMENT`. Pass `$environment` to read from
+     * another array than `getenv()`.
+     *
+     * @param array<string, string>|null $environment
+     */
+    public static function fromEnvironment(
+        ?array $environment = null,
+        ?ClientInterface $http = null,
+        ?RequestFactoryInterface $requests = null,
+        ?StreamFactoryInterface $streams = null,
+    ): self {
+        $read = static function (string $name) use ($environment): ?string {
+            $value = $environment !== null ? ($environment[$name] ?? null) : getenv($name);
+
+            return is_string($value) && $value !== '' ? $value : null;
+        };
+        $session = new self(
+            new Configuration(
+                baseUrl: $read('AUDIENCEKIT_BASE_URL') ?? AudienceKit::PRODUCTION_BASE_URL,
+                host: $read('AUDIENCEKIT_HOST'),
+                audienceId: $read('AUDIENCEKIT_AUDIENCE_ID'),
+                environment: $read('AUDIENCEKIT_ENVIRONMENT') ?? Environment::PRODUCTION,
+            ),
+            new InMemoryCredentialStore(),
+            $http,
+            $requests,
+            $streams,
+        );
+        $token = $read('AUDIENCEKIT_TOKEN');
+        if ($token !== null) {
+            if (str_starts_with($token, 'akst_')) {
+                $session->serviceToken = $token;
+            } else {
+                $session->useBearerToken($token);
+            }
+        }
+
+        return $session;
     }
 
     // Session
@@ -83,11 +131,166 @@ class AudienceSession
      * Exchanges the code from Facebook's OAuth dialog for an AudienceKit session and stores it. The API trades the
      * code for a token with the app secret, so `$redirectUri` must be exactly the one the dialog was opened with.
      */
-    public function signInWithFacebookCode(string $code, string $redirectUri, DeviceDescription $device): Credential
-    {
-        $body = $this->facebookBody(['code' => $code, 'redirect_uri' => $redirectUri], $device);
+    public function signInWithFacebookCode(
+        string $code,
+        string $redirectUri,
+        DeviceDescription $device,
+        ?string $facebookAppId = null,
+    ): Credential {
+        $fields = ['code' => $code, 'redirect_uri' => $redirectUri];
+        if ($facebookAppId !== null) {
+            $fields['facebook_app_id'] = $facebookAppId;
+        }
 
-        return $this->signIn('/v1/token', $body, false);
+        return $this->signIn('/v1/token', $this->facebookBody($fields, $device), false);
+    }
+
+    /**
+     * Exchanges a Google ID token (from Google Identity Services on the web) for an AudienceKit session and stores
+     * it. The ID token carries only the account's primary email; pass `$accessToken` (an OAuth token for
+     * `https://www.googleapis.com/auth/user.emails.read`) and the API can also match an existing account by the
+     * Google account's other verified emails.
+     */
+    public function signInWithGoogle(
+        string $idToken,
+        DeviceDescription $device,
+        ?string $name = null,
+        ?string $accessToken = null,
+    ): Credential {
+        $body = array_filter([
+            'id_token' => $idToken,
+            'access_token' => $accessToken,
+            'host' => $this->configuration->host,
+            'device' => $device->toArray(),
+            'name' => $name,
+        ], static fn ($value) => $value !== null);
+
+        return $this->signIn('/v1/token/google', $body, false);
+    }
+
+    /**
+     * Connects a Google account to the signed-in account, so Google signs in to it from then on, and stores the
+     * session the API answers with. A refusal throws {@see AudienceKitException::CODE_SIGN_IN_FAILED} with the API's
+     * reason and keeps the current session.
+     */
+    public function connectGoogle(string $idToken, DeviceDescription $device): Credential
+    {
+        $body = array_filter([
+            'id_token' => $idToken,
+            'host' => $this->configuration->host,
+            'device' => $device->toArray(),
+            'connect' => true,
+        ], static fn ($value) => $value !== null);
+
+        return $this->signIn('/v1/token/google', $body, true);
+    }
+
+    /**
+     * Exchanges a Sign in with Apple credential for an AudienceKit session and stores it (`POST /v1/token/apple`).
+     * On the web, Sign in with Apple JS returns the identity token, an authorization code and the redirect URI it
+     * used; pass the nonce you gave it. Apple gives the person's name only the first time; pass it then.
+     */
+    public function signInWithApple(
+        string $identityToken,
+        DeviceDescription $device,
+        ?string $authorizationCode = null,
+        ?string $redirectUri = null,
+        ?string $nonce = null,
+        ?string $firstName = null,
+        ?string $lastName = null,
+    ): Credential {
+        $body = array_filter([
+            'identity_token' => $identityToken,
+            'authorization_code' => $authorizationCode,
+            'redirect_uri' => $redirectUri,
+            'nonce' => $nonce,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'host' => $this->configuration->host,
+            'device' => $device->toArray(),
+        ], static fn ($value) => $value !== null);
+
+        return $this->signIn('/v1/token/apple', $body, false);
+    }
+
+    /**
+     * Signs in with an App Review code (`POST /v1/token/review`) and stores the session. It works only while the
+     * audience is in App Review; a wrong or expired code throws {@see AudienceKitException::CODE_SIGN_IN_REJECTED}.
+     */
+    public function signInWithReviewCode(string $code, DeviceDescription $device): Credential
+    {
+        $body = array_filter([
+            'code' => trim($code),
+            'host' => $this->configuration->host,
+            'device' => $device->toArray(),
+        ], static fn ($value) => $value !== null);
+
+        return $this->signIn('/v1/token/review', $body, false);
+    }
+
+    /**
+     * Re-issues the session token at `POST /v1/token/refresh` (the same session, signed with the API's current key)
+     * and stores it. A 401 means the session ended, like any other call.
+     */
+    public function refreshSession(): Credential
+    {
+        $credential = $this->decodeCredential($this->request(new ApiRequest('/v1/token/refresh', 'POST')));
+        $this->store($credential);
+
+        return $credential;
+    }
+
+    /**
+     * Uses an audience service token (`akst_<prefix>_<secret>`, minted by an admin in the audience's console) for
+     * this session: a server or agent acting for the audience rather than a person. The SDK trades it at
+     * `POST /v1/token/service` for an hour-long session now, trades it again a minute before that runs out, and once
+     * more when the API refuses the session. A token with `public:read` reads the public listings
+     * ({@see publicListings()}).
+     */
+    public function useServiceToken(string $serviceToken): Credential
+    {
+        $this->serviceToken = $serviceToken;
+
+        return $this->tradeServiceToken();
+    }
+
+    /**
+     * Sends `$token` as is (an application's API key, or a session JWT on its own) as `Authorization: Bearer`, to the
+     * configured base URL and audience.
+     */
+    public function useBearerToken(string $token): void
+    {
+        $this->serviceToken = null;
+        $this->store(new Credential(
+            token: $token,
+            userId: null,
+            audienceId: $this->configuration->audienceId,
+            role: 'bearer',
+            endpoint: rtrim($this->configuration->baseUrl, '/') . '/v1/graphql',
+        ));
+    }
+
+    /**
+     * Deletes the signed-in person's account for good (App Store guideline 5.1.1(v), Google Play's account deletion
+     * rule): `deleteAccount(input: { confirm: true })`. The API erases their data and signs them out everywhere, so
+     * the credential is forgotten here too. It can't be undone: ask first. Returns whether the account is gone; when
+     * it isn't, the person stays signed in.
+     */
+    public function deleteAccount(): bool
+    {
+        $data = $this->graphQL(Queries::DELETE_ACCOUNT, ['confirm' => true], 'DeleteAccount');
+        if (($data['deleteAccount']['deleted'] ?? false) !== true) {
+            return false;
+        }
+        try {
+            $this->credentialStore->delete();
+        } catch (Throwable) {
+            // The account is gone either way.
+        }
+        $this->resolvedAudienceId = null;
+        $this->schemaFieldCache = [];
+
+        return true;
     }
 
     /**
@@ -154,6 +357,7 @@ class AudienceSession
     public function signOut(): void
     {
         $credential = $this->loadCredential();
+        $this->serviceToken = null;
         try {
             $this->credentialStore->delete();
         } catch (Throwable) {
@@ -258,6 +462,7 @@ class AudienceSession
         ?string $operationName = null,
         string $endpoint = GraphQLEndpoint::CONSUMER,
     ): array {
+        $this->ensureServiceSession();
         $credential = $this->loadCredential();
         $audienceId = $this->audienceId();
         $body = ['query' => $query];
@@ -387,26 +592,40 @@ class AudienceSession
     /** Sends a request to a REST endpoint and returns the body of a successful response. */
     public function request(ApiRequest $request, ?string $baseUrl = null): string
     {
-        $token = null;
-        if ($request->authenticated) {
-            $stored = $this->loadCredential();
-            if ($stored === null) {
-                throw AudienceKitException::notSignedIn();
+        $retried = false;
+        while (true) {
+            $token = null;
+            if ($request->authenticated) {
+                $this->ensureServiceSession();
+                $stored = $this->loadCredential();
+                if ($stored === null) {
+                    throw AudienceKitException::notSignedIn();
+                }
+                $token = $stored->token;
+                // A REST call follows the session to the instance that issued it, like GraphQL.
+                $base = $baseUrl ?? ($stored->role === 'service' ? $this->configuration->apiBase($stored) : null);
+            } else {
+                $base = $baseUrl;
             }
-            $token = $stored->token;
-        }
 
-        $response = $this->perform($request, $token, $baseUrl);
-        $status = $response->getStatusCode();
-        $body = (string) $response->getBody();
-        if ($status >= 200 && $status < 300) {
-            return $body;
+            $response = $this->perform($request, $token, $base);
+            $status = $response->getStatusCode();
+            $body = (string) $response->getBody();
+            if ($status >= 200 && $status < 300) {
+                return $body;
+            }
+            if ($status === 401 && $token !== null) {
+                if ($this->serviceToken !== null && !$retried) {
+                    // The service session was refused (revoked, or signed with a retired key): trade the token again.
+                    $retried = true;
+                    $this->tradeServiceToken();
+                    continue;
+                }
+                $this->sessionRejected($token);
+                throw AudienceKitException::unauthorized();
+            }
+            throw $this->errorForStatus($status, $body);
         }
-        if ($status === 401 && $token !== null) {
-            $this->sessionRejected($token);
-            throw AudienceKitException::unauthorized();
-        }
-        throw $this->errorForStatus($status, $body);
     }
 
     /** Resolves a URL the API sent (absolute, or a path relative to the base URL). */
@@ -423,6 +642,45 @@ class AudienceSession
     }
 
     // Private
+
+    /** Trades the service token for a session when there's none yet, or it is about to expire. */
+    private function ensureServiceSession(): void
+    {
+        if ($this->serviceToken === null) {
+            return;
+        }
+        $stored = $this->loadCredential();
+        if ($stored === null || $stored->expiresWithin(self::SERVICE_RENEW_BEFORE)) {
+            $this->tradeServiceToken();
+        }
+    }
+
+    private function tradeServiceToken(): Credential
+    {
+        $secret = $this->serviceToken;
+        if ($secret === null) {
+            throw AudienceKitException::notSignedIn();
+        }
+        $request = new ApiRequest('/v1/token/service', 'POST', body: ['service_token' => $secret], authenticated: false);
+        $response = $this->perform($request);
+        $status = $response->getStatusCode();
+        $data = (string) $response->getBody();
+        if ($status === 401 || $status === 403) {
+            $this->serviceToken = null;
+            throw new AudienceKitException(
+                AudienceKitException::CODE_UNAUTHENTICATED,
+                'The service token was refused: it is invalid or was revoked.',
+                $status,
+            );
+        }
+        if ($status < 200 || $status >= 300) {
+            throw $this->errorForStatus($status, $data);
+        }
+        $credential = $this->decodeCredential($data);
+        $this->store($credential);
+
+        return $credential;
+    }
 
     /** @param array<string, mixed> $body */
     private function signIn(string $path, array $body, bool $authenticated): Credential

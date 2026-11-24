@@ -28,7 +28,8 @@ final class OperationsTest extends TestCase
     {
         $this->respondData(['venues' => ['list' => ['nodes' => [['id' => 'v1', 'name' => 'Bar'], 'junk']]]]);
         $venues = $this->signedIn()->venues();
-        self::assertSame([['id' => 'v1', 'name' => 'Bar']], $venues);
+        self::assertSame([['id' => 'v1', 'name' => 'Bar']], self::raw($venues));
+        self::assertSame('Bar', $venues[0]->name);
         $query = $this->sentQuery();
         self::assertStringContainsString('profile { facebook { page { id name photoUrl bannerUrl } } }', $query);
         self::assertStringContainsString('places { placeId }', $query);
@@ -50,7 +51,7 @@ final class OperationsTest extends TestCase
         $this->respondData(['venues' => ['list' => ['nodes' => []]]]);
         $session = $this->signedIn();
 
-        self::assertSame([['id' => 'v1']], $session->venues());
+        self::assertSame([['id' => 'v1']], self::raw($session->venues()));
         self::assertCount(3, $this->http->getRequests());
         $shaped = $this->sentQuery(2);
         self::assertStringNotContainsString('profile', $shaped);
@@ -89,11 +90,11 @@ final class OperationsTest extends TestCase
         $this->respondData(['closestLocale' => ['id' => 'l1']]);
         $this->respondData(['closestLocale' => null]);
         $session = $this->signedIn();
-        self::assertSame([['id' => 'p1']], $session->people());
+        self::assertSame([['id' => 'p1']], self::raw($session->people()));
         self::assertStringContainsString('involvements { edges { relationship role via { id name } node {', $this->sentQuery());
-        self::assertSame([['id' => 'l1']], $session->locales());
+        self::assertSame([['id' => 'l1']], self::raw($session->locales()));
         self::assertSame([], $session->locales());
-        self::assertSame(['id' => 'l1'], $session->closestLocale(37.78, -122.41));
+        self::assertSame(['id' => 'l1'], $session->closestLocale(37.78, -122.41)?->raw());
         self::assertSame(['near' => ['latitude' => 37.78, 'longitude' => -122.41]], $this->sentJson()['variables']);
         self::assertNull($session->closestLocale(0, 0));
     }
@@ -107,14 +108,14 @@ final class OperationsTest extends TestCase
         $this->respondData(['events' => null]);
         $session = $this->signedIn();
 
-        self::assertSame([['id' => 'e1']], $session->events('PAST', 'l1', 'v1', 10));
+        self::assertSame([['id' => 'e1']], self::raw($session->events('PAST', 'l1', 'v1', 10)));
         self::assertSame(['window' => 'PAST', 'first' => 10, 'localeId' => 'l1', 'venueId' => 'v1'], $this->sentJson()['variables']);
         self::assertStringContainsString('rsvp { mine count }', $this->sentQuery());
         self::assertStringContainsString('tickets { url offers { nodes {', $this->sentQuery());
         self::assertSame('Night', $session->event('e1')['name']);
         self::assertSame(['id' => 'e1'], $this->sentJson()['variables']);
         self::assertNull($session->event('e2'));
-        self::assertSame([['id' => 's1']], $session->eventSeries(venueId: 'v1'));
+        self::assertSame([['id' => 's1']], self::raw($session->eventSeries(venueId: 'v1')));
         self::assertSame(['first' => 100, 'venueId' => 'v1'], $this->sentJson()['variables']);
         self::assertStringContainsString('recurrenceText startsOn startTime timeZone', $this->sentQuery());
         self::assertSame([], $session->eventSeries(localeId: 'l1'));
@@ -161,13 +162,13 @@ final class OperationsTest extends TestCase
         self::assertSame('v1', $session->venueCover('v1')['id']);
         self::assertStringContainsString('viewerAdmission { ' . Queries::ADMISSION_FIELDS, $this->sentQuery());
         self::assertNull($session->venueCover('v2'));
-        self::assertSame([['url' => 'x']], $session->venueOffers('v1', '2026-11-06'));
+        self::assertSame([['url' => 'x']], self::raw($session->venueOffers('v1', '2026-11-06')));
         self::assertSame(['id' => 'v1', 'night' => '2026-11-06'], $this->sentJson()['variables']);
         self::assertStringContainsString('query VenueOffers($id: ID!, $night: ISO8601Date)', $this->sentQuery());
         self::assertSame([], $session->venueOffers('v1'));
         self::assertSame(['id' => 'v1'], $this->sentJson()['variables']);
-        self::assertSame([['id' => 'adm']], $session->admissions());
-        self::assertSame('stripe', $session->buyCover('v1')['provider']);
+        self::assertSame([['id' => 'adm']], self::raw($session->admissions()));
+        self::assertSame('stripe', $session->buyCover('v1')->provider);
         self::assertSame(['venueId' => 'v1'], $this->sentJson()['variables']);
         self::assertSame('paid', $session->payCover('adm', 'src', 'verify')['status']);
         self::assertSame(['admissionId' => 'adm', 'sourceId' => 'src', 'verificationToken' => 'verify'], $this->sentJson()['variables']);
@@ -274,9 +275,9 @@ final class OperationsTest extends TestCase
     public function testEveryDocumentParsesAsAnOperation(): void
     {
         $documents = Queries::all();
-        self::assertCount(25, $documents);
+        self::assertCount(51, $documents);
         foreach ($documents as $name => $document) {
-            self::assertMatchesRegularExpression('/^\s*(query|mutation) ' . $name . '\b/', $document, $name);
+            self::assertMatchesRegularExpression('/^\s*(query|mutation|subscription) ' . $name . '\b/', $document, $name);
             self::assertSame(substr_count($document, '{'), substr_count($document, '}'), "$name has unbalanced braces");
         }
     }

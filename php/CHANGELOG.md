@@ -3,6 +3,45 @@
 The PHP SDK (`php/`) keeps its own version, in `src/AudienceKit.php` (`AudienceKit::VERSION`), apart from the Swift
 and Kotlin SDKs' `VERSION` and the Ruby gem's. Releases are tagged `php/<version>`.
 
+## 0.2.0 (2026-11-24)
+
+The PHP SDK catches up with the Swift, Kotlin, Node, Python and Rust SDKs (Rick, 2026-11-24: "build out the PHP sdk
+and its documentation").
+
+- **Models.** Every call returns a model (`AudienceKit\Model\Venue`, `Event`, `Person`, `Locale`, `Admission`,
+  `Article`, …) with typed, read-only properties: dates as `DateTimeImmutable`, money as `Money`, points as
+  `Coordinate`. A model is still readable as the API's JSON (`$venue['locale']['name']`), so code written for 0.1
+  keeps working; `raw()` and `json_encode()` give that array. Code that checked `is_array()` on a result needs
+  `instanceof` instead.
+- **Sign-in.** `signInWithGoogle()` and `connectGoogle()`; `signInWithApple()` takes Sign in with Apple JS's
+  authorization code, redirect URI and nonce; `signInWithReviewCode()` for App Review; `signInWithFacebookCode()`
+  takes another Facebook app (Facebook Login for Business); `refreshSession()`; `deleteAccount()`.
+- **Service tokens.** `useServiceToken('akst_…')` trades an audience service token at `POST /v1/token/service`, trades
+  it again a minute before the session expires and once when the API refuses it, and sends calls to the instance that
+  issued it. `useBearerToken()` sends an application API key as is. `AudienceSession::fromEnvironment()` reads
+  `AUDIENCEKIT_TOKEN`, `AUDIENCEKIT_BASE_URL`, `AUDIENCEKIT_AUDIENCE_ID`, `AUDIENCEKIT_HOST` and
+  `AUDIENCEKIT_ENVIRONMENT`. `Credential::$userId` is null for a service session, which carries `scopes` and
+  `audience`; a credential with no `role` is a `member`'s.
+- **Public listings** for websites (`public:read`): `publicListingsPage()`, `publicListings()`, `publicListing()`,
+  `publicTonight()`. `community()` reads the audience, locales, venues, people, events and series in one go.
+- **Soapbox news:** `articles()`, `articlesPage()` ("Show more"), `nationalArticles()`, `article()`,
+  `articlesAbout()`, `publications()`, `localPublications()`, `publication()`, `myOpEds()`, `submitOpEd()`.
+- **Calendar subscriptions:** `calendarFeed()`, `createCalendarFeed()`, `followVenueInCalendar()`,
+  `deleteCalendarFeed()`.
+- **Moderation:** `reportContent()` with `ReportTarget`'s targets and reasons, `blockUser()`, `unblockUser()`.
+- **RSVP and cover:** `cancelRsvp()`, `eventRsvp()` (who's going), `buyCover()` takes a sliding-scale amount,
+  `buyCoatCheck()`; admissions carry `kind`, `quantity`, `claimCheckNumber`, `fee` and `createdAt`, a venue's cover
+  its coat check and scale, and `venueCover()` the viewer's coat check ticket.
+- **Location:** `closestLocale()` takes a `Coordinate` (with a beacon), and `reportLocation()`.
+- **Events** carry their KJ, DJ or VJ (`jockeys`, `jockeyLabel`) where the API has them; `Event::effectiveHosts()`
+  makes a lone jockey the host.
+- **`SessionCredentialStore`** keeps the credential in PHP's session, for websites that sign people in.
+- **Docs:** [signing people in](docs/sign-in.md), [building a website](docs/websites.md) and a
+  [reference](docs/reference.md) of every call and model.
+- **Helpers:** `CoverPass::code()` makes a pass's door QR code (the same codes as the other SDKs), `Color` parses theme
+  and tag colors, `Coordinate` parses WKT points and measures distance. `Queries::chatRoom()` is the chat subscription
+  for apps with their own Action Cable client.
+
 ## 0.1.2 (2026-11-08)
 
 - License: `composer.json` names `LicenseRef-AudienceKit-SDK-1.2`, the [AudienceKit SDK License](../LICENSE) 1.2. No

@@ -382,7 +382,12 @@ extension VenueManagementClient {
         let track: Track?
         do { track = try await read(full) } catch { track = try await read(older) }
         guard let track else { return nil }
-        let reported = track.reportedAt.flatMap { ISO8601DateFormatter().date(from: $0) }
+        // With or without fractions of a second: an API that gives them times the lyrics closer.
+        let reported = track.reportedAt.flatMap { text -> Date? in
+            let fractional = ISO8601DateFormatter()
+            fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            return fractional.date(from: text) ?? ISO8601DateFormatter().date(from: text)
+        }
         return VenueTrackTiming(title: track.title, artist: track.artist, positionMs: track.positionMs,
                                 playing: track.playing, reportedAt: reported, durationMs: track.durationMs,
                                 isrc: track.isrc)

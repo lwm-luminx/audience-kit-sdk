@@ -16,7 +16,8 @@ private func venue(zone: String?, night: String? = nil) throws -> VenueWorkspace
     let denver = try venue(zone: "America/Denver")
     #expect(denver.zone.identifier == "America/Denver")
     let nine = try #require(parseInstant("2026-10-11T03:00:00Z"))
-    #expect(venueTime(nine, in: denver.zone).contains("9"))
+    let time = venueTime(nine, in: denver.zone)
+    #expect(time.contains("9") || time.contains("21"))  // "9 PM", or "21:00" on a 24-hour clock
     // 03:00 UTC on the 11th is 9 PM on the 10th in Denver; the day and month order follows the device's locale.
     let date = venueDate("2026-10-11T03:00:00Z", in: denver.zone)
     #expect(date.contains("10") && !date.contains("11"))

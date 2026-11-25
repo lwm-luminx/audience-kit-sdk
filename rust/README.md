@@ -80,8 +80,9 @@ node ../scripts/graphql/check.mjs --schema ../graphql/schema.graphql --endpoint 
 ```
 
 The crate has its own version in [`Cargo.toml`](Cargo.toml) and [`CHANGELOG.md`](CHANGELOG.md), outside the Swift and
-Kotlin `VERSION`. CI is [`.github/workflows/rust.yml`](../.github/workflows/rust.yml). It is `publish = false` until
-Love Wins Media decides to put it on crates.io; releases would be tagged `rust-<version>`.
+Kotlin `VERSION`. CI is [`.github/workflows/rust.yml`](../.github/workflows/rust.yml). Once a change that raises the
+version (with a `CHANGELOG.md` entry) merges to `main`, its `release` job publishes the crate to crates.io and tags the
+commit `rust-<version>`.
 
 ## License
 

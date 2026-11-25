@@ -14,8 +14,7 @@ documentation = "https://github.com/lwm-luminx/audience-kit-sdk/tree/main/rust"
 repository = "https://github.com/lwm-luminx/audience-kit-sdk"
 keywords = ["audiencekit", "graphql", "events", "venues", "goose"]
 categories = ["api-bindings", "web-programming::http-client"]
-# Not on crates.io until Love Wins Media decides to publish it; depend on it by git (README.md).
-publish = false
+# Published to crates.io by the `release` job in .github/workflows/rust.yml when main carries a new version.
 
 [features]
 default = ["rustls"]

@@ -38,7 +38,7 @@ HTTP failures raise `Audience::Kit::Error`.
 
 After checking out the repo, `cd ruby` and run `bin/setup` to install dependencies. Then, run `bundle exec rake` to run the specs and RuboCop. The specs measure coverage with SimpleCov (`coverage/index.html`); every line and branch of `lib/` is covered, and CI fails if a change leaves any uncovered. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
 
-To install this gem onto your local machine, run `bundle exec rake install`. The gem keeps its own version in `lib/audience-kit/version.rb`, separate from the Swift and Kotlin SDKs' `VERSION`. To publish it, run `gem build audience-kit.gemspec` and `gem push` the `.gem` to [rubygems.org](https://rubygems.org); don't use `bundle exec rake release`, which would push a bare version tag that the Swift package's release tags share.
+To install this gem onto your local machine, run `bundle exec rake install`. The gem keeps its own version in `lib/audience-kit/version.rb`, separate from the Swift and Kotlin SDKs' `VERSION`. Releases publish themselves: once a change that raises the version (with a `CHANGELOG.md` entry) merges to `main`, the `release` job in `.github/workflows/ruby.yml` builds the gem and pushes it to [rubygems.org](https://rubygems.org/gems/audience-kit) with RubyGems trusted publishing (no API key is stored), then tags the commit `ruby-<version>`. Don't use `bundle exec rake release`, which would push a bare version tag that the Swift package's release tags share.
 
 ## Contributing
 

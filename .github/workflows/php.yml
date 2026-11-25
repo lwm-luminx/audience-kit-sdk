@@ -72,3 +72,49 @@ jobs:
         run: scripts/tag-release.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  split:
+    # Packagist reads a package only from a repository's root, so the php/ directory is mirrored to
+    # lwm-luminx/audiencekit-php (with the repository's LICENSE) and tagged with the bare version there, which Packagist
+    # picks up from that repository's webhook. Pushes with the PHP_SPLIT_DEPLOY_KEY secret, a deploy key with write
+    # access on that repository; skipped until it's set.
+    needs: php
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_KEY: ${{ secrets.PHP_SPLIT_DEPLOY_KEY }}
+    steps:
+      - if: env.DEPLOY_KEY == ''
+        run: echo "::notice::PHP_SPLIT_DEPLOY_KEY isn't set, so php/ isn't mirrored to lwm-luminx/audiencekit-php."
+      - if: env.DEPLOY_KEY != ''
+        uses: actions/checkout@v4
+        with:
+          path: sdk
+      - name: Mirror php/ and tag its version
+        if: env.DEPLOY_KEY != ''
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/split && chmod 600 ~/.ssh/split
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/split -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          version="$(sed -n "s/.*public const VERSION = '\([0-9.]*\)';.*/\1/p" sdk/php/src/AudienceKit.php)"
+          git clone --quiet git@github.com:lwm-luminx/audiencekit-php.git split
+          cd split
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --tags origin "refs/tags/$version" >/dev/null; then
+            echo "audiencekit-php has $version already."
+            exit 0
+          fi
+          git checkout --quiet -B main
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          (cd ../sdk/php && git archive HEAD) | tar -x
+          cp ../sdk/LICENSE LICENSE
+          # The README's links up into the monorepo point at the mirror's own LICENSE, or at the monorepo on GitHub.
+          sed -i -e 's#](\.\./LICENSE)#](LICENSE)#g' \
+            -e 's#](\.\./\([^)]*\))#](https://github.com/lwm-luminx/audience-kit-sdk/blob/main/\1)#g' README.md
+          git add -A
+          git commit --quiet --allow-empty -m "audiencekit/audiencekit $version" \
+            -m "From lwm-luminx/audience-kit-sdk@${GITHUB_SHA} (php/). Make changes there; this repository is a read-only mirror."
+          git tag "$version"
+          git push --quiet origin main "refs/tags/$version"
+          echo "Mirrored php/ as audiencekit-php $version."

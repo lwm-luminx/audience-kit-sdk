@@ -5,12 +5,15 @@ require_relative "lib/audience-kit/version"
 Gem::Specification.new do |spec|
   spec.name = "audience-kit"
   spec.version = Audience::Kit::VERSION
-  spec.authors = ["Rick Mark"]
-  spec.email = ["rickmark@outlook.com"]
+  spec.authors = ["Love Wins Media, Inc."]
 
-  spec.summary = "AudienceKit SDK bindings for Ruby"
-  spec.description = "AudienceKit allows for creating curated collections of culture"
-  spec.homepage = "https://audiencekit.io"
+  spec.summary = "AudienceKit SDK for Ruby: an audience's venues and events over the AudienceKit API"
+  spec.description = <<~TEXT
+    Ruby client for AudienceKit, the platform behind Hot Mess. Source-available under the AudienceKit SDK License 1.2:
+    use it only with AudienceKit as hosted by Love Wins Media, Inc. See LICENSE.
+  TEXT
+  spec.homepage = "https://audiencekit.com"
+  # Source-available, not open source (LICENSE): no SPDX identifier exists for it, so RubyGems shows this reference.
   spec.license = "LicenseRef-AudienceKit-SDK-1.2"
   spec.required_ruby_version = ">= 3.2"
 
@@ -18,22 +21,18 @@ Gem::Specification.new do |spec|
 
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = "https://github.com/lwm-luminx/audience-kit-sdk/tree/main/ruby"
+  spec.metadata["documentation_uri"] = "https://developer.audiencekit.com/sdks/ruby/"
+  spec.metadata["bug_tracker_uri"] = "https://github.com/lwm-luminx/audience-kit-sdk/issues"
   spec.metadata["changelog_uri"] = "https://github.com/lwm-luminx/audience-kit-sdk/blob/main/ruby/CHANGELOG.md"
   spec.metadata["rubygems_mfa_required"] = "true"
 
-  # Specify which files should be added to the gem when it is released.
-  # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
+  # Only what a program that requires the gem needs, plus the license, README and changelog.
   spec.files = Dir.chdir(File.expand_path(__dir__)) do
-    `git ls-files -z`.split("\x0").reject do |f|
-      (f == __FILE__) || f.match(%r{\A(?:(?:bin|test|spec|features)/|\.(?:git|github|rubocop|overcommit)|Gemfile)})
-    end
+    Dir["lib/**/*.rb", "sig/**/*.rbs"] + %w[LICENSE README.md CHANGELOG.md]
   end
   spec.bindir = "exe"
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
   spec.add_dependency "faraday", "~> 2.9"
-
-  # For more information and examples about making a new gem, check out our
-  # guide at: https://bundler.io/guides/creating_gem.html
 end

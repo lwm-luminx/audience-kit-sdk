@@ -2,7 +2,10 @@
 
 The Rust crate's own versions, separate from the Swift and Kotlin SDKs' [CHANGELOG.md](../CHANGELOG.md).
 
-## 0.1.0 (unreleased)
+## 0.1.0 (2026-11-25)
+
+First release on crates.io.
+
 
 First release: an async `Client` on reqwest 0.13 and tokio for reading an audience's community: audience, locales,
 closest locale, venues, people, events, event, event series, node and me, plus `community()` for all of them at once.

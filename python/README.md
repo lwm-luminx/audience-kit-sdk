@@ -90,12 +90,11 @@ client sends and answers each GraphQL operation by name.
 
 The package keeps its own version in [`src/audiencekit/_version.py`](src/audiencekit/_version.py), separate from the
 Swift and Kotlin SDKs' `VERSION` at the repository root, and the root `release` job doesn't publish it. Add the
-version's entry to [`CHANGELOG.md`](CHANGELOG.md). To publish, push a tag of the form `python-0.1.0` (the `python-`
-prefix keeps it apart from the Swift package's bare `0.42.0` tags, which Swift Package Manager resolves): the
-`python-release` workflow builds the sdist and wheel from that tag, checks the tag matches the version, and uploads
-them to PyPI with [trusted publishing](https://docs.pypi.org/trusted-publishers/) (set the `pypi` environment up once
-on PyPI for `lwm-luminx/audience-kit-sdk`, workflow `python-release.yml`). Or by hand: `python -m build` then
-`twine upload dist/*`.
+version's entry to [`CHANGELOG.md`](CHANGELOG.md). Once a change that raises the version merges to `main`, the
+`python-release` workflow builds the sdist and wheel, uploads them to PyPI with
+[trusted publishing](https://docs.pypi.org/trusted-publishers/) (PyPI's publisher names `lwm-luminx/audience-kit-sdk`,
+workflow `python-release.yml`, environment `pypi`), and tags the commit `python-<version>` (the prefix keeps it apart
+from the Swift package's bare `0.42.0` tags, which Swift Package Manager resolves).
 
 ## License
 

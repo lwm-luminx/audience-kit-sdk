@@ -74,6 +74,8 @@ public actor AudienceSession {
     private nonisolated let events = SessionEventBroadcaster()
     private nonisolated let credentialStore: any CredentialStore
     private let session: URLSession
+    /// The URL session every call goes through, for requests to other hosts (Google's token endpoint).
+    var urlSession: URLSession { session }
     private var resolvedAudienceID: String?
     /// The fields each type has in an audience's schema, by audience ID, endpoint and type (``schemaFields(of:endpoint:)``).
     private var schemaFieldCache: [String: Set<String>] = [:]

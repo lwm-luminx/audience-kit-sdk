@@ -3,6 +3,19 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.98.0 (2026-11-25)
+
+- Sign in with Google for Swift (Rick, 2026-11-25: "lets add google sign in to hotmess ios"), matching Kotlin's
+  `signInWithGoogle` / `connectGoogle`, without Google's SDK:
+  - `AudienceSession.signIn(googleIDToken:accessToken:name:device:)` and `connectGoogle(idToken:device:)`
+    (`POST /v1/token/google`; connecting sends the session and a refusal keeps it).
+  - `GoogleOAuthClient` / `GoogleAuthorization`: Google's consent URL for an iOS OAuth client with PKCE (S256),
+    `audience` = the server (web) client so the ID token is issued for a client the API already accepts, the redirect
+    to the reversed client ID, and the code-for-tokens form. `signIn(google:callbackURL:device:connect:)` finishes it;
+    `googleTokens(authorization:callbackURL:)` stops at Google's tokens.
+  - AudienceKitUI: `WebAuthenticationSession.signInWithGoogle(_:client:device:scopes:connect:)` runs the whole thing;
+    `GoogleSignInCopy` has the button words.
+
 ## 0.97.0 (2026-11-25)
 
 - StaffKit's API modules move here from the private staff-kit repository and are now part of the public SDK (Rick,

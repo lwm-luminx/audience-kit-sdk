@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
     `java-library`
-    `maven-publish`
+    alias(libs.plugins.maven.publish)
     alias(libs.plugins.kover)
 }
 
@@ -18,7 +18,6 @@ kotlin {
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
-    withSourcesJar()
 }
 
 dependencies {
@@ -34,11 +33,11 @@ tasks.test {
     useJUnitPlatform()
 }
 
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            artifactId = "audiencekit"
-            from(components["java"])
-        }
-    }
+mavenPublishing {
+    configure(
+        com.vanniktech.maven.publish.KotlinJvm(
+            javadocJar = com.vanniktech.maven.publish.JavadocJar.Empty(),
+            sourcesJar = true,
+        ),
+    )
 }

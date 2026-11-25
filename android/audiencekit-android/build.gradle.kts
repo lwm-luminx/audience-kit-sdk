@@ -1,7 +1,7 @@
 // AGP 9 compiles Kotlin itself (built-in Kotlin), so there's no separate Kotlin Android plugin.
 plugins {
     id("com.android.library") // on the root build classpath; see ../../build.gradle.kts
-    `maven-publish`
+    alias(libs.plugins.maven.publish)
 }
 
 android {
@@ -15,12 +15,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    publishing {
-        singleVariant("release") {
-            withSourcesJar()
-        }
     }
 }
 
@@ -36,11 +30,12 @@ dependencies {
     implementation(libs.androidx.fragment)
 }
 
-publishing {
-    publications {
-        create<MavenPublication>("release") {
-            artifactId = "audiencekit-android"
-            afterEvaluate { from(components["release"]) }
-        }
-    }
+mavenPublishing {
+    configure(
+        com.vanniktech.maven.publish.AndroidSingleVariantLibrary(
+            javadocJar = com.vanniktech.maven.publish.JavadocJar.Empty(),
+            sourcesJar = true,
+            variant = "release",
+        ),
+    )
 }

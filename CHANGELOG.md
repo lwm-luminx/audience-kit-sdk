@@ -17,6 +17,8 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   `ArbiterControlTests`), and CI checks their GraphQL documents against the staff schemas, now in `graphql/`.
   StaffKit's SwiftUI modules (StaffKitUI, ArbiterUI, SoapboxUI, VenueMarqueeUI, StaffOnboarding) stay private and
   ship only as binaries from lwm-luminx/staff-kit-binaries.
+- CI's Swift coverage floor stays at 85% for the member modules (87.7% now). StaffKit's API modules get their own
+  floor at the 68.2% they arrived with, to be raised as their tests grow.
 - `scripts/graphql/check.mjs` takes staff-kit's newer copy: literals joined with `+` are one document, and `{name}`
   placeholders aren't selections.
 

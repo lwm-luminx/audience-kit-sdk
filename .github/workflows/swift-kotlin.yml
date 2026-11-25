@@ -99,7 +99,10 @@ jobs:
           name: rendered-documents
           path: rendered-documents
       # Line coverage of what builds on Linux must stay at 85% or more (86.8% at 0.42.0).
-      - run: scripts/swift-coverage.sh 85
+      - run: scripts/swift-coverage.sh 85 --ignore '/Sources/(StaffKit|Arbiter)'
+      # StaffKit's API modules (StaffKitCore, StaffKitServices, ArbiterModels, ArbiterControl) came from staff-kit at
+      # 0.97.0 at 68.2%; their floor only goes up from there, toward the member modules' 85%.
+      - run: scripts/swift-coverage.sh 68 --ignore '/Sources/(Audience)'
 
   kotlin:
     needs: changes

@@ -7543,6 +7543,16 @@ interface IVenueCover @mixin(extensionKey: "cover", field: "cover", null: false,
   canWorkDoor: Boolean!
 
   """
+  Its MagTek card reader account, which door staff take cards on. Admins and its listing managers only.
+  """
+  cardReaderAccount(
+    """
+    Defaults to the caller's: SANDBOX (Magensa Pilot) for staging builds.
+    """
+    environment: PaymentEnvironment
+  ): PaymentAccount @requires(permissions: ["payments:read:mine"])
+
+  """
   Its usual cover in cents, on the nights in days.
   """
   cents: Int
@@ -7617,6 +7627,11 @@ interface IVenueCover @mixin(extensionKey: "cover", field: "cover", null: false,
     """
     environment: PaymentEnvironment
   ): PaymentAccount @requires(permissions: ["payments:read:mine"])
+
+  """
+  Whether door staff can sell cover on a card reader (chargeCoverAtDoor): it has a MagTek account connected.
+  """
+  takesCardsAtDoor: Boolean!
 
   """
   The IANA time zone its nights are counted in: its cover zone, else its locale's.
@@ -12399,7 +12414,8 @@ type PairUpTopic {
 }
 
 """
-A venue's Stripe or Square account, which takes its cover charges.
+A venue's Stripe or Square account, which takes its cover charges in the apps,
+or its MagTek card reader account, which its door staff take cards on.
 """
 type PaymentAccount implements Node {
   """
@@ -12418,7 +12434,7 @@ type PaymentAccount implements Node {
   environment: PaymentEnvironment!
 
   """
-  The provider's ID for the account (Square's merchant ID).
+  The provider's ID for the account (Square's merchant ID, MagTek's Magensa customer code).
   """
   externalId: String!
 
@@ -12441,6 +12457,11 @@ type PaymentAccount implements Node {
   Stripe: Stripe pays out to its bank account.
   """
   payoutsEnabled: Boolean!
+
+  """
+  MagTek: the processor Magensa routes its payments to, e.g. TSYS.
+  """
+  processorName: String
 
   """
   The provider serving this record.
@@ -12478,6 +12499,11 @@ enum PaymentEnvironment {
 Who takes a payment.
 """
 enum PaymentProvider {
+  """
+  MagTek card readers (or Tap to Pay on iPhone) at the door, through Magensa's Unigate gateway to the venue's own processor.
+  """
+  MAGTEK
+
   """
   Square; the apps pay with Square's In-App Payments SDK.
   """
@@ -20779,6 +20805,16 @@ type VenueCoverView implements IVenueCover {
   canWorkDoor: Boolean!
 
   """
+  Its MagTek card reader account, which door staff take cards on. Admins and its listing managers only.
+  """
+  cardReaderAccount(
+    """
+    Defaults to the caller's: SANDBOX (Magensa Pilot) for staging builds.
+    """
+    environment: PaymentEnvironment
+  ): PaymentAccount @requires(permissions: ["payments:read:mine"])
+
+  """
   Its usual cover in cents, on the nights in days.
   """
   cents: Int
@@ -20853,6 +20889,11 @@ type VenueCoverView implements IVenueCover {
     """
     environment: PaymentEnvironment
   ): PaymentAccount @requires(permissions: ["payments:read:mine"])
+
+  """
+  Whether door staff can sell cover on a card reader (chargeCoverAtDoor): it has a MagTek account connected.
+  """
+  takesCardsAtDoor: Boolean!
 
   """
   The IANA time zone its nights are counted in: its cover zone, else its locale's.
@@ -21040,6 +21081,11 @@ enum VenueDisplayKind {
   A display attached to a Mac running Velvet Display.
   """
   MAC_SCREEN
+
+  """
+  A Samsung TV (Tizen) running Velvet.
+  """
+  SAMSUNG_TV
 }
 
 """

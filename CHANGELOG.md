@@ -3,6 +3,15 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.100.0 (2026-11-25)
+
+- StaffKitServices: MagTek card readers at the door, through Magensa's Unigate gateway (API `Payments::Magtek`).
+  `VenueManagementClient.connectMagtek` / `disconnectMagtek` / `cardReaderAccount` manage a venue's MagTek account
+  (its Magensa credentials, next to the Stripe or Square account the apps pay; `VenuePaymentAccount.Provider.magtek`,
+  `processorName`). `chargeCoverAtDoor` sells a walk-in's cover with the ARQC a MagTek reader or Tap to Pay on iPhone
+  produced (`DoorCardSale`: approved, message, the pass), and `tapToPayToken` gets the Magensa-signed token that
+  activates ProximityReader. The staff and consumer schemas are refreshed from the API's next branch.
+
 ## 0.99.1 (2026-11-25)
 
 - StaffKitServices: reading a karaoke app's queue off the venue's Mac. `KaraokeQueueTurn` and `KaraokeQueueText`

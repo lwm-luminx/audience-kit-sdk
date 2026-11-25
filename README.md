@@ -6,7 +6,7 @@ lineups and chat. One repository and one version for every platform.
 
 | Directory | What it is | Install |
 | --- | --- | --- |
-| [`swift/`](swift/README.md) | `AudienceCore`, `AudienceKit`, `AudienceKitUI` (and `AudienceKitTesting` for apps' unit tests) for iOS 16+, macOS 13+ and Linux | Swift Package Manager: `https://github.com/lwm-luminx/audience-kit-sdk.git` |
+| [`swift/`](swift/README.md) | `AudienceCore`, `AudienceKit`, `AudienceKitUI` (and `AudienceKitTesting` for apps' unit tests) for iOS 16+, macOS 13+, tvOS 17+ and Linux; and StaffKit's API modules for staff tools: `StaffKitCore`, `StaffKitServices`, `ArbiterModels`, `ArbiterControl` (StaffKit's SwiftUI ships as binaries from [staff-kit-binaries](https://github.com/lwm-luminx/staff-kit-binaries)) | Swift Package Manager: `https://github.com/lwm-luminx/audience-kit-sdk.git` |
 | [`core/`](core/README.md) | `com.audiencekit:audiencekit-core`, the Kotlin Multiplatform code shared by every platform (JVM, Android, Apple) | Gradle |
 | [`android/`](android/README.md) | `com.audiencekit:audiencekit` (the Kotlin client, plain JVM) and `audiencekit-android` | Gradle composite build of the repository (Maven publishing to come) |
 | [`ruby/`](ruby/README.md) | The `audience-kit` gem: Ruby bindings for the API (Ruby 3.2+), versioned on its own | RubyGems: `gem "audience-kit"` |
@@ -14,7 +14,7 @@ lineups and chat. One repository and one version for every platform.
 | [`php/`](php/README.md) | The `audiencekit/audiencekit` Composer package: the shared calls for PHP 8.1+ over any PSR-18 client, with typed models, service tokens and the public listings for websites, versioned on its own | Composer, from a split of `php/` (Packagist to come) |
 | [`python/`](python/README.md) | The `audiencekit` package: the shared calls for Python 3.10+, blocking and asyncio, versioned on its own | PyPI: `pip install audiencekit` |
 | [`rust/`](rust/README.md) | The `audiencekit` crate: an async client (tokio, reqwest) for reading an audience's community, built for agents like goose's `goosed`, versioned on its own | Cargo, from this repository (not on crates.io) |
-| [`graphql/`](graphql/schema.graphql) | The API's consumer GraphQL schema the SDKs are checked against | |
+| [`graphql/`](graphql/schema.graphql) | The API's consumer GraphQL schema the SDKs are checked against, and the staff schemas (`staff_schema.graphql`, `staffql_schema.graphql`) StaffKit's modules are checked against | |
 
 Both builds sit at the root, because Swift Package Manager only reads a root manifest: `Package.swift` builds `swift/`,
 and the Gradle build (`settings.gradle.kts`) builds `core/` and `android/`.

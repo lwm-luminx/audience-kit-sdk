@@ -3,6 +3,23 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.97.0 (2026-11-25)
+
+- StaffKit's API modules move here from the private staff-kit repository and are now part of the public SDK (Rick,
+  2026-11-24: "keep the UX components binary only and the API components open"). New Swift products:
+  - `StaffKitCore`: the staff session (`AudienceManagementSession`, platform sign-in, audience selection, scoped
+    venue-device sessions, `StaffCredentialStore`) and `StaffCable`, the Action Cable socket for staff subscriptions.
+  - `StaffKitServices`: the staffql clients, feeds and models (venues, talent, events and lineups, the door, chat
+    moderation, cover, devices, the decision queue).
+  - `ArbiterModels`: Arbiter's engine-facing types and protocols. `ArbiterControl`: Arbiter's control-socket protocol.
+  
+  Source moved as is, without staff-kit's history. Their tests come along (`StaffKitTests`, `ArbiterModelsTests`,
+  `ArbiterControlTests`), and CI checks their GraphQL documents against the staff schemas, now in `graphql/`.
+  StaffKit's SwiftUI modules (StaffKitUI, ArbiterUI, SoapboxUI, VenueMarqueeUI, StaffOnboarding) stay private and
+  ship only as binaries from lwm-luminx/staff-kit-binaries.
+- `scripts/graphql/check.mjs` takes staff-kit's newer copy: literals joined with `+` are one document, and `{name}`
+  placeholders aren't selections.
+
 ## 0.96.1 (2026-11-25)
 
 - AudienceKitUI: `AppCheckView.swift` and `ContactMatchingModel.swift` import Combine. Without it, builds with library

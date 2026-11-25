@@ -3,6 +3,12 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.98.2 (2026-11-25)
+
+- StaffKitServices: partner offers for a venue's managers, `VenueManagementClient.referralOffers(venueID:placement:)`,
+  `recordReferralOfferClick` and `dismissReferralOffer` (staff-kit #465, which landed on staff-kit's copy just after
+  the move). The staff schemas are refreshed for `referralOffers`.
+
 ## 0.98.1 (2026-11-25)
 
 - StaffKitServices: `VenueMusicControl` follows a venue's Soundtrack or Rockbot player (staff-kit #461, which landed

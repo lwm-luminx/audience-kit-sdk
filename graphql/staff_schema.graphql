@@ -4801,6 +4801,17 @@ type Audience implements IRelay & Node {
   push: IAudiencePush @requires(permissions: ["push:read:*"])
 
   """
+  The checks a referral offer can wait for.
+  """
+  referralOfferConditions: [ReferralOfferCondition!]! @endpoint(in: [STAFF])
+
+  """
+  Referral offer cards for its venues' Velvet, AudienceKit's then its own, on or
+  off (saveReferralOffer). Admins only; empty for everyone else.
+  """
+  referralOffers: [ReferralOfferCard!]! @requires(permissions: ["audience:admin:*"]) @endpoint(in: [STAFF])
+
+  """
   The audience's report queue: what members reported (messages, people, venues,
   pings, photos) and whom they blocked, newest first. Admins only; empty for
   everyone else. Platform admins see every audience's on the tenants endpoint
@@ -7246,6 +7257,12 @@ type AudienceSoapboxView implements IAudienceSoapbox {
   Publications readers can follow: trusted ones, by name. Admins can ask for others by trust.
   """
   publications(
+    """
+    Only those covering a locale: its own and those of every locale it's in, so
+    a statewide publication is local to each city below it.
+    """
+    localeId: ID
+
     """
     Admins only: these trusts instead (the audience's pending requests, its suspended ones).
     """
@@ -15367,6 +15384,27 @@ type DiverseShuffleCheck {
 }
 
 """
+What Diverse Shuffle does with songs a sing-along screen can't follow: no shared
+lyric timing, and Musixmatch has no synced lyrics for them (or hasn't been asked yet).
+"""
+enum DiverseShuffleLyrics {
+  """
+  No difference: every song is shuffled together.
+  """
+  ANY
+
+  """
+  They play only after every song with lyrics in time, shuffled among themselves.
+  """
+  PREFER
+
+  """
+  They are left out, unless fewer than two songs have lyrics in time, as on a Sing-along night.
+  """
+  REQUIRE
+}
+
+"""
 How Diverse Shuffle picks each song (DiverseShuffle::Generator).
 """
 enum DiverseShuffleMode {
@@ -16056,9 +16094,19 @@ type EquipmentTrack {
   artworkUrl: String
 
   """
+  The song's length in ms, when the player says (a Soundtrack zone does): screens pick the lyrics timed to this version.
+  """
+  durationMs: Int
+
+  """
   When the report becomes stale.
   """
   expiresAt: ISO8601DateTime!
+
+  """
+  The recording's ISRC, when the player knows it (a Soundtrack zone does): screens find its lyrics by it.
+  """
+  isrc: String
 
   """
   Player selected by the equipment agent.
@@ -20660,7 +20708,7 @@ interface HasPhotoFocus {
 }
 
 """
-Something people write reviews of (Review): a media title or an event.
+Something people write reviews of (Review): a media title, an event, a venue or a person.
 """
 interface HasReviews {
   """
@@ -22328,6 +22376,12 @@ interface IAudienceSoapbox @mixin(extensionKey: "soapbox", field: "soapbox", nul
   Publications readers can follow: trusted ones, by name. Admins can ask for others by trust.
   """
   publications(
+    """
+    Only those covering a locale: its own and those of every locale it's in, so
+    a statewide publication is local to each city below it.
+    """
+    localeId: ID
+
     """
     Admins only: these trusts instead (the audience's pending requests, its suspended ones).
     """
@@ -24723,6 +24777,11 @@ interface IVenueMusic @mixin(extensionKey: "music", field: "music", null: false,
   songs, greedy mode gives Velvet's own shuffle for that seed.
   """
   diverseShuffle(
+    """
+    What to do with songs a sing-along screen can't follow: prefer or require lyrics in time.
+    """
+    lyrics: DiverseShuffleLyrics = ANY
+
     """
     How it picks each song.
     """
@@ -29581,6 +29640,36 @@ input LyricTimingSyllableInput {
 }
 
 """
+How many of a playlist's Spotify songs a sing-along screen can follow, by SongLyricsState.
+"""
+type LyricsCoverage {
+  """
+  Songs without lyrics.
+  """
+  none: Int!
+
+  """
+  Songs Musixmatch has in time.
+  """
+  synced: Int!
+
+  """
+  Songs a venue shared a timing for.
+  """
+  timed: Int!
+
+  """
+  Songs not checked yet.
+  """
+  unknown: Int!
+
+  """
+  Songs with only plain words.
+  """
+  words: Int!
+}
+
+"""
 Maintenance operations an admin can run, and their runs.
 """
 type Maintenance {
@@ -29972,6 +30061,12 @@ input McpConnectionApproveInput {
   With allAudiences, also let it upload and import listings files.
   """
   import: Boolean
+
+  """
+  Also let it read and edit playlists and songs, delete or clear them (after a
+  confirm step), and undo or restore their history.
+  """
+  playlists: Boolean
 
   """
   The sealed request from the authorize page (/connect).
@@ -30382,6 +30477,12 @@ type MediaItem {
   Shared lyric timings for its Spotify track (times and digests, never words); null when untimed.
   """
   lyricTiming: LyricTiming
+
+  """
+  What a sing-along screen would have for its Spotify track: timed, synced,
+  words, none, or unknown while unchecked; null without a Spotify track.
+  """
+  lyrics: SongLyricsState
 
   """
   Kept from a media title, episode or clip: its title, year, IMDb id, tags and the like save to that record too.
@@ -30868,6 +30969,11 @@ type MediaPlaylist {
   kind: MediaPlaylistKind!
 
   """
+  How many of its Spotify songs a sing-along screen can follow (Musixmatch is checked in the background as songs are added).
+  """
+  lyricsCoverage: LyricsCoverage!
+
+  """
   Kept from a media title (a series): its title, years, IMDb id, tags and the like save to that record too.
   """
   mirrored: Boolean!
@@ -30881,6 +30987,16 @@ type MediaPlaylist {
   The curator's note; null for none.
   """
   note: String
+
+  """
+  Its history, newest first.
+  """
+  revisions(
+    """
+    How many, at most 200.
+    """
+    limit: Int = 50
+  ): [MediaPlaylistRevision!]! @endpoint(in: [STAFF])
 
   """
   The seasons it has episodes for.
@@ -31143,6 +31259,82 @@ enum MediaPlaylistKind {
   A television series: its episodes, by season.
   """
   SERIES
+}
+
+"""
+One edit of a playlist, in its history: who made it, through what, and what
+changed. Edits are never rewritten: an undo or a restore is a revision of its own.
+"""
+type MediaPlaylistRevision {
+  """
+  baseline (how it was before history began), create, details, items, sync, clear, delete, undo or restore.
+  """
+  action: String!
+
+  """
+  Who made it, as named then; null for the system.
+  """
+  actorName: String
+
+  """
+  How many items it added.
+  """
+  addedCount: Int!
+
+  """
+  When.
+  """
+  createdAt: ISO8601DateTime!
+
+  """
+  Which details it changed, such as title.
+  """
+  detailFields: [String!]!
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  A short note on the edit.
+  """
+  label: String
+
+  """
+  How many items it moved.
+  """
+  movedCount: Int!
+
+  """
+  1, 2, 3… in this playlist.
+  """
+  number: Int!
+
+  """
+  How many items it removed.
+  """
+  removedCount: Int!
+
+  """
+  The revision an undo reverted.
+  """
+  revertsNumber: Int
+
+  """
+  What changed, in a line.
+  """
+  summary: String!
+
+  """
+  The MCP tool or GraphQL mutation that made it.
+  """
+  tool: String
+
+  """
+  olympus, mcp (Claude), sync (Spotify or a feed) or system.
+  """
+  via: String!
 }
 
 """
@@ -33420,7 +33612,8 @@ type Mutation {
   ): MediaItemDeletePayload @requires(permissions: ["media:write:*"]) @endpoint(in: [STAFF])
 
   """
-  Deletes a playlist from the audience's media; its items stay. A series kept from Films & TV is deleted there.
+  Deletes a playlist from the audience's media; its items stay, and its history
+  keeps it so it can be restored. A series kept from Films & TV is deleted there.
   """
   deleteMediaPlaylist(
     """
@@ -33511,6 +33704,18 @@ type Mutation {
     """
     input: PublicationMediaDeleteInput!
   ): PublicationMediaDeletePayload @requires(permissions: ["soapbox:write:mine", "soapbox:write:*"])
+
+  """
+  Removes a referral offer card, with its dismissals and click counts.
+  AudienceKit's own only for AudienceKit administrators; turning one off
+  (saveReferralOffer active: false) keeps its counts.
+  """
+  deleteReferralOffer(
+    """
+    Parameters for ReferralOfferDelete
+    """
+    input: ReferralOfferDeleteInput!
+  ): ReferralOfferDeletePayload @requires(permissions: ["audience:admin:*"]) @endpoint(in: [STAFF])
 
   """
   Takes someone off a show's support staff.
@@ -33737,6 +33942,16 @@ type Mutation {
     """
     input: VenueSpotifyDisconnectInput!
   ): VenueSpotifyDisconnectPayload @requires(permissions: ["venues:write:mine", "venues:write:venue"])
+
+  """
+  Stops a referral offer showing for a venue (Venue.referralOffers). Its managers only.
+  """
+  dismissReferralOffer(
+    """
+    Parameters for ReferralOfferDismiss
+    """
+    input: ReferralOfferDismissInput!
+  ): ReferralOfferDismissPayload @requires(permissions: ["venues:write:mine", "venues:write:venue"])
 
   """
   Says two venues suggested as duplicates are different places, so they stop
@@ -34492,6 +34707,17 @@ type Mutation {
     """
     input: IdCheckRecordInput!
   ): IdCheckRecordPayload @requires(permissions: ["cover:write:door"]) @endpoint(in: [STAFF])
+
+  """
+  Counts a click on one of a venue's referral offers and answers the link to
+  open. Only offers the venue is shown (Venue.referralOffers). Its managers only.
+  """
+  recordReferralOfferClick(
+    """
+    Parameters for ReferralOfferClickRecord
+    """
+    input: ReferralOfferClickRecordInput!
+  ): ReferralOfferClickRecordPayload @requires(permissions: ["venues:write:mine", "venues:write:venue"])
 
   """
   Records a Velvet subscription bought or restored in the app: StoreKit's signed
@@ -35408,7 +35634,21 @@ type Mutation {
   ): PublicationRateSheetSavePayload @requires(permissions: ["soapbox:write:mine", "soapbox:write:*"])
 
   """
-  Writes or changes your review of a film, a show or an event; publish: true publishes it.
+  Adds a referral offer card, or changes one (with id): its copy, referral link,
+  where Velvet shows it and the condition it waits for. AudienceKit's own change
+  only for AudienceKit administrators.
+  """
+  saveReferralOffer(
+    """
+    Parameters for ReferralOfferSave
+    """
+    input: ReferralOfferSaveInput!
+  ): ReferralOfferSavePayload @requires(permissions: ["audience:admin:*"]) @endpoint(in: [STAFF])
+
+  """
+  Writes or changes your review of a film, a show, an event, a venue or a
+  person; publish: true publishes it. With publicationId it is written for that
+  publication, which is credited on it.
   """
   saveReview(
     """
@@ -36336,6 +36576,16 @@ type Mutation {
     """
     input: BlockedUserRemoveInput!
   ): BlockedUserRemovePayload @requires(permissions: ["users:write:self"])
+
+  """
+  Shows a referral offer a venue dismissed again (dismissReferralOffer), where it still applies. Its managers only.
+  """
+  undismissReferralOffer(
+    """
+    Parameters for ReferralOfferUndismiss
+    """
+    input: ReferralOfferUndismissInput!
+  ): ReferralOfferUndismissPayload @requires(permissions: ["venues:write:mine", "venues:write:venue"])
 
   """
   Takes back the last bingo number called.
@@ -38419,7 +38669,7 @@ type PeopleCard implements ICard {
 """
 A performer, host or group featured in an audience.
 """
-type Person implements HasBanner & HasTags & HasTaskTemplates & Node {
+type Person implements HasBanner & HasReviews & HasTags & HasTaskTemplates & Node {
   """
   Permissions granted on this person to specific principals.
   """
@@ -38582,6 +38832,11 @@ type Person implements HasBanner & HasTags & HasTaskTemplates & Node {
   The instance's IListingProfile mixin. Left out of the schema where its module isn't installed.
   """
   profile: IListingProfile!
+
+  """
+  Its published reviews, newest first.
+  """
+  reviews: [Review!]!
 
   """
   Items linked to it or to anything under it (a venue's events and series, a
@@ -41028,6 +41283,16 @@ type PlaylistTrack {
   durationMs: Int
 
   """
+  The recording's ISRC, when Spotify gives it.
+  """
+  isrc: String
+
+  """
+  What a sing-along screen would have for it: timed, synced, words, none, or unknown while unchecked.
+  """
+  lyrics: SongLyricsState!
+
+  """
   Its title.
   """
   title: String!
@@ -41051,6 +41316,11 @@ input PlaylistTrackInput {
   Its length in milliseconds.
   """
   durationMs: Int
+
+  """
+  The recording's ISRC, when Spotify gives it: Musixmatch is matched by it.
+  """
+  isrc: String
 
   """
   Its title.
@@ -44840,6 +45110,452 @@ type RecordEdit {
 }
 
 """
+A vendor's product offered to a venue's managers as a Velvet card, where it
+answers what the venue is missing (Soundtrack when no music service is linked,
+say). The vendor pays Love Wins Media a referral fee; the venue pays the
+vendor's usual price and nothing comes out of its sales. Always show the
+disclosure with it (doc/REFERRAL_OFFERS.md).
+"""
+type ReferralOffer {
+  """
+  A sentence or two on what it does for the venue.
+  """
+  body: String!
+
+  """
+  What it is: music, point_of_sale, karaoke, and so on.
+  """
+  category: String!
+
+  """
+  The button's label, e.g. See Soundtrack plans.
+  """
+  cta: String!
+
+  """
+  The referral fee disclosure, shown with it every time.
+  """
+  disclosure: String!
+
+  """
+  Its headline.
+  """
+  headline: String!
+
+  """
+  The offer, for recordReferralOfferClick and dismissReferralOffer.
+  """
+  id: ID!
+
+  """
+  The partner's logo or picture for the card (https), if any.
+  """
+  imageUrl: String
+
+  """
+  Its key, e.g. soundtrack.
+  """
+  key: String!
+
+  """
+  The vendor's name, e.g. Toast.
+  """
+  partner: String!
+
+  """
+  Where Velvet shows it.
+  """
+  placement: ReferralOfferPlacement!
+
+  """
+  The vendor's referral link. Open it after recordReferralOfferClick; it carries nothing about the venue or the person.
+  """
+  url: String!
+}
+
+"""
+A referral offer card as its admins see it: its copy, referral link, where
+Velvet shows it and the condition it waits for. AudienceKit's own show in every
+audience (doc/REFERRAL_OFFERS.md).
+"""
+type ReferralOfferCard {
+  """
+  Off, it never shows.
+  """
+  active: Boolean!
+
+  """
+  A sentence or two on what it does for the venue.
+  """
+  body: String!
+
+  """
+  What it is: music, point_of_sale, karaoke, and so on.
+  """
+  category: String!
+
+  """
+  Clicks from Velvet in the last 30 days, every venue together.
+  """
+  clicksLast30Days: Int!
+
+  """
+  The check that decides per venue (Audience.referralOfferConditions).
+  """
+  condition: String!
+
+  """
+  ISO countries it serves; empty for every country.
+  """
+  countries: [String!]!
+
+  """
+  Its button's label.
+  """
+  cta: String!
+
+  """
+  Its headline.
+  """
+  headline: String!
+
+  """
+  The offer.
+  """
+  id: ID!
+
+  """
+  The partner's logo or picture (https), if any.
+  """
+  imageUrl: String
+
+  """
+  Its stable key, e.g. toast.
+  """
+  key: String!
+
+  """
+  The vendor's name.
+  """
+  partner: String!
+
+  """
+  Where Velvet shows it.
+  """
+  placement: ReferralOfferPlacement!
+
+  """
+  Its order among the offers.
+  """
+  position: Int!
+
+  """
+  True for AudienceKit's own, shown in every audience.
+  """
+  shared: Boolean!
+
+  """
+  The vendor's referral link (https). Without one it never shows.
+  """
+  url: String
+}
+
+"""
+Autogenerated input type of ReferralOfferClickRecord
+"""
+input ReferralOfferClickRecordInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The offer (ReferralOffer.id).
+  """
+  id: ID!
+
+  """
+  The venue it was shown for.
+  """
+  venueId: ID!
+}
+
+"""
+Autogenerated return type of ReferralOfferClickRecord.
+"""
+type ReferralOfferClickRecordPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The vendor's referral link, to open now.
+  """
+  url: String!
+}
+
+"""
+A check that decides, per venue, whether a referral offer answers something it is missing.
+"""
+type ReferralOfferCondition {
+  """
+  Its key, e.g. no_music_service.
+  """
+  key: String!
+
+  """
+  What it means, e.g. No business music service linked.
+  """
+  label: String!
+}
+
+"""
+Autogenerated input type of ReferralOfferDelete
+"""
+input ReferralOfferDeleteInput {
+  """
+  The audience. Defaults to the endpoint audience.
+  """
+  audienceId: ID
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The offer.
+  """
+  id: ID!
+}
+
+"""
+Autogenerated return type of ReferralOfferDelete.
+"""
+type ReferralOfferDeletePayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The offer removed.
+  """
+  id: ID!
+}
+
+"""
+Autogenerated input type of ReferralOfferDismiss
+"""
+input ReferralOfferDismissInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The offer (ReferralOffer.id).
+  """
+  id: ID!
+
+  """
+  The venue.
+  """
+  venueId: ID!
+}
+
+"""
+Autogenerated return type of ReferralOfferDismiss.
+"""
+type ReferralOfferDismissPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The venue.
+  """
+  venue: Venue!
+}
+
+"""
+Where Velvet shows a referral offer card, beside what it answers (doc/REFERRAL_OFFERS.md).
+"""
+enum ReferralOfferPlacement {
+  """
+  Karaoke.
+  """
+  KARAOKE
+
+  """
+  Music: licensing and music services.
+  """
+  MUSIC
+
+  """
+  Ordering and point of sale.
+  """
+  ORDERING
+
+  """
+  Screens: Velvet Display and its devices.
+  """
+  SCREENS
+
+  """
+  Staff and the lineup.
+  """
+  STAFF
+
+  """
+  Tonight, the venue home.
+  """
+  TONIGHT
+}
+
+"""
+Autogenerated input type of ReferralOfferSave
+"""
+input ReferralOfferSaveInput {
+  """
+  Off, it never shows. New ones are on.
+  """
+  active: Boolean
+
+  """
+  The audience. Defaults to the endpoint audience.
+  """
+  audienceId: ID
+
+  """
+  A sentence or two on what it does for the venue.
+  """
+  body: String
+
+  """
+  What it is, e.g. music or point_of_sale.
+  """
+  category: String
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The check that decides per venue (Audience.referralOfferConditions).
+  """
+  condition: String
+
+  """
+  ISO countries it serves; empty for every country.
+  """
+  countries: [String!]
+
+  """
+  Its button's label.
+  """
+  cta: String
+
+  """
+  Its headline.
+  """
+  headline: String
+
+  """
+  The offer to change; omit to add one.
+  """
+  id: ID
+
+  """
+  The partner's logo or picture (https); empty clears it.
+  """
+  imageUrl: String
+
+  """
+  Its stable key (a-z, 0-9, _), for a new one.
+  """
+  key: String
+
+  """
+  The vendor's name.
+  """
+  partner: String
+
+  """
+  Where Velvet shows it.
+  """
+  placement: ReferralOfferPlacement
+
+  """
+  Its order among the offers.
+  """
+  position: Int
+
+  """
+  A new one is AudienceKit's own, for every audience. AudienceKit administrators only.
+  """
+  shared: Boolean
+
+  """
+  The vendor's referral link (https); empty clears it.
+  """
+  url: String
+}
+
+"""
+Autogenerated return type of ReferralOfferSave.
+"""
+type ReferralOfferSavePayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The offer, saved.
+  """
+  referralOffer: ReferralOfferCard!
+}
+
+"""
+Autogenerated input type of ReferralOfferUndismiss
+"""
+input ReferralOfferUndismissInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The offer (ReferralOffer.id).
+  """
+  id: ID!
+
+  """
+  The venue.
+  """
+  venueId: ID!
+}
+
+"""
+Autogenerated return type of ReferralOfferUndismiss.
+"""
+type ReferralOfferUndismissPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The venue.
+  """
+  venue: Venue!
+}
+
+"""
 Autogenerated input type of ReportEventPlaylistTracks
 """
 input ReportEventPlaylistTracksInput {
@@ -45047,7 +45763,8 @@ type ResourceNeed {
 }
 
 """
-A written take on a film, a show or an event, by a member or a publication. There is no rating.
+A written take on a film, a show, an event, a venue or a person (talent or an
+organization), by a member or a publication. There is no rating.
 """
 type Review implements HasCredits {
   """
@@ -45086,6 +45803,11 @@ type Review implements HasCredits {
   mediaTitle: MediaTitle
 
   """
+  The person it's about: talent or an organization.
+  """
+  person: Person
+
+  """
   When it was published.
   """
   publishedAt: ISO8601DateTime
@@ -45094,6 +45816,11 @@ type Review implements HasCredits {
   Draft, published or removed.
   """
   status: ReviewStatus!
+
+  """
+  The venue it's about.
+  """
+  venue: Venue
 }
 
 """
@@ -45131,6 +45858,11 @@ Autogenerated input type of ReviewSave
 """
 input ReviewSaveInput {
   """
+  The writer's persona credited as its author (with publicationId): one you manage, or a member of the publication's.
+  """
+  authorPersonId: ID
+
+  """
   What you have to say, in Markdown.
   """
   body: String!
@@ -45156,9 +45888,24 @@ input ReviewSaveInput {
   mediaTitleId: ID
 
   """
+  The person, talent or an organization (to start a review of one).
+  """
+  personId: ID
+
+  """
+  The Soapbox publication it is written for (one whose person you manage), credited as its original source.
+  """
+  publicationId: ID
+
+  """
   Publish it now.
   """
   publish: Boolean = false
+
+  """
+  The venue (to start a review of one).
+  """
+  venueId: ID
 }
 
 """
@@ -48829,6 +49576,37 @@ type SongLyrics {
   The words, one lyric line per line.
   """
   words: String!
+}
+
+"""
+What a sing-along screen would have for a song (LyricAvailability): Musixmatch's
+catalog is checked ahead of the night, by ISRC, in the background.
+"""
+enum SongLyricsState {
+  """
+  No lyrics: Musixmatch has none, or it is instrumental.
+  """
+  NONE
+
+  """
+  Musixmatch has its lyrics in time (line or word timing).
+  """
+  SYNCED
+
+  """
+  A venue shared a lyric timing for it.
+  """
+  TIMED
+
+  """
+  Not checked yet.
+  """
+  UNKNOWN
+
+  """
+  Musixmatch has only plain words: the screen cannot follow it.
+  """
+  WORDS
 }
 
 """
@@ -53671,7 +54449,7 @@ enum VelvetSubscriptionStatus {
 """
 A venue in the audience.
 """
-type Venue implements HasBanner & HasCredits & HasPhoto & HasTags & HasTaskTemplates & HasTimestamps & Node {
+type Venue implements HasBanner & HasCredits & HasPhoto & HasReviews & HasTags & HasTaskTemplates & HasTimestamps & Node {
   """
   Permissions granted on this venue.
   """
@@ -54042,6 +54820,20 @@ type Venue implements HasBanner & HasCredits & HasPhoto & HasTags & HasTaskTempl
   promoTier: String! @endpoint(in: [STAFF])
 
   """
+  Velvet's referral offer cards for it: vendors' products where they answer what
+  it is missing (Soundtrack with no music service linked, Toast with no Toast
+  ordering page, KaraFun for karaoke on something else), each with its referral
+  link and the disclosure to show with it. Not for guests: empty for everyone
+  but its managers, and without the ones it dismissed.
+  """
+  referralOffers(
+    """
+    Only the offers for this placement.
+    """
+    placement: ReferralOfferPlacement
+  ): [ReferralOffer!]! @requires(permissions: ["venues:write:mine", "venues:write:venue"])
+
+  """
   Whether it was reported closed and that isn't decided yet: left out of tonight's views, its page kept.
   """
   reportedClosed: Boolean!
@@ -54050,6 +54842,11 @@ type Venue implements HasBanner & HasCredits & HasPhoto & HasTags & HasTaskTempl
   The instance's IVenueRequests mixin. Left out of the schema where its module isn't installed.
   """
   requests: IVenueRequests!
+
+  """
+  Its published reviews, newest first.
+  """
+  reviews: [Review!]!
 
   """
   Items linked to it or to anything under it (a venue's events and series, a
@@ -54950,9 +55747,11 @@ input VenueDevicePairingApproveInput {
   code: String!
 
   """
-  A human-readable name for this device.
+  A human-readable name for this device; left out, or an app default that
+  doesn't match the device ("Apple TV" for a Google TV), names it by what it is:
+  Apple TV, Google TV or Mac.
   """
-  label: String!
+  label: String
 
   """
   Venue permissions: door, moderation, events, music, screen and admin. Defaults
@@ -57088,6 +57887,11 @@ type VenueMusicView implements IVenueMusic {
   songs, greedy mode gives Velvet's own shuffle for that seed.
   """
   diverseShuffle(
+    """
+    What to do with songs a sing-along screen can't follow: prefer or require lyrics in time.
+    """
+    lyrics: DiverseShuffleLyrics = ANY
+
     """
     How it picks each song.
     """

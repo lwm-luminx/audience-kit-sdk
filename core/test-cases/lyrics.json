@@ -1,0 +1,574 @@
+{
+ "about": "Shared cases for the sing-along captions: StaffKitServices' Syllabifier and SyllableLyrics (swift/Tests/ManagementKitTests/SharedLyricCasesTests.swift) and Velvet on Google TV's port (apps/staff_android/app/src/test/.../VelvetTvLiveTest.kt) must both give these. Times in seconds; compare within 1e-6.",
+ "syllables": [
+  {
+   "line": "Defying gravity!",
+   "syllables": [
+    "De",
+    "fy",
+    "ing ",
+    "gra",
+    "vi",
+    "ty!"
+   ]
+  },
+  {
+   "line": "(Oh) I dreamed a dream in time gone by",
+   "syllables": [
+    "(Oh) ",
+    "I ",
+    "dreamed ",
+    "a ",
+    "dream ",
+    "in ",
+    "time ",
+    "gone ",
+    "by"
+   ]
+  },
+  {
+   "line": "Don't stop me now",
+   "syllables": [
+    "Don't ",
+    "stop ",
+    "me ",
+    "now"
+   ]
+  },
+  {
+   "line": "♪",
+   "syllables": [
+    "♪"
+   ]
+  },
+  {
+   "line": "",
+   "syllables": []
+  },
+  {
+   "line": "  Little table, rhythm and blues  ",
+   "syllables": [
+    "  Lit",
+    "tle ",
+    "ta",
+    "ble, ",
+    "rhythm ",
+    "and ",
+    "blues  "
+   ]
+  },
+  {
+   "line": "Supercalifragilisticexpialidocious",
+   "syllables": [
+    "Su",
+    "per",
+    "ca",
+    "lif",
+    "ra",
+    "gi",
+    "lis",
+    "ti",
+    "cex",
+    "pia",
+    "li",
+    "do",
+    "cious"
+   ]
+  },
+  {
+   "line": "Defying gravity",
+   "syllables": [
+    "De",
+    "fy",
+    "ing ",
+    "gra",
+    "vi",
+    "ty"
+   ]
+  },
+  {
+   "line": "little table",
+   "syllables": [
+    "lit",
+    "tle ",
+    "ta",
+    "ble"
+   ]
+  },
+  {
+   "line": "I loved the time",
+   "syllables": [
+    "I ",
+    "loved ",
+    "the ",
+    "time"
+   ]
+  },
+  {
+   "line": "(Oh",
+   "syllables": [
+    "(Oh"
+   ]
+  },
+  {
+   "line": "Crying, jumped, wanted",
+   "syllables": [
+    "Cry",
+    "ing, ",
+    "jumped, ",
+    "wan",
+    "ted"
+   ]
+  },
+  {
+   "line": "You and I",
+   "syllables": [
+    "You ",
+    "and ",
+    "I"
+   ]
+  },
+  {
+   "line": "Somewhere over the rainbow",
+   "syllables": [
+    "So",
+    "me",
+    "where ",
+    "o",
+    "ver ",
+    "the ",
+    "rain",
+    "bow"
+   ]
+  },
+  {
+   "line": "Bohemian Rhapsody",
+   "syllables": [
+    "Bo",
+    "he",
+    "mian ",
+    "Rhap",
+    "so",
+    "dy"
+   ]
+  },
+  {
+   "line": "Hallelujah",
+   "syllables": [
+    "Hal",
+    "le",
+    "lu",
+    "jah"
+   ]
+  },
+  {
+   "line": "Every little thing she does is magic",
+   "syllables": [
+    "E",
+    "ve",
+    "ry ",
+    "lit",
+    "tle ",
+    "thing ",
+    "she ",
+    "does ",
+    "is ",
+    "ma",
+    "gic"
+   ]
+  },
+  {
+   "line": "I've got the eye of the tiger",
+   "syllables": [
+    "I've ",
+    "got ",
+    "the ",
+    "eye ",
+    "of ",
+    "the ",
+    "ti",
+    "ger"
+   ]
+  },
+  {
+   "line": "Ça c'est la vie",
+   "syllables": [
+    "Ça ",
+    "c'est ",
+    "la ",
+    "vie"
+   ]
+  }
+ ],
+ "estimated": [
+  {
+   "lines": [
+    {
+     "time": 10.0,
+     "text": "Defying gravity"
+    },
+    {
+     "time": 14.0,
+     "text": ""
+    },
+    {
+     "time": 40.0,
+     "text": "Down"
+    }
+   ],
+   "duration": 45.0,
+   "expected": [
+    {
+     "start": 10.0,
+     "end": 13.7,
+     "syllables": [
+      {
+       "text": "De",
+       "start": 10.0,
+       "end": 10.555
+      },
+      {
+       "text": "fy",
+       "start": 10.555,
+       "end": 11.11
+      },
+      {
+       "text": "ing ",
+       "start": 11.11,
+       "end": 11.85
+      },
+      {
+       "text": "gra",
+       "start": 11.85,
+       "end": 12.59
+      },
+      {
+       "text": "vi",
+       "start": 12.59,
+       "end": 13.145
+      },
+      {
+       "text": "ty",
+       "start": 13.145,
+       "end": 13.7
+      }
+     ]
+    },
+    {
+     "start": 14.0,
+     "end": 40.0,
+     "syllables": []
+    },
+    {
+     "start": 40.0,
+     "end": 40.95,
+     "syllables": [
+      {
+       "text": "Down",
+       "start": 40.0,
+       "end": 40.95
+      }
+     ]
+    }
+   ],
+   "withBreaks": [
+    {
+     "start": 0.0,
+     "end": 10.0,
+     "syllables": []
+    },
+    {
+     "start": 10.0,
+     "end": 13.7,
+     "syllables": [
+      {
+       "text": "De",
+       "start": 10.0,
+       "end": 10.555
+      },
+      {
+       "text": "fy",
+       "start": 10.555,
+       "end": 11.11
+      },
+      {
+       "text": "ing ",
+       "start": 11.11,
+       "end": 11.85
+      },
+      {
+       "text": "gra",
+       "start": 11.85,
+       "end": 12.59
+      },
+      {
+       "text": "vi",
+       "start": 12.59,
+       "end": 13.145
+      },
+      {
+       "text": "ty",
+       "start": 13.145,
+       "end": 13.7
+      }
+     ]
+    },
+    {
+     "start": 14.0,
+     "end": 40.0,
+     "syllables": []
+    },
+    {
+     "start": 40.0,
+     "end": 40.95,
+     "syllables": [
+      {
+       "text": "Down",
+       "start": 40.0,
+       "end": 40.95
+      }
+     ]
+    }
+   ],
+   "breaksDuration": 45.0
+  },
+  {
+   "lines": [
+    {
+     "time": 20.0,
+     "text": "Hello"
+    },
+    {
+     "time": 22.0,
+     "text": "world, my old friend"
+    },
+    {
+     "time": 22.3,
+     "text": "quick"
+    },
+    {
+     "time": 40.0,
+     "text": "Again and again and again"
+    }
+   ],
+   "expected": [
+    {
+     "start": 20.0,
+     "end": 21.5,
+     "syllables": [
+      {
+       "text": "Hel",
+       "start": 20.0,
+       "end": 20.857142857142858
+      },
+      {
+       "text": "lo",
+       "start": 20.857142857142858,
+       "end": 21.5
+      }
+     ]
+    },
+    {
+     "start": 22.0,
+     "end": 22.3,
+     "syllables": [
+      {
+       "text": "world, ",
+       "start": 22.0,
+       "end": 22.09
+      },
+      {
+       "text": "my ",
+       "start": 22.09,
+       "end": 22.135
+      },
+      {
+       "text": "old ",
+       "start": 22.135,
+       "end": 22.195
+      },
+      {
+       "text": "friend",
+       "start": 22.195,
+       "end": 22.3
+      }
+     ]
+    },
+    {
+     "start": 22.3,
+     "end": 23.25,
+     "syllables": [
+      {
+       "text": "quick",
+       "start": 22.3,
+       "end": 23.25
+      }
+     ]
+    },
+    {
+     "start": 40.0,
+     "end": 44.800000000000004,
+     "syllables": [
+      {
+       "text": "A",
+       "start": 40.0,
+       "end": 40.33103448275862
+      },
+      {
+       "text": "gain ",
+       "start": 40.33103448275862,
+       "end": 41.15862068965517
+      },
+      {
+       "text": "and ",
+       "start": 41.15862068965517,
+       "end": 41.820689655172416
+      },
+      {
+       "text": "a",
+       "start": 41.820689655172416,
+       "end": 42.15172413793103
+      },
+      {
+       "text": "gain ",
+       "start": 42.15172413793103,
+       "end": 42.97931034482759
+      },
+      {
+       "text": "and ",
+       "start": 42.97931034482759,
+       "end": 43.64137931034483
+      },
+      {
+       "text": "a",
+       "start": 43.64137931034483,
+       "end": 43.97241379310345
+      },
+      {
+       "text": "gain",
+       "start": 43.97241379310345,
+       "end": 44.800000000000004
+      }
+     ]
+    }
+   ],
+   "withBreaks": [
+    {
+     "start": 0.0,
+     "end": 20.0,
+     "syllables": []
+    },
+    {
+     "start": 20.0,
+     "end": 21.5,
+     "syllables": [
+      {
+       "text": "Hel",
+       "start": 20.0,
+       "end": 20.857142857142858
+      },
+      {
+       "text": "lo",
+       "start": 20.857142857142858,
+       "end": 21.5
+      }
+     ]
+    },
+    {
+     "start": 22.0,
+     "end": 22.3,
+     "syllables": [
+      {
+       "text": "world, ",
+       "start": 22.0,
+       "end": 22.09
+      },
+      {
+       "text": "my ",
+       "start": 22.09,
+       "end": 22.135
+      },
+      {
+       "text": "old ",
+       "start": 22.135,
+       "end": 22.195
+      },
+      {
+       "text": "friend",
+       "start": 22.195,
+       "end": 22.3
+      }
+     ]
+    },
+    {
+     "start": 22.3,
+     "end": 23.25,
+     "syllables": [
+      {
+       "text": "quick",
+       "start": 22.3,
+       "end": 23.25
+      }
+     ]
+    },
+    {
+     "start": 24.25,
+     "end": 40.0,
+     "syllables": []
+    },
+    {
+     "start": 40.0,
+     "end": 44.800000000000004,
+     "syllables": [
+      {
+       "text": "A",
+       "start": 40.0,
+       "end": 40.33103448275862
+      },
+      {
+       "text": "gain ",
+       "start": 40.33103448275862,
+       "end": 41.15862068965517
+      },
+      {
+       "text": "and ",
+       "start": 41.15862068965517,
+       "end": 41.820689655172416
+      },
+      {
+       "text": "a",
+       "start": 41.820689655172416,
+       "end": 42.15172413793103
+      },
+      {
+       "text": "gain ",
+       "start": 42.15172413793103,
+       "end": 42.97931034482759
+      },
+      {
+       "text": "and ",
+       "start": 42.97931034482759,
+       "end": 43.64137931034483
+      },
+      {
+       "text": "a",
+       "start": 43.64137931034483,
+       "end": 43.97241379310345
+      },
+      {
+       "text": "gain",
+       "start": 43.97241379310345,
+       "end": 44.800000000000004
+      }
+     ]
+    },
+    {
+     "start": 45.800000000000004,
+     "end": 70.0,
+     "syllables": []
+    }
+   ],
+   "breaksDuration": 70.0
+  }
+ ]
+}

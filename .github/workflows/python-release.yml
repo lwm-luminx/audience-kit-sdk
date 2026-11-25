@@ -39,7 +39,7 @@ jobs:
       - name: Is this version on PyPI yet?
         id: version
         run: |
-          version="$(python -c 'import re,pathlib; print(re.search(r"\"([^\"]+)\"", pathlib.Path("src/audiencekit/_version.py").read_text()).group(1))')"
+          version="$(python -c 'import re,pathlib; print(re.search(r"__version__ = \"([^\"]+)\"", pathlib.Path("src/audiencekit/_version.py").read_text()).group(1))')"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           status="$(curl -sS -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/audiencekit/$version/json")"
           if [[ "$status" == 200 ]]; then

@@ -3,6 +3,11 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.96.1 (2026-11-25)
+
+- AudienceKitUI: `AppCheckView.swift` and `ContactMatchingModel.swift` import Combine. Without it, builds with library
+  evolution (StaffKit's binary package, Xcode 27.2) fail on `@Published` and `ObservableObject`. No API change.
+
 ## 0.96.0 (2026-11-24)
 
 - "Show more" news (Rick, 2026-11-24: Hot Mess 2.10 "ensure news has a show more view", "with local publishers at the

@@ -3,6 +3,7 @@
 #if canImport(SwiftUI) && canImport(Contacts)
 import AudienceCore
 import AudienceKit
+import Combine
 import Foundation
 import SwiftUI
 

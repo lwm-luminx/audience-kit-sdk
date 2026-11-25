@@ -43,3 +43,4 @@ export {
 } from "./coverPass.js";
 export * from "./models.js";
 export * as Queries from "./queries.js";
+export * as Velvet from "./velvet/index.js";

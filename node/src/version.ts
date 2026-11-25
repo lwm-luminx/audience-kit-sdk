@@ -4,7 +4,7 @@
  */
 export const AudienceKitSDK = {
   /** The SDK's semantic version. */
-  VERSION: "0.1.0",
+  VERSION: "0.2.0",
   /**
    * The API contract this SDK speaks, the date it was last broken, sent on every call as `X-AudienceKit-API-Version`.
    * The API refuses a version it doesn't serve with 400 `unsupported_api_version`.

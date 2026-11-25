@@ -2,6 +2,16 @@
 
 The `audience-kit` npm package keeps its own version, separate from the Swift and Kotlin SDKs' `VERSION`.
 
+## 0.2.0 (2026-11-25)
+
+- `Velvet`: what a Velvet TV screen that runs JavaScript (Samsung TVs on Tizen) needs. `VenueDeviceClient` pairs the
+  screen by QR code (`startPairing`, `claimPairing`, platform `tizen`) or a typed code (`redeem`), keeps the sign-in in
+  the storage it's given, runs GraphQL on the device's staff endpoint and follows subscriptions over the API's Action
+  Cable (`GraphQLCable`, browser WebSocket, reconnecting). `tvBoard` and `applyChatEvent` build the board message the
+  Velvet cast receiver draws, ported from the Google TV's `tvBoard` and `TVRoom` with its test cases; `Velvet.Queries`
+  holds the screen's GraphQL, checked against the staff schema.
+- graphql/staff_schema.graphql updated from the API (adds the `SAMSUNG_TV` display kind).
+
 ## 0.1.0 (2026-11-06)
 
 First release: the consumer GraphQL API as the Swift and Kotlin SDKs speak it (API contract 2026-10-11), for Node 20+

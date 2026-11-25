@@ -56248,6 +56248,11 @@ enum VenueDisplayKind {
   A display attached to a Mac running Velvet Display.
   """
   MAC_SCREEN
+
+  """
+  A Samsung TV (Tizen) running Velvet.
+  """
+  SAMSUNG_TV
 }
 
 """

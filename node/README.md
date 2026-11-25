@@ -146,6 +146,24 @@ export has every document and field list the SDK uses, so an app can extend them
 chat subscription for an app with its own Action Cable client (this SDK doesn't open sockets).
 `client.data({ method, path, query, body })` calls a REST endpoint with the session.
 
+## Velvet screens
+
+`Velvet` is for a Velvet TV screen that runs JavaScript, such as Velvet on Samsung TVs (Tizen). The screen signs in as
+a venue device, by QR pairing or a typed code, then draws the board the Velvet cast receiver shows:
+
+```ts
+import { Velvet } from "audience-kit";
+
+const client = new Velvet.VenueDeviceClient({ storage: localStorage });
+const pairing = await client.startPairing(tvId, Velvet.TIZEN_PLATFORM); // show pairing.url as a QR code
+const device = await client.claimPairing(pairing); // null until a manager approves it in Velvet
+const venue = (await client.graph(Velvet.Queries.venue, { id: device!.venueId })) as any;
+const board = Velvet.tvBoard(venue.venues.venue, null, null);
+```
+
+`client.subscribe(Velvet.Queries.chatSubscription, { id }, { onResult })` follows the venue's chat over the cable;
+`Velvet.applyChatEvent` folds each event into the room `tvBoard` shows.
+
 ## Errors
 
 Everything throws `AudienceKitError`, with a `code`: `NOT_SIGNED_IN`, `UNAUTHORIZED`, `SIGN_IN_REJECTED`,

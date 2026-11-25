@@ -99,9 +99,34 @@ token on every later call as `Authorization: Bearer <token>`, together with
 (`AudienceKitSDK.apiVersion`). The response has no profile; read `me()` for
 the person's name.
 
-Sign-in can fail with code `SIGN_IN_REJECTED` (the Facebook token is invalid,
+Sign-in can fail with code `SIGN_IN_REJECTED` (the Facebook, Apple or Google token is invalid,
 or from an app the audience doesn't use) or `SIGN_IN_FAILED` (the message is
 the API's).
+
+### Sign in with Google
+
+No Google SDK needed. Create an **iOS** OAuth client for the app's bundle ID in
+the Google Cloud project whose **web** ("server") client the API accepts
+(`google.client_ids`), then run Google's page in a web authentication session:
+
+```swift
+@Environment(\.webAuthenticationSession) private var webAuthenticationSession
+
+let google = GoogleOAuthClient(clientID: "<iOS client>.apps.googleusercontent.com",
+                               serverClientID: "<web client>.apps.googleusercontent.com")
+// nil when they cancelled; `connect: true` connects Google to the signed-in account instead.
+let result = try await webAuthenticationSession.signInWithGoogle(google, client: client, device: device)
+```
+
+`AudienceKitUI`'s `signInWithGoogle` opens Google's page with PKCE, trades the
+code at Google's token endpoint, and posts the ID token to
+`POST /v1/token/google`. With `serverClientID`, Google issues the ID token for
+the web client, so the API needs no entry for the iOS client. Ask for
+`GoogleOAuthClient.emailsScope` too and the API can also match an existing
+account by the Google account's other verified emails. The redirect goes to the
+reversed client ID, which the authentication session catches: no
+`CFBundleURLTypes` entry. Lower level: `client.signIn(googleIDToken:accessToken:name:device:)`
+and `client.connectGoogle(idToken:device:)`.
 
 A credential minted elsewhere (a venue device's, one the platform console
 handed over) becomes the session with `try await client.adopt(credential:)`,

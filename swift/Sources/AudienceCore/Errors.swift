@@ -61,7 +61,7 @@ public struct AudienceKitError: Error, Sendable, Equatable {
 
         /// There is no stored credential; sign in first.
         public static let notSignedIn = "NOT_SIGNED_IN"
-        /// `POST /v1/token` refused the Facebook or Apple token (HTTP 401): it's invalid, or from an app the audience
+        /// `POST /v1/token` refused the Facebook, Apple or Google token (HTTP 401): it's invalid, or from an app the audience
         /// doesn't use.
         public static let signInRejected = "SIGN_IN_REJECTED"
         /// `POST /v1/token` failed (HTTP 400). The message is the API's when it sent one.

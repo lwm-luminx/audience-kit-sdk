@@ -3,6 +3,12 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.99.0 (2026-11-25)
+
+- StaffKitServices: `VelvetScreenAdvert`, the `_velvet._tcp` Bonjour advert Velvet on Apple TV and Google TV publish
+  (TXT v, platform, device, display, venue, audience, app, build, model), so the Velvet helper on the venue's Mac finds
+  our own TV apps and keeps each on one screen record with its AirPlay and Chromecast adverts.
+
 ## 0.98.4 (2026-11-25)
 
 - StaffKitServices: Backstage's show-night Live Activity tokens, `TalentManagementClient.registerShowNightToken` (the

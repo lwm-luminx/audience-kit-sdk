@@ -3,6 +3,11 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.97.1 (2026-11-25)
+
+- StaffKitServices: `VenueMusicControl` follows a venue's Soundtrack or Rockbot player (staff-kit #461, which landed
+  on staff-kit's copy just before the move).
+
 ## 0.97.0 (2026-11-25)
 
 - StaffKit's API modules move here from the private staff-kit repository and are now part of the public SDK (Rick,

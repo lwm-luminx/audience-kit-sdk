@@ -248,6 +248,20 @@ extension VenueManagementClient {
         return VenueMusicState(nowPlaying: payload.nowPlaying, queue: payload.queue)
     }
 
+    /// Blocks the song on now at the venue's Soundtrack, so the zone never plays it again, and skips it
+    /// (`controlVenueMusicService` action block). The venue's managers and its Velvet devices with the music permission.
+    public func blockVenueServiceSong(venueID: String) async throws {
+        struct Song: Decodable, Sendable { let title: String? }
+        struct Zone: Decodable, Sendable { let song: Song? }
+        struct Payload: Decodable, Sendable { let nowPlaying: [Zone] }
+        struct Response: Decodable, Sendable { let controlVenueMusicService: Payload }
+        _ = try await session.graphQL("""
+            mutation StaffVenueServiceBlock($venueId: ID!) {
+              controlVenueMusicService(input: { venueId: $venueId, provider: "soundtrack", action: "block" }) { nowPlaying { song { title } } }
+            }
+            """, variables: ["venueId": .string(venueID)], as: Response.self)
+    }
+
     /// Hands the API a staff Live Activity's own push token, so it keeps the activity up to date while the app is
     /// closed (a new song, a moved queue, a bingo number drawn on another phone). `kind` is "music" or "bingo";
     /// `appID` the app's bundle ID; `sandbox` true for a development build's token.
@@ -317,5 +331,60 @@ extension VenueManagementClient {
         }
         if let change = result.data?.venueMusic { return .change(change) }
         return result.refused ? .rejected : nil
+    }
+}
+
+/// Where the venue's song is, as the API last heard (`Venue.music.nowPlaying`): with a Soundtrack zone, how far in it
+/// was at `reportedAt`, its length and its ISRC, so a sing-along screen finds the recording's lyrics and keeps them in
+/// time without the audio.
+public struct VenueTrackTiming: Sendable, Equatable {
+    public let title: String
+    public let artist: String?
+    public let positionMs: Int?
+    public let playing: Bool?
+    public let reportedAt: Date?
+    public let durationMs: Int?
+    public let isrc: String?
+
+    public init(title: String, artist: String? = nil, positionMs: Int? = nil, playing: Bool? = nil,
+                reportedAt: Date? = nil, durationMs: Int? = nil, isrc: String? = nil) {
+        self.title = title; self.artist = artist; self.positionMs = positionMs; self.playing = playing
+        self.reportedAt = reportedAt; self.durationMs = durationMs; self.isrc = isrc
+    }
+
+    /// The clock for the song's lyrics, when the API said where it was.
+    public func clock(trackID: String? = nil) -> PlaybackClock? {
+        guard let positionMs, let reportedAt else { return nil }
+        return PlaybackClock(trackID: trackID, position: Double(positionMs) / 1000, readAt: reportedAt,
+                             playing: playing ?? true, duration: durationMs.map { Double($0) / 1000 })
+    }
+}
+
+extension VenueManagementClient {
+    /// Where the venue's song is, its length and ISRC (an API before those gives the position alone). Nil with nothing
+    /// playing.
+    public func venueTrackTiming(venueID: String) async throws -> VenueTrackTiming? {
+        struct Track: Decodable, Sendable {
+            let title: String; let artist: String?; let positionMs: Int?; let playing: Bool?
+            let reportedAt: String?; let durationMs: Int?; let isrc: String?
+        }
+        struct Music: Decodable, Sendable { let nowPlaying: Track? }
+        struct Venue: Decodable, Sendable { let music: Music? }
+        struct Venues: Decodable, Sendable { let venue: Venue? }
+        struct Response: Decodable, Sendable { let venues: Venues }
+        let full = "title artist positionMs playing reportedAt durationMs isrc"
+        let older = "title artist positionMs playing reportedAt"
+        func read(_ fields: String) async throws -> Track? {
+            try await session.graphQL("""
+                query VelvetTrackTiming($id: ID!) { venues { venue(id: $id) { music { nowPlaying { \(fields) } } } } }
+                """, variables: ["id": .string(venueID)], as: Response.self).venues.venue?.music?.nowPlaying
+        }
+        let track: Track?
+        do { track = try await read(full) } catch { track = try await read(older) }
+        guard let track else { return nil }
+        let reported = track.reportedAt.flatMap { ISO8601DateFormatter().date(from: $0) }
+        return VenueTrackTiming(title: track.title, artist: track.artist, positionMs: track.positionMs,
+                                playing: track.playing, reportedAt: reported, durationMs: track.durationMs,
+                                isrc: track.isrc)
     }
 }

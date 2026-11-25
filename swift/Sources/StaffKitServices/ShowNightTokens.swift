@@ -6,7 +6,7 @@
 //  activity's own token, so the API updates it when the event moves and ends it after the set.
 //
 
-import AudienceKit
+import AudienceCore
 import Foundation
 import StaffKitCore
 
@@ -50,7 +50,7 @@ extension TalentManagementClient {
                                                                  as type: Response.Type) async throws -> Response {
         do {
             return try await session.graphQL(query, variables: variables, as: type)
-        } catch AudienceKitError.missingConfiguration {
+        } catch let error as AudienceKitError where error.code == AudienceKitError.Code.missingConfiguration {
             return try await session.ownListingsGraphQL("# endpoint: audienceless\n" + query, variables: variables, as: type)
         }
     }

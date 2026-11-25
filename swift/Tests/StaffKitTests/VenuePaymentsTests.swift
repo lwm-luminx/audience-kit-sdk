@@ -55,3 +55,50 @@ private func sent(_ stub: Stub) throws -> (query: String, variables: [String: An
     #expect(request.query.contains("disconnectVenuePayments(input: $input)"))
     #expect(request.input["venueId"] as? String == "venue")
 }
+
+@Test func aVenueConnectsAndReadsItsMagtekCardReaderAccount() async throws {
+    let stub = Stub { request in
+        let query = (try? request.jsonBody()["query"] as? String) ?? ""
+        if query.contains("cardReaderAccount") {
+            return .json(status: 200, body: #"{"data":{"venues":{"venue":{"tickets":{"cover":{"cardReaderAccount":{"provider":"MAGTEK","status":"active","chargesEnabled":true,"locationName":null,"processorName":"TSYS - Pilot"}}}}}}}"#)
+        }
+        return .json(status: 200, body: #"{"data":{"x":{"venue":{"id":"venue"}}}}"#)
+    }
+    let venues = client(stub)
+    try await venues.connectMagtek(venueID: "venue", customerCode: "CUST1", username: "user", password: "secret",
+                                   processorName: "TSYS - Pilot", environment: .sandbox)
+    var request = try sent(stub)
+    #expect(request.query.contains("connectVenueMagtek(input: $input)"))
+    #expect(request.input["customerCode"] as? String == "CUST1" && request.input["password"] as? String == "secret")
+    #expect(request.input["processorName"] as? String == "TSYS - Pilot" && request.input["environment"] as? String == "SANDBOX")
+
+    let account = try #require(try await venues.cardReaderAccount(venueID: "venue", environment: .sandbox))
+    #expect(account.provider == .magtek && account.isActive)
+    #expect(account.processorName == "TSYS - Pilot")
+
+    try await venues.disconnectMagtek(venueID: "venue", environment: .production)
+    request = try sent(stub)
+    #expect(request.query.contains("disconnectVenueMagtek(input: $input)"))
+    #expect(request.input["environment"] as? String == "PRODUCTION")
+}
+
+@Test func doorStaffSellCoverOnACardReaderAndStartTapToPay() async throws {
+    let stub = Stub { request in
+        let query = (try? request.jsonBody()["query"] as? String) ?? ""
+        if query.contains("startTapToPay") { return .json(status: 200, body: #"{"data":{"startTapToPay":{"token":"eyJ.jwt"}}}"#) }
+        return .json(status: 200, body: #"{"data":{"chargeCoverAtDoor":{"approved":false,"message":"Declined · Insufficient funds","admission":{"id":"a1","status":"FAILED","quantity":2,"total":{"cents":2000,"currency":"usd"}}}}}"#)
+    }
+    let venues = client(stub)
+    let sale = try await venues.chargeCoverAtDoor(venueID: "venue", arqc: "0007F905DFDF520106", quantity: 2,
+                                                  amount: .usd(1000), readerSerial: "B520", readerModel: "DynaFlex II Go")
+    #expect(!sale.approved && sale.message.hasPrefix("Declined"))
+    #expect(sale.admission.total.cents == 2000 && sale.admission.status == "FAILED")
+    let request = try sent(stub)
+    #expect(request.query.contains("chargeCoverAtDoor(input: $input)"))
+    #expect(request.input["arqc"] as? String == "0007F905DFDF520106" && request.input["quantity"] as? Int == 2)
+    #expect((request.input["amount"] as? [String: Any])?["cents"] as? Int == 1000)
+    #expect(request.input["readerModel"] as? String == "DynaFlex II Go")
+
+    #expect(try await venues.tapToPayToken(venueID: "venue", readerIdentifier: "abc") == "eyJ.jwt")
+    #expect(try sent(stub).input["readerIdentifier"] as? String == "abc")
+}

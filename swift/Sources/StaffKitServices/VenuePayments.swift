@@ -7,9 +7,10 @@ public enum VenuePaymentEnvironment: String, Sendable, Codable {
     case sandbox = "SANDBOX"
 }
 
-/// The venue's own Stripe or Square account, which its cover is paid to. The venue is the seller.
+/// The venue's own Stripe or Square account, which its cover is paid to in the apps, or its MagTek card reader account
+/// (Magensa), which its door staff take cards on. The venue is the seller.
 public struct VenuePaymentAccount: Decodable, Sendable {
-    public enum Provider: String, Decodable, Sendable { case stripe = "STRIPE", square = "SQUARE" }
+    public enum Provider: String, Decodable, Sendable { case stripe = "STRIPE", square = "SQUARE", magtek = "MAGTEK" }
     /// A Square location that can take cards.
     public struct SquareLocation: Decodable, Sendable, Identifiable, Hashable {
         public let id: String
@@ -25,6 +26,8 @@ public struct VenuePaymentAccount: Decodable, Sendable {
     public let locationName: String?
     /// Square: the seller's locations, when Square answers.
     public let squareLocations: [SquareLocation]?
+    /// MagTek: the processor Magensa routes the venue's payments to, e.g. `TSYS - Pilot`.
+    public let processorName: String?
 
     public var isActive: Bool { status == "active" }
     /// Square is connected but hasn't been told which location gets paid.
@@ -42,6 +45,7 @@ extension VenueManagementClient {
     }
 
     private static let accountFields = "provider status chargesEnabled locationName squareLocations { id name address }"
+    private static let readerAccountFields = "provider status chargesEnabled locationName processorName"
 
     /// The venue's account in `environment`, or nil when it hasn't connected one.
     public func paymentAccount(venueID: String, environment: VenuePaymentEnvironment) async throws -> VenuePaymentAccount? {
@@ -98,6 +102,44 @@ extension VenueManagementClient {
     public func disconnectPayments(venueID: String, environment: VenuePaymentEnvironment) async throws {
         _ = try await session.graphQL("""
             mutation VelvetDisconnectPayments($input: VenuePaymentsDisconnectInput!) { disconnectVenuePayments(input: $input) { venue { id } } }
+            """, variables: ["input": .object(["venueId": .string(venueID), "environment": .string(environment.rawValue)])],
+            as: GraphQLValue.self)
+    }
+
+    /// The venue's MagTek card reader account in `environment` (sandbox is Magensa Pilot), or nil when it hasn't
+    /// connected one. It sits next to the Stripe or Square account the apps pay.
+    public func cardReaderAccount(venueID: String, environment: VenuePaymentEnvironment) async throws -> VenuePaymentAccount? {
+        struct Cover: Decodable, Sendable { let cardReaderAccount: VenuePaymentAccount? }
+        struct Tickets: Decodable, Sendable { let cover: Cover? }
+        struct Venue: Decodable, Sendable { let tickets: Tickets? }
+        struct Venues: Decodable, Sendable { let venue: Venue? }
+        struct Response: Decodable, Sendable { let venues: Venues }
+        let response = try await session.graphQL("""
+            query VelvetCardReaderAccount($id: ID!, $environment: PaymentEnvironment) {
+              venues { venue(id: $id) { tickets { cover { cardReaderAccount(environment: $environment) { \(Self.readerAccountFields) } } } } }
+            }
+            """, variables: ["id": .string(venueID), "environment": .string(environment.rawValue)], as: Response.self)
+        return response.venues.venue?.tickets?.cover?.cardReaderAccount
+    }
+
+    /// Connects the venue's MagTek card reader account with the Magensa Unigate credentials from its onboarding
+    /// worksheet. The API checks them with Magensa first and throws when Magensa refuses them; the password is kept
+    /// encrypted and never read back.
+    public func connectMagtek(venueID: String, customerCode: String, username: String, password: String,
+                              processorName: String? = nil, environment: VenuePaymentEnvironment) async throws {
+        var input: [String: GraphQLValue] = ["venueId": .string(venueID), "customerCode": .string(customerCode),
+                                             "username": .string(username), "password": .string(password),
+                                             "environment": .string(environment.rawValue)]
+        if let processorName, !processorName.isEmpty { input["processorName"] = .string(processorName) }
+        _ = try await session.graphQL("""
+            mutation VelvetConnectMagtek($input: VenueMagtekConnectInput!) { connectVenueMagtek(input: $input) { venue { id } } }
+            """, variables: ["input": .object(input)], as: GraphQLValue.self)
+    }
+
+    /// Stops the venue's door staff taking cards on its MagTek account in `environment`.
+    public func disconnectMagtek(venueID: String, environment: VenuePaymentEnvironment) async throws {
+        _ = try await session.graphQL("""
+            mutation VelvetDisconnectMagtek($input: VenueMagtekDisconnectInput!) { disconnectVenueMagtek(input: $input) { venue { id } } }
             """, variables: ["input": .object(["venueId": .string(venueID), "environment": .string(environment.rawValue)])],
             as: GraphQLValue.self)
     }

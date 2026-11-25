@@ -129,9 +129,9 @@ tags the commit `php/<version>`, a tag with a prefix so it never clashes with th
 which Swift Package Manager resolves from.
 
 Composer can't install a package from a subdirectory of a repository, so publishing to Packagist goes through a
-read-only split of `php/`, the way other monorepos publish (`git subtree split --prefix=php`), pushed with the bare
-`X.Y.Z` tag to its own repository, which Packagist tracks. Until that repository exists, install from the split or a
-path repository.
+read-only mirror of `php/`: the `split` job in `.github/workflows/php.yml` copies `php/` (with the repository's
+`LICENSE`) to [lwm-luminx/audiencekit-php](https://github.com/lwm-luminx/audiencekit-php) and tags it with the bare
+`X.Y.Z` version, which Packagist picks up. Make changes here, never in the mirror.
 
 ## License
 

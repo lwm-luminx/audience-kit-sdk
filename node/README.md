@@ -163,8 +163,10 @@ npm run check   # typecheck, tests with coverage (85% floor), build
 The tests run offline against a stub transport, and `test/schema.test.ts` validates every document against
 [`graphql/schema.graphql`](../graphql/schema.graphql), the API's consumer schema. The package keeps its own version in
 `package.json` (and `src/version.ts`, which a test keeps in step), separate from the Swift and Kotlin SDKs' `VERSION`.
-To publish, bump both, add a changelog entry and run `npm publish` from `node/`; `.npmrc` stops `npm version` from
-pushing a bare version tag, which the Swift package's release tags share.
+To release, bump both and add a changelog entry: once that merges to `main`, the `release` job in
+`.github/workflows/node.yml` publishes the package to npm with trusted publishing and provenance, and tags the commit
+`node-<version>`. `.npmrc` stops `npm version` from pushing a bare version tag, which the Swift package's release tags
+share.
 
 ## License
 

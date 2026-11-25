@@ -3,6 +3,7 @@
 #if canImport(SwiftUI)
 import AudienceCore
 import AudienceKit
+import Combine
 import SwiftUI
 #if canImport(UIKit)
 import UIKit

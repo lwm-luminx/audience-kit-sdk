@@ -6,14 +6,14 @@ audience's venues, people, locales and events over GraphQL, and its branding ove
 - Swift 6, `async`/`await`, everything `Sendable`
 - No dependencies. Facebook Login stays in your app: the SDK takes the access
   token Facebook gives you.
-- iOS 16+, macOS 13+, and Linux (without the keychain store)
+- iOS 16+, macOS 13+, tvOS 17+ (the core and the shared look only), and Linux (without the keychain store)
 
 ## Installation
 
 Add the package with Swift Package Manager:
 
 ```swift
-.package(url: "https://github.com/lwm-luminx/audience-kit-sdk.git", from: "0.39.0")
+.package(url: "https://github.com/lwm-luminx/audience-kit-sdk.git", from: "0.97.0")
 ```
 
 Each version is a tag (`0.39.0`, no `v`) with a GitHub release; the
@@ -28,6 +28,16 @@ Dependencies…** with the same URL):
 | `AudienceCore` | The session: configuration, sign-in, the credential and its stores, GraphQL transport, branding, errors | nothing |
 | `AudienceKit` | The member-facing API: venues, people, locales, events, RSVPs, location, cover | AudienceCore |
 | `AudienceKitUI` | SwiftUI building blocks and the generated `DesignTokens` | AudienceCore, AudienceKit |
+| `AudienceKitTesting` | For apps' unit tests: `GraphQLStub`, a stub GraphQL API that enforces the complexity budget | AudienceCore |
+| `StaffKitCore` | StaffKit's staff session: platform sign-in, the chosen audience, venue-device sessions, the staff cable | AudienceCore |
+| `StaffKitServices` | StaffKit's staffql clients, feeds and models: venues, talent, events, the door, moderation, cover, devices, decisions | StaffKitCore, ArbiterModels |
+| `ArbiterModels` | Arbiter's engine-facing types and protocols | nothing |
+| `ArbiterControl` | Arbiter's control-socket protocol | nothing |
+
+StaffKit's SwiftUI (StaffKitUI, ArbiterUI, SoapboxUI, VenueMarqueeUI, StaffOnboarding) isn't open source: it ships as
+prebuilt XCFrameworks from [lwm-luminx/staff-kit-binaries](https://github.com/lwm-luminx/staff-kit-binaries), which
+also carries its own build of every module above. An app takes AudienceKit and StaffKit either from source here or
+from that binary package, never both, or it ends up with two copies of `AudienceCore`.
 
 ```swift
 .target(name: "MyApp", dependencies: [

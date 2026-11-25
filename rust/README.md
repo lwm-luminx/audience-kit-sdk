@@ -13,11 +13,17 @@ the audience has and runs the call again with only those.
 
 ## Installation
 
-Not on crates.io yet. Depend on it from this repository:
+From [crates.io](https://crates.io/crates/audiencekit):
+
+```sh
+cargo add audiencekit
+```
+
+or in `Cargo.toml`:
 
 ```toml
 [dependencies]
-audiencekit = { git = "https://github.com/lwm-luminx/audience-kit-sdk" }
+audiencekit = "0.1"
 ```
 
 Rust 1.85 or newer. TLS is rustls by default; `default-features = false, features = ["native-tls"]` uses the

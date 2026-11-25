@@ -189,3 +189,46 @@ jobs:
       - run: scripts/tag-release.sh --all
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  maven-central:
+    # Publishes the Kotlin SDK to Maven Central (com.audiencekit:audiencekit-core, audiencekit and audiencekit-android)
+    # when main carries a VERSION that isn't there yet, signed, through the Central Portal (the vanniktech plugin, set up
+    # in build.gradle.kts). Needs the repository secrets MAVEN_CENTRAL_USERNAME and MAVEN_CENTRAL_PASSWORD (a Central
+    # Portal user token) and SIGNING_KEY, SIGNING_KEY_ID and SIGNING_PASSWORD (the release key); skipped until they're set.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: release
+    runs-on: ubuntu-latest
+    concurrency:
+      group: maven-central
+      cancel-in-progress: false
+    env:
+      ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+      ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+      ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+      ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+      ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Is this version on Maven Central yet?
+        id: version
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [[ -z "$ORG_GRADLE_PROJECT_mavenCentralUsername" || -z "$ORG_GRADLE_PROJECT_signingInMemoryKey" ]]; then
+            echo "::notice::The Maven Central or signing secrets aren't set, so $version isn't published there."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif curl -fsS -o /dev/null "https://repo1.maven.org/maven2/com/audiencekit/audiencekit/$version/audiencekit-$version.pom"; then
+            echo "com.audiencekit $version is on Maven Central already."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.version.outputs.publish == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - if: steps.version.outputs.publish == 'true'
+        uses: gradle/actions/setup-gradle@v4
+      - name: Publish to Maven Central
+        if: steps.version.outputs.publish == 'true'
+        run: ./gradlew publishToMavenCentral --no-configuration-cache

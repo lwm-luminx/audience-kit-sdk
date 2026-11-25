@@ -3,6 +3,12 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.99.1 (2026-11-25)
+
+- StaffKitServices: reading a karaoke app's queue off the venue's Mac. `KaraokeQueueTurn` and `KaraokeQueueText`
+  (Foundation only, so the Velvet helper compiles it in) turn a window's recognized text or Accessibility rows into
+  turns; `VenueManagementClient.reportKaraokeQueue` sends them and `karaokeQueue(venueID:)` reads the venue's queue.
+
 ## 0.99.0 (2026-11-25)
 
 - StaffKitServices: `VelvetScreenAdvert`, the `_velvet._tcp` Bonjour advert Velvet on Apple TV and Google TV publish

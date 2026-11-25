@@ -23,10 +23,12 @@ and the Gradle build (`settings.gradle.kts`) builds `core/` and `android/`.
 
 The Ruby gem keeps its own version in [`ruby/lib/audience-kit/version.rb`](ruby/lib/audience-kit/version.rb), the
 npm package in [`node/package.json`](node/package.json), the PHP package in
-[`php/src/AudienceKit.php`](php/src/AudienceKit.php) (tagged `php/<version>`), the Python package in
-[`python/src/audiencekit/_version.py`](python/src/audiencekit/_version.py) (released from `python-<version>` tags,
-[python/README.md](python/README.md)) and the Rust crate in [`rust/Cargo.toml`](rust/Cargo.toml); none is part of
-the release below. Swift and Kotlin release together under one [semantic version](https://semver.org), kept in [`VERSION`](VERSION).
+[`php/src/AudienceKit.php`](php/src/AudienceKit.php), the Python package in
+[`python/src/audiencekit/_version.py`](python/src/audiencekit/_version.py) and the Rust crate in
+[`rust/Cargo.toml`](rust/Cargo.toml); none is part of the release below. Each publishes itself once a change that
+raises its version merges to `main`: RubyGems (`ruby.yml`), npm (`node.yml`), PyPI (`python-release.yml`) and
+crates.io (`rust.yml`) through trusted publishing, and Packagist through a read-only mirror of `php/`
+(`php.yml`). Their tags carry a prefix: `ruby-`, `node-`, `python-`, `rust-` and `php/`. Swift and Kotlin release together under one [semantic version](https://semver.org), kept in [`VERSION`](VERSION).
 Gradle reads it; the Swift and Kotlin clients also carry it as a constant, because they send it to the API with every
 call and the API refuses versions older than its minimum. So every change to either SDK takes a new version:
 
@@ -47,7 +49,7 @@ a change to one language only runs (and only edits) that language's CI: `swift-k
 `VERSION` and the release job, so they stay together), `ruby.yml`, `php.yml`, `node.yml`, `python.yml` and `rust.yml`. A new SDK adds its own
 `<language>.yml` with a `paths:` filter on its directory (plus `graphql/**` and `scripts/graphql/**` if it checks its
 documents against the schema), keeps the repository's 85% line-coverage floor, and tags releases with a prefix
-(`php/<version>`, `python-<version>`), never bare, since bare tags are the Swift package's.
+(`php/<version>`, `python-<version>`, `rust-<version>`), never bare, since bare tags are the Swift package's.
 
 ## License
 

@@ -34,7 +34,7 @@ mavenPublishing {
     configure(
         com.vanniktech.maven.publish.AndroidSingleVariantLibrary(
             javadocJar = com.vanniktech.maven.publish.JavadocJar.Empty(),
-            sourcesJar = true,
+            sourcesJar = com.vanniktech.maven.publish.SourcesJar.Sources(),
             variant = "release",
         ),
     )

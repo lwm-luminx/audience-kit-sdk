@@ -223,10 +223,12 @@ export function tvBoard(venue: Json, night: Json | null, room: TVRoom | null, no
       adult,
       slides: rows(slogans.marqueePosters)
         .filter((poster) => (adult || poster.adult !== true) && !hidden.has(str(poster.id)))
-        .flatMap((poster) => {
+        .reduce<Json[]>((slides, poster) => {
+          // A reduce, not flatMap, which 2019 Samsung TVs (Chromium 63) lack.
           const image = safeWebUrl(poster.image);
-          return image ? [{ id: str(poster.id), image, adult: poster.adult === true }] : [];
-        }),
+          if (image) slides.push({ id: str(poster.id), image, adult: poster.adult === true });
+          return slides;
+        }, []),
     };
   }
   if (room) {

@@ -27,7 +27,8 @@ export function zoneOrDefault(zone: string | null | undefined): string {
 export function zonedParts(date: Date, zone: string): ZonedParts {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: zone,
-    hourCycle: "h23",
+    // hour12 rather than hourCycle, which 2019 Samsung TVs (Chromium 63) ignore; some engines say 24 for midnight.
+    hour12: false,
     year: "numeric",
     month: "numeric",
     day: "numeric",

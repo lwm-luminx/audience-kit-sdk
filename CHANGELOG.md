@@ -9,6 +9,13 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   (TXT v, platform, device, display, venue, audience, app, build, model), so the Velvet helper on the venue's Mac finds
   our own TV apps and keeps each on one screen record with its AirPlay and Chromecast adverts.
 
+## 0.98.4 (2026-11-25)
+
+- StaffKitServices: Backstage's show-night Live Activity tokens, `TalentManagementClient.registerShowNightToken` (the
+  app's push-to-start token with the listing chosen, or one activity's own token with its event) and
+  `endShowNightToken`, so the API (ShowNight) starts the activity on the day, follows a moved event and ends it after
+  the set. The staff schemas are refreshed for them.
+
 ## 0.98.3 (2026-11-25)
 
 - StaffKitServices: `VenueMusicControl` change from staff-kit #466 (Velvet Display's steadier Soundtrack lyrics

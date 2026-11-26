@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { buildSchema, parse, validate } from "graphql";
 import { describe, expect, it } from "vitest";
-import { Queries, SchemaShape } from "../src/index.js";
+import { Queries, SchemaShape, Website } from "../src/index.js";
 
 // Every document the SDK sends, as it is for an audience with every module, must validate against the API's consumer
 // schema (graphql/schema.graphql, the API's next branch), so a renamed or removed field fails here instead of at runtime.
@@ -59,6 +59,12 @@ const documents: Record<string, string> = {
   blockUser: Queries.blockUser,
   unblockUser: Queries.unblockUser,
   deleteAccount: Queries.deleteAccount,
+  // The website's documents (Website.Queries), each a string.
+  ...Object.fromEntries(
+    Object.entries(Website.Queries)
+      .filter(([name, value]) => typeof value === "string" && !/^[A-Z_]+$/.test(name))
+      .map(([name, value]) => [`Website.${name}`, value as string]),
+  ),
 };
 
 describe("the SDK's documents", () => {

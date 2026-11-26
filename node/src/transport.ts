@@ -38,7 +38,9 @@ export class FetchTransport implements HttpTransport {
   constructor(options: { fetch?: FetchLike; timeoutMillis?: number } = {}) {
     const impl = options.fetch ?? (globalThis.fetch as FetchLike | undefined);
     if (!impl) throw AudienceKitError.missingConfiguration("this runtime has no fetch; pass one to FetchTransport");
-    this.fetchImpl = impl;
+    // Browsers and Cloudflare Workers refuse a fetch called on anything but the global object ("Illegal invocation"),
+    // so the global one is called as a plain function, never as a method of the transport.
+    this.fetchImpl = options.fetch ?? ((url, init) => globalThis.fetch(url, init));
     this.timeoutMillis = options.timeoutMillis ?? 30_000;
   }
 

@@ -175,6 +175,21 @@ export has every document and field list the SDK uses, so an app can extend them
 chat subscription for an app with its own Action Cable client (this SDK doesn't open sockets).
 `client.data({ method, path, query, body })` calls a REST endpoint with the session.
 
+## Websites: `Website`
+
+What a consumer website asks the API, as hotmess.social does: `new Website.WebsiteClient(client)` reads its pages
+(`now`, `venue`, `event`, `person`, `post`), the poster builder's listings, safety alerts and privacy choices over
+GraphQL (`Website.Queries`, validated against the schema like the rest), and the public REST calls that need no sign-in:
+`signInMethods`, `shareLink`, `invitation`, `rateCard`, `communityResources`, the cover poster's guest checkout and the
+safety poster's guest alerts. A browser signs in with Google through `client.signInWithGoogleAccessToken()`.
+
+```ts
+import { AudienceKitClient, Website } from "audience-kit";
+
+const site = new Website.WebsiteClient(new AudienceKitClient({ configuration: { host: "hotmess.social" } }));
+const { venue, events } = await site.venue(venueId);
+```
+
 ## Velvet screens
 
 `Velvet` is for a Velvet TV screen that runs JavaScript, such as Velvet on Samsung TVs (Tizen). The screen signs in as

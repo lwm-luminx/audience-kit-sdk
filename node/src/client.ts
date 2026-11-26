@@ -345,6 +345,14 @@ export class AudienceKitClient {
   }
 
   /**
+   * Exchanges a Google OAuth access token (from Google Identity Services' token client, which gives a browser no ID
+   * token) for an AudienceKit session and stores it. The API checks the token was issued to one of its client IDs.
+   */
+  signInWithGoogleAccessToken(accessToken: string, device: DeviceDescription): Promise<SignInResult> {
+    return this.exchange("/v1/token/google", { access_token: accessToken, host: this.configuration.host, device: this.deviceBody(device) });
+  }
+
+  /**
    * Connects a Google account to the signed-in account, so Google signs in to it from then on, and stores the session
    * the API answers with. Refusals throw `SIGN_IN_FAILED` with the API's reason and keep the current session.
    */
@@ -1174,7 +1182,7 @@ export class AudienceKitClient {
       await this.sessionRejected(token);
       throw AudienceKitError.unauthorized();
     }
-    throw AudienceKitError.forStatus(response.status);
+    throw AudienceKitError.forStatus(response.status, response.body);
   }
 
   /** Resolves a URL the API sent (absolute, or a path relative to the base URL). */

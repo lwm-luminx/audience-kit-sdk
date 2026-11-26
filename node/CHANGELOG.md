@@ -2,6 +2,30 @@
 
 The `audience-kit` npm package keeps its own version, separate from the Swift and Kotlin SDKs' `VERSION`.
 
+## 0.4.0 (2026-11-26)
+
+What a consumer website asks the API, moved here from hotmess.social so its pages use the SDK instead of their own
+calls:
+
+- `Website`: `new Website.WebsiteClient(client)` with the website's pages (`now`, `whereAmI`, `venue`, `event`,
+  `person`, `post`, `viewerId`), the poster builder (`posterSearch`, `posterNights`, `posterSeries`, `posterVenue`,
+  `posterEvent` with its year-long share link, `posterCover`, `printSafetyPoster`), safety alerts (`venueSafety`,
+  `sendSafetyAlert`, `updateSafetyAlert`, `remindSafetyAlert`, `cancelSafetyAlert`, `sendSafetyAlertMessage`,
+  `safetyAlert`, `mySafetyAlerts`, `supportResources`, `supportRides`) and privacy choices (`privacy`,
+  `updatePrivacyChoices`, `startPrivacyPass`). `Website.Queries` holds the documents, validated against the schema
+  like every other, and the models type what they select.
+- Its public REST calls: `signInMethods`, `shareLink` (status and card), `invitation`, `rateCard`,
+  `communityResourceLocales`, `communityResources`, `publicShortLink`, the cover poster (`coverPoster`,
+  `startGuestCover`, `confirmGuestCover`) and the safety poster's guest alerts (`safetyPoster`, `sendGuestSafetyAlert`,
+  `guestSafetyAlert`, `updateGuestSafetyAlert`, `remindGuestSafetyAlert`, `cancelGuestSafetyAlert`,
+  `messageGuestSafetyAlert`).
+- `signInWithGoogleAccessToken()`: Google sign-in from a browser's token client, which gives no ID token.
+- Fixed: `FetchTransport` called the global `fetch` as a method of the transport, which browsers and Cloudflare Workers
+  refuse ("Illegal invocation"); it now works there, where the website runs.
+- `"sideEffects": false`, so a browser bundle can leave out the parts it doesn't use.
+- A failed REST call's `AudienceKitError` now carries its HTTP `status` for every code, and the API's error body as
+  `apiCode`, `faultMessage` (the message), `fields` and `reason`.
+
 ## 0.3.0 (2026-11-26)
 
 Everything a website, bot or backend job needs, at the level of the PHP SDK, with guides and examples:

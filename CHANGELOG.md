@@ -3,6 +3,16 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.105.0 (2026-11-26)
+
+- StaffKit: Backstage's departure timeline. `TalentManagementClient.showNightDepartures()` reads, by event, where each
+  of the performer's coming appearances is (`ShowNightDeparture`: the venue's latitude, longitude and address) and
+  when they go on (their first spot on its lineup, theirs or a troupe's, with its curtain call). It is its own query,
+  so the listings still load against an API without it. `setShowNightPlan(eventID:times:)` hands the API only the
+  times the app worked out (`ShowNightPlanTimes`: ready by, leave by, arrive by, curtain), for the show-night Live
+  Activity it pushes; the phone's location stays on the phone. Needs the API's `setShowNightPlan` and
+  `PersonEventEdge.appearances`.
+
 ## 0.104.0 (2026-11-26)
 
 - StaffKit: staff-only notes in a safety alert's thread (API doc/SAFETY_ALERTS.md, "The thread and its two rooms").

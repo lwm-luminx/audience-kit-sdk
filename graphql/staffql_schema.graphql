@@ -10448,6 +10448,16 @@ type Location implements HasBanner & HasPhoto & HasTimestamps & Node {
   id: ID!
 
   """
+  Its point's latitude, in degrees; null without a point.
+  """
+  latitude: Float
+
+  """
+  Its point's longitude, in degrees; null without a point.
+  """
+  longitude: Float
+
+  """
   The photo's CDN URL, if there is one.
   """
   photoUrl: PhotoURL
@@ -12893,6 +12903,22 @@ type Person implements HasBanner & HasReviews & HasTags & HasTaskTemplates & Nod
   sharedTribes: [Tag!]!
 
   """
+  Its social links on networks AudienceKit can post to, connected or not
+  (connectSocialFacebook, connectSocialBluesky). Its managers only; empty for everyone else.
+  """
+  socialAccounts: [SocialAccount!]! @requires(permissions: ["people:write:*", "people:write:mine", "people:write:my_troupes"]) @endpoint(in: [STAFF])
+
+  """
+  Posts it sent or scheduled to its social accounts, newest first. Its managers only.
+  """
+  socialPosts(
+    """
+    How many, at most 100.
+    """
+    limit: Int = 25
+  ): [SocialPost!]! @requires(permissions: ["people:write:*", "people:write:mine", "people:write:my_troupes"]) @endpoint(in: [STAFF])
+
+  """
   Their own connected Spotify account, which reads the playlists they own on
   nights they host before the venue's or audience's (connectPersonSpotify).
   Their managers only; null for everyone else.
@@ -13046,6 +13072,13 @@ type PersonEventConnection {
 One of a person's events, and how they're on it: themselves, or through a troupe they're in.
 """
 type PersonEventEdge {
+  """
+  Their entries on its lineup, or their troupes', in running order: when they go
+  on (projectedStartsAt as the night runs, else startsAt) and any curtain call.
+  Empty when they are billed but not on its lineup.
+  """
+  appearances: [Appearance!]!
+
   """
   A cursor for use in pagination.
   """
@@ -14980,6 +15013,17 @@ type PromoPlacement implements IPromoContent {
   screens: [LayoutScreen!]!
 
   """
+  The connected social accounts it can also be posted as: the audience’s and
+  those of the venue it is about (createSocialCardPost).
+  """
+  socialAccounts: [SocialAccount!]! @requires(permissions: ["audience:write:*"]) @endpoint(in: [STAFF])
+
+  """
+  The social posts it went out as, newest first.
+  """
+  socialPosts: [SocialPost!]! @requires(permissions: ["audience:write:*"]) @endpoint(in: [STAFF])
+
+  """
   The publication sold it itself; priceCents is for its own records.
   """
   soldOutside: Boolean!
@@ -16801,6 +16845,22 @@ type SafetyAlert {
   acknowledgedByResponder: Boolean!
 
   """
+  Its crisis audit log, oldest first: the counselor on it and the audience's admins only; empty for everyone else.
+  """
+  auditEntries: [SafetyAuditEntry!]! @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
+
+  """
+  Whether you may join it as its crisis counselor (joinSafetyAlertAsCounselor):
+  licensed in the venue's state, covering the venue, and nobody else is its counselor yet.
+  """
+  canJoinAsCounselor: Boolean! @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
+
+  """
+  When its counselor closed it.
+  """
+  cappedAt: ISO8601DateTime @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
+
+  """
   When it was closed or cancelled.
   """
   closedAt: ISO8601DateTime
@@ -16809,6 +16869,16 @@ type SafetyAlert {
   What's going on, as they picked it.
   """
   concerns: [SafetyAlertConcern!]!
+
+  """
+  When a licensed crisis counselor joined.
+  """
+  counselorJoinedAt: ISO8601DateTime
+
+  """
+  The licensed crisis counselor on it, as the guest is told; null until one joins.
+  """
+  counselorName: String
 
   """
   When it was sent.
@@ -16846,6 +16916,21 @@ type SafetyAlert {
   fromSafetyPoster: Boolean!
 
   """
+  Its thread is kept past close (holdSafetyAlert) instead of deleted.
+  """
+  held: Boolean! @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
+
+  """
+  When the hold was placed.
+  """
+  heldAt: ISO8601DateTime @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
+
+  """
+  Why it's kept.
+  """
+  holdBasis: SafetyAlertHoldBasis @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
+
+  """
   Why the AI host raised it for the guest (Glam fast lane); null when the guest sent it themselves.
   """
   hostContext: SafetyAlertHostContext @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
@@ -16854,6 +16939,12 @@ type SafetyAlert {
   Its UUID.
   """
   id: ID!
+
+  """
+  Whether you are its crisis counselor: you alone close it, decide whether it's
+  kept, take the venue's staff out and reveal who someone is.
+  """
+  isCounselor: Boolean! @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
 
   """
   Its private thread, oldest first.
@@ -16876,6 +16967,12 @@ type SafetyAlert {
   practice: Boolean!
 
   """
+  Its thread and free text were deleted after it ended (crisis chat is kept only
+  for the conversation, unless a counselor holds it).
+  """
+  purged: Boolean!
+
+  """
   When the guest last sent it again.
   """
   remindedAt: ISO8601DateTime
@@ -16884,6 +16981,11 @@ type SafetyAlert {
   Who sent it. The venue's staff and admins only; safety responders see the name the thread shows.
   """
   reporter: Profile @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"]) @endpoint(in: [STAFF])
+
+  """
+  Kept until this day, then deleted; null while held with no day set.
+  """
+  retainUntil: ISO8601Date @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
 
   """
   What the team decided.
@@ -16914,6 +17016,11 @@ type SafetyAlert {
   What staff noted when they closed it.
   """
   staffNote: String @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
+
+  """
+  When the counselor took the venue's staff out of the guest's side of the thread; staff keep staff-only notes.
+  """
+  staffRemovedAt: ISO8601DateTime @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
 
   """
   Where it stands.
@@ -17005,6 +17112,36 @@ enum SafetyAlertFlagReason {
   Nobody on shift picked it up within 2 minutes.
   """
   UNANSWERED
+}
+
+"""
+Why a safety alert's thread is kept past close (holdSafetyAlert) instead of deleted.
+"""
+enum SafetyAlertHoldBasis {
+  """
+  The counselor's own clinical record.
+  """
+  CLINICAL_RECORD
+
+  """
+  A threat the counselor may have to warn about.
+  """
+  DUTY_TO_WARN
+
+  """
+  A court order, subpoena or other legal process.
+  """
+  LEGAL_PROCESS
+
+  """
+  Something the law requires them to report.
+  """
+  MANDATORY_REPORT
+
+  """
+  An incident the venue's managers need kept, before any counselor joins.
+  """
+  VENUE_INCIDENT
 }
 
 """
@@ -17204,6 +17341,118 @@ enum SafetyAlertState {
 }
 
 """
+What a line of the crisis audit log records.
+"""
+enum SafetyAuditAction {
+  """
+  The counselor closed it.
+  """
+  CAPPED
+
+  """
+  A licensed crisis counselor joined.
+  """
+  COUNSELOR_JOINED
+
+  """
+  It ended.
+  """
+  EMERGENCY_BRIDGE_ENDED
+
+  """
+  Someone joined it.
+  """
+  EMERGENCY_BRIDGE_JOINED
+
+  """
+  An emergency call started.
+  """
+  EMERGENCY_BRIDGE_STARTED
+
+  """
+  Its thread was put on hold, kept past close.
+  """
+  HOLD_PLACED
+
+  """
+  The hold was lifted.
+  """
+  HOLD_RELEASED
+
+  """
+  A counselor revealed who someone is.
+  """
+  PERSON_REVEALED
+
+  """
+  Its thread, free text and rooms were deleted.
+  """
+  PURGED
+
+  """
+  A staff device saw a screenshot.
+  """
+  SCREENSHOT_REPORTED
+
+  """
+  The counselor took the venue's staff out.
+  """
+  STAFF_REMOVED
+}
+
+"""
+One line of the crisis audit log: who pulled which lever on a safety alert or
+chat room, when, and on what basis. It never holds what anyone wrote, and
+outlives the thread.
+"""
+type SafetyAuditEntry {
+  """
+  What happened.
+  """
+  action: SafetyAuditAction!
+
+  """
+  Who did it; null for AudienceKit itself.
+  """
+  actorName: String
+
+  """
+  The basis they gave (DUTY_TO_WARN, VENUE_INCIDENT, ...).
+  """
+  basis: String
+
+  """
+  When.
+  """
+  createdAt: ISO8601DateTime!
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  The actor's license state at the time.
+  """
+  licenseRegion: String
+
+  """
+  Why, in their words.
+  """
+  note: String
+
+  """
+  The alert, if it was about one.
+  """
+  safetyAlertId: ID
+
+  """
+  Who was revealed, for a reveal.
+  """
+  subjectName: String
+}
+
+"""
 A venue's safety poster code: its QR opens a page where anyone at the venue,
 with or without the app, can send its staff a safety alert.
 """
@@ -17280,9 +17529,21 @@ type SafetyResponderApplication {
   kind: SafetyResponderKind!
 
   """
+  When the license runs out.
+  """
+  licenseExpiresOn: ISO8601Date
+
+  """
   Its license or certificate number.
   """
   licenseNumber: String
+
+  """
+  The state or province that issued the license, as its postal code (UT). With
+  an LCSW, LMSW or LPC and an expiry, approving makes them a licensed crisis
+  counselor there.
+  """
+  licenseRegion: String
 
   """
   The applicant's name.
@@ -17400,9 +17661,21 @@ input SafetyResponderApplyInput {
   kind: SafetyResponderKind!
 
   """
+  When the license runs out.
+  """
+  licenseExpiresOn: ISO8601Date
+
+  """
   Its license or certificate number.
   """
   licenseNumber: String
+
+  """
+  The state or province that issued it, as its postal code (UT). A licensed
+  social worker (LCSW, LMSW, LPC) gives it and the expiry to be routed alerts as
+  a crisis counselor in that state.
+  """
+  licenseRegion: String
 
   """
   Anything the admins should know.
@@ -17878,6 +18151,56 @@ enum ShowEndsTo {
 }
 
 """
+Autogenerated input type of ShowNightPlanSet
+"""
+input ShowNightPlanSetInput {
+  """
+  When to be at the venue.
+  """
+  arriveBy: ISO8601DateTime
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  When they go on: their spot on the lineup, else the event start.
+  """
+  curtainAt: ISO8601DateTime
+
+  """
+  The event of the appearance.
+  """
+  eventId: ID!
+
+  """
+  When to leave.
+  """
+  leaveBy: ISO8601DateTime
+
+  """
+  When to start getting ready.
+  """
+  readyBy: ISO8601DateTime
+}
+
+"""
+Autogenerated return type of ShowNightPlanSet.
+"""
+type ShowNightPlanSetPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  Whether a timeline is kept (false once cleared).
+  """
+  saved: Boolean!
+}
+
+"""
 Autogenerated input type of ShowNightTokenEnd
 """
 input ShowNightTokenEndInput {
@@ -18130,6 +18453,68 @@ type SingAlongKaraokeAccount implements IKaraokeAccount {
 }
 
 """
+One of its owner’s social links on a network AudienceKit can post to (Facebook,
+Instagram, Bluesky), and whether it is connected for posting (createSocialPost).
+The token is never returned.
+"""
+type SocialAccount {
+  """
+  Whether a token that may post as it is connected.
+  """
+  connected: Boolean!
+
+  """
+  When it was connected for posting.
+  """
+  connectedAt: ISO8601DateTime
+
+  """
+  Who connected it.
+  """
+  connectedByName: String
+
+  """
+  Its username or Bluesky handle, without the @.
+  """
+  handle: String!
+
+  """
+  The social link.
+  """
+  id: ID!
+
+  """
+  Why the last post to it failed, if it did.
+  """
+  lastError: String
+
+  """
+  The longest post it takes, in characters.
+  """
+  maxLength: Int!
+
+  """
+  Its display name, as it was when connected.
+  """
+  name: String
+
+  """
+  Whether posts here need a photo (Instagram).
+  """
+  photoRequired: Boolean!
+
+  """
+  Where it is on the web.
+  """
+  profileUrl: String
+
+  """
+  facebook, instagram or bluesky.
+  """
+  provider: String!
+}
+
+"""
 A social media profile.
 """
 type SocialLink implements Node {
@@ -18218,6 +18603,111 @@ input SocialLinkInput {
   karaoke songbook or queue link.
   """
   provider: String!
+}
+
+"""
+A post a venue, person or the audience sent, or will send, to its social accounts (createSocialPost).
+"""
+type SocialPost {
+  """
+  What it says.
+  """
+  body: String!
+
+  """
+  When it was written.
+  """
+  createdAt: ISO8601DateTime!
+
+  """
+  Who wrote it.
+  """
+  createdByName: String
+
+  """
+  It on each account it was sent to.
+  """
+  deliveries: [SocialPostDelivery!]!
+
+  """
+  Unique identifier.
+  """
+  id: ID!
+
+  """
+  The link it shares.
+  """
+  linkUrl: String
+
+  """
+  The photo it carries.
+  """
+  photo: Photo
+
+  """
+  When it went out.
+  """
+  publishedAt: ISO8601DateTime
+
+  """
+  When it goes out; null when sent at once.
+  """
+  scheduledAt: ISO8601DateTime
+
+  """
+  scheduled, publishing, published, partial (some accounts refused), failed or canceled.
+  """
+  status: String!
+
+  """
+  What it was written for, such as a card.
+  """
+  subjectId: ID
+
+  """
+  PromoPlacement for a card; null otherwise.
+  """
+  subjectType: String
+}
+
+"""
+A social post on one of its owner’s social accounts: waiting, live, or refused.
+"""
+type SocialPostDelivery {
+  """
+  The account; null once its link was removed.
+  """
+  account: SocialAccount
+
+  """
+  Why the network refused it, when it did.
+  """
+  error: String
+
+  """
+  Unique identifier.
+  """
+  id: ID!
+
+  """
+  facebook, instagram or bluesky.
+  """
+  provider: String!
+
+  """
+  When it went live.
+  """
+  publishedAt: ISO8601DateTime
+
+  """
+  The live post.
+  """
+  remoteUrl: String
+
+  """
+  pending, published or failed.
+  """
+  status: String!
 }
 
 """
@@ -18918,6 +19408,18 @@ type StaffMutation {
     """
     input: PersonHeadshotRemoveInput!
   ): PersonHeadshotRemovePayload @requires(permissions: ["people:write:mine", "people:write:my_troupes"])
+
+  """
+  Keeps a performer's departure timeline for one of their appearances (when to
+  get ready, leave and arrive, and their curtain), as Backstage worked it out on
+  the phone, for the show-night Live Activity. Leaving out every time clears it.
+  """
+  setShowNightPlan(
+    """
+    Parameters for ShowNightPlanSet
+    """
+    input: ShowNightPlanSetInput!
+  ): ShowNightPlanSetPayload @requires(permissions: ["people:write:mine", "people:write:my_troupes"])
 
   """
   Starts a venue's Velvet subscription on the web: open checkoutUrl in a browser
@@ -21051,6 +21553,22 @@ type Venue implements HasBanner & HasCredits & HasPhoto & HasReviews & HasTags &
   Its slideshows for its screens, the default poster list first. Its managers and devices only.
   """
   slideshows: [VenueSlideshow!]! @requires(permissions: ["venues:read:mine", "venues:read:venue", "venues:admin:*"]) @endpoint(in: [STAFF])
+
+  """
+  Its social links on networks AudienceKit can post to, connected or not
+  (connectSocialFacebook, connectSocialBluesky). Its managers only; empty for everyone else.
+  """
+  socialAccounts: [SocialAccount!]! @requires(permissions: ["venues:write:*", "venues:write:mine", "venues:write:venue"]) @endpoint(in: [STAFF])
+
+  """
+  Posts it sent or scheduled to its social accounts, newest first. Its managers only.
+  """
+  socialPosts(
+    """
+    How many, at most 100.
+    """
+    limit: Int = 25
+  ): [SocialPost!]! @requires(permissions: ["venues:write:*", "venues:write:mine", "venues:write:venue"]) @endpoint(in: [STAFF])
 
   """
   Its own connected Spotify account, which reads the playlists it owns for its

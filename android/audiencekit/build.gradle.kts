@@ -29,6 +29,11 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
 }
 
+// The programs in android/examples build and run with the tests, so they keep working as the SDK changes.
+sourceSets.test {
+    kotlin.srcDir("../examples")
+}
+
 tasks.test {
     useJUnitPlatform()
 }

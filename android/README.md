@@ -145,6 +145,9 @@ your app as well.
 
 ## Read the audience
 
+The [examples](examples/README.md) put these calls together: a "What's on" list grouped by night, a news digest, and a
+night out (RSVP, calendar links, the door pass and reporting), each run by the SDK's tests.
+
 ```kotlin
 val venues = client.venues()     // List<Venue>: page name and photos, locale, location
 val people = client.people()     // List<Person>

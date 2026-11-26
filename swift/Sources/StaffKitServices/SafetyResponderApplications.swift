@@ -126,7 +126,31 @@ public struct SafetyResponderApplyClient: Sendable {
     }
 }
 
+/// A locale an admin can pick for a responder to cover (a state, a city), with every locale within it.
+public struct ResponderLocale: Decodable, Sendable, Hashable, Identifiable {
+    public let id: String
+    public let name: String?
+    /// The API's LocaleKind, e.g. STATE or CITY.
+    public let kind: String
+    public var title: String { name ?? kind.capitalized }
+}
+
 extension SafetyResponderClient {
+    /// The audience's top-level locales, or those directly within `parentID`, by name: for choosing what an approved
+    /// responder covers.
+    public func locales(parentID: String? = nil) async throws -> [ResponderLocale] {
+        struct Response: Decodable, Sendable { let locales: [ResponderLocale] }
+        let locales: [ResponderLocale]
+        if let parentID {
+            locales = try await session.graphQL("query ArbiterResponderLocalesWithin($parentId: ID) { locales(parentId: $parentId) { id name kind } }",
+                                                variables: ["parentId": .string(parentID)], as: Response.self).locales
+        } else {
+            locales = try await session.graphQL("query ArbiterResponderLocales { locales(roots: true) { id name kind } }",
+                                                as: Response.self).locales
+        }
+        return locales.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+    }
+
     /// The audience's applications to be a safety responder, newest first: the pending ones by default. Admins only
     /// (empty for anyone else).
     public func applications(status: String = "PENDING") async throws -> [SafetyResponderApplication] {

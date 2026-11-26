@@ -162,3 +162,17 @@ private let applicationJSON = #"{"id":"a1","audienceId":"audience","audienceName
     _ = try await client.review(id: "a1", approve: false)
     #expect(try lastRequest(stub).input["localeIds"] == nil)
 }
+
+@Test func anAdminBrowsesLocalesToCover() async throws {
+    let stub = Stub { request in
+        let query = (try? request.jsonBody()["query"] as? String) ?? ""
+        if query.contains("parentId") {
+            return .json(status: 200, body: #"{"data":{"locales":[{"id":"c2","name":"Provo","kind":"CITY"},{"id":"c1","name":"Ogden","kind":"CITY"}]}}"#)
+        }
+        return .json(status: 200, body: #"{"data":{"locales":[{"id":"s1","name":"Utah","kind":"STATE"}]}}"#)
+    }
+    let client = responderClient(stub)
+    #expect(try await client.locales().map(\.title) == ["Utah"])
+    #expect(try await client.locales(parentID: "s1").map(\.title) == ["Ogden", "Provo"])
+    #expect(try lastRequest(stub).variables["parentId"] as? String == "s1")
+}

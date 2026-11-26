@@ -4850,6 +4850,39 @@ type Audience implements IRelay & Node {
   ): ContentReportConnection! @requires(permissions: ["audience:moderate:*"]) @endpoint(in: [STAFF])
 
   """
+  Arbiter's Need help list (doc/SAFETY_ALERTS.md, "Responders"): safety alerts
+  at the venues the caller covers as a safety responder (every venue for
+  admins), still open or picked up plus those closed in the last 12 hours,
+  newest first. Empty for everyone else.
+  """
+  responderSafetyAlerts(
+    """
+    Returns the elements in the list that come after the specified cursor.
+    """
+    after: String
+
+    """
+    Returns the elements in the list that come before the specified cursor.
+    """
+    before: String
+
+    """
+    Returns the first _n_ elements from the list.
+    """
+    first: Int
+
+    """
+    Returns the last _n_ elements from the list.
+    """
+    last: Int
+
+    """
+    Only venues in this locale and those within it.
+    """
+    localeId: ID
+  ): SafetyAlertConnection! @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
+
+  """
   The instance's IAudienceRooms mixin. Left out of the schema where its module isn't installed.
   """
   rooms: IAudienceRooms! @endpoint(in: [STAFF])
@@ -4885,6 +4918,16 @@ type Audience implements IRelay & Node {
     """
     needsLook: Boolean = true
   ): SafetyAlertConnection! @requires(permissions: ["audience:moderate:*"]) @endpoint(in: [STAFF])
+
+  """
+  The caller, when they are a safety responder here; null otherwise.
+  """
+  safetyResponder: SafetyResponder @endpoint(in: [STAFF])
+
+  """
+  The audience's safety responders. Admins only.
+  """
+  safetyResponders: [SafetyResponder!]! @requires(permissions: ["audience:admin:*"]) @endpoint(in: [STAFF])
 
   """
   Its service tokens (worker devices, moderation providers, CI, web renderers),
@@ -32676,15 +32719,16 @@ type Mutation {
   ): TermsAcceptPayload @requires(permissions: ["users:write:self"]) @appClip(clips: ["HOT_MESS"])
 
   """
-  Picks up a safety alert at your venue ("I'm on it"). The guest is told your
-  first name is on the way; if someone else picked it up first, says who.
+  Picks up a safety alert at your venue, or one you cover as a safety responder
+  ("I'm on it"). The guest is told your first name is on the way (a responder:
+  is here to help in the thread); if someone else picked it up first, says who.
   """
   acknowledgeSafetyAlert(
     """
     Parameters for SafetyAlertAcknowledge
     """
     input: SafetyAlertAcknowledgeInput!
-  ): SafetyAlertAcknowledgePayload @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"])
+  ): SafetyAlertAcknowledgePayload @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"])
 
   """
   Adds an App Review code that signs in as its own test account (AppReviewCode),
@@ -33067,7 +33111,7 @@ type Mutation {
     Parameters for SafetyAlertClose
     """
     input: SafetyAlertCloseInput!
-  ): SafetyAlertClosePayload @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"])
+  ): SafetyAlertClosePayload @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"])
 
   """
   Answers work this worker holds the lease on: a probability per option, the
@@ -35146,6 +35190,16 @@ type Mutation {
   ): RoomMessageRemovePayload @requires(permissions: ["rooms:write:member"])
 
   """
+  Stops a member being a safety responder. Alerts they picked up stay as they were. Admins only.
+  """
+  removeSafetyResponder(
+    """
+    Parameters for SafetyResponderRemove
+    """
+    input: SafetyResponderRemoveInput!
+  ): SafetyResponderRemovePayload @requires(permissions: ["audience:admin:*"]) @endpoint(in: [STAFF])
+
+  """
   Takes an image out of a venue's banner images.
   """
   removeVenueBannerPhoto(
@@ -35802,6 +35856,17 @@ type Mutation {
   ): ReviewSavePayload @requires(permissions: ["users:write:self"])
 
   """
+  Names a member a safety responder, who backs up venue staff on safety alerts
+  in Arbiter, or changes what they cover. Admins only.
+  """
+  saveSafetyResponder(
+    """
+    Parameters for SafetyResponderSave
+    """
+    input: SafetyResponderSaveInput!
+  ): SafetyResponderSavePayload @requires(permissions: ["audience:admin:*"]) @endpoint(in: [STAFF])
+
+  """
   Makes a screen group at a venue (venueId), or changes one (id): its name and
   the one setup its screens show. Fields left out stay; a new group starts with
   the default ranking. Its screens follow within a second.
@@ -35901,7 +35966,7 @@ type Mutation {
     Parameters for SafetyAlertSee
     """
     input: SafetyAlertSeeInput!
-  ): SafetyAlertSeePayload @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"])
+  ): SafetyAlertSeePayload @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"])
 
   """
   Posts to a venue's or a locale's chat room, as the signed-in admin (STAFF), as
@@ -36007,7 +36072,7 @@ type Mutation {
     Parameters for SafetyAlertMessageSend
     """
     input: SafetyAlertMessageSendInput!
-  ): SafetyAlertMessageSendPayload @requires(permissions: ["users:write:self", "chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"])
+  ): SafetyAlertMessageSendPayload @requires(permissions: ["users:write:self", "chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"])
 
   """
   Selects a linked provider and model for a capability (or, where the capability
@@ -36296,6 +36361,17 @@ type Mutation {
   ): RoomTrackNeededSetPayload @requires(permissions: ["rooms:write:member"])
 
   """
+  Goes on or off duty as a safety responder, and sets when you are pushed. Off
+  duty you are never pushed, though you can still look.
+  """
+  setSafetyResponderDuty(
+    """
+    Parameters for SafetyResponderDutySet
+    """
+    input: SafetyResponderDutySetInput!
+  ): SafetyResponderDutySetPayload @requires(permissions: ["safety:moderate:responder"]) @endpoint(in: [STAFF])
+
+  """
   Turns this device's safety alerts at a venue on or off, and sets the first name guests see when it picks one up.
   """
   setSafetyShift(
@@ -36414,6 +36490,19 @@ type Mutation {
   ): PairUpSharePayload @requires(permissions: ["pair_up:write:self"])
 
   """
+  Shares one of the community's resources (communityResources: a shelter, food,
+  a clinic, a hotline) with the guest in a safety alert's thread, at your venue
+  or one you cover as a safety responder. It reaches their chat too, and their
+  app can keep it to find again.
+  """
+  shareSafetyAlertResource(
+    """
+    Parameters for SafetyAlertResourceShare
+    """
+    input: SafetyAlertResourceShareInput!
+  ): SafetyAlertResourceSharePayload @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
+
+  """
   Shares "Need support?" (crisis and support lines) with the guest who sent a
   safety alert at your venue, open or closed, with a note if you like.
   """
@@ -36422,7 +36511,7 @@ type Mutation {
     Parameters for SafetyAlertSupportShare
     """
     input: SafetyAlertSupportShareInput!
-  ): SafetyAlertSupportSharePayload @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"])
+  ): SafetyAlertSupportSharePayload @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"])
 
   """
   Shows a hidden or reported photo in the apps again.
@@ -47580,6 +47669,11 @@ type SafetyAlert {
   acknowledgedByName: String
 
   """
+  A safety responder picked it up, not the venue's staff: they are here to help in the thread, not on their way.
+  """
+  acknowledgedByResponder: Boolean!
+
+  """
   When it was closed or cancelled.
   """
   closedAt: ISO8601DateTime
@@ -47607,7 +47701,7 @@ type SafetyAlert {
   """
   The event that was on when it was sent.
   """
-  event: Event @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"]) @endpoint(in: [STAFF])
+  event: Event @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
 
   """
   Why it needs a look.
@@ -47627,7 +47721,7 @@ type SafetyAlert {
   """
   Why the AI host raised it for the guest (Glam fast lane); null when the guest sent it themselves.
   """
-  hostContext: SafetyAlertHostContext @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"]) @endpoint(in: [STAFF])
+  hostContext: SafetyAlertHostContext @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
 
   """
   Its UUID.
@@ -47642,7 +47736,7 @@ type SafetyAlert {
   """
   How staff closed it.
   """
-  outcome: SafetyAlertOutcome @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"]) @endpoint(in: [STAFF])
+  outcome: SafetyAlertOutcome @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
 
   """
   Where in the venue they are.
@@ -47660,7 +47754,7 @@ type SafetyAlert {
   remindedAt: ISO8601DateTime
 
   """
-  Who sent it.
+  Who sent it. The venue's staff and admins only; safety responders see the name the thread shows.
   """
   reporter: Profile @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"]) @endpoint(in: [STAFF])
 
@@ -47687,12 +47781,12 @@ type SafetyAlert {
   """
   Whether this device or session has opened it (seeSafetyAlert).
   """
-  seenByMe: Boolean! @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"]) @endpoint(in: [STAFF])
+  seenByMe: Boolean! @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
 
   """
   What staff noted when they closed it.
   """
-  staffNote: String @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"]) @endpoint(in: [STAFF])
+  staffNote: String @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
 
   """
   Where it stands.
@@ -47987,6 +48081,11 @@ type SafetyAlertMessage {
   id: ID!
 
   """
+  A community resource staff or a responder shared (shareSafetyAlertResource); the body says the same in text.
+  """
+  resource: CommunityResource
+
+  """
   Who sent it: the guest's name, or the staff member's first name.
   """
   senderName: String!
@@ -48152,6 +48251,46 @@ input SafetyAlertRemindInput {
 Autogenerated return type of SafetyAlertRemind.
 """
 type SafetyAlertRemindPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The alert as it now stands.
+  """
+  safetyAlert: SafetyAlert
+}
+
+"""
+Autogenerated input type of SafetyAlertResourceShare
+"""
+input SafetyAlertResourceShareInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The alert.
+  """
+  id: ID!
+
+  """
+  A line before it, up to 500 characters.
+  """
+  note: String
+
+  """
+  The community resource.
+  """
+  resourceId: ID!
+}
+
+"""
+Autogenerated return type of SafetyAlertResourceShare.
+"""
+type SafetyAlertResourceSharePayload {
   """
   A unique identifier for the client performing the mutation.
   """
@@ -48468,6 +48607,197 @@ type SafetyPosterIssuePayload {
   The live code.
   """
   safetyPoster: SafetyPoster!
+}
+
+"""
+Someone who backs up venue staff on safety alerts, in Arbiter, for the whole community or for some of its locales.
+"""
+type SafetyResponder {
+  """
+  Whether they cover every venue in the community.
+  """
+  everywhere: Boolean!
+
+  """
+  When they are pushed.
+  """
+  hears: SafetyResponderHears!
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  What they do.
+  """
+  kind: SafetyResponderKind!
+
+  """
+  The locales they cover, with every locale within them; empty when they cover every venue.
+  """
+  locales: [Locale!]!
+
+  """
+  Their name, as the audience shows it.
+  """
+  name: String!
+
+  """
+  Off duty, they are never pushed, though they can look.
+  """
+  onDuty: Boolean!
+
+  """
+  Their account.
+  """
+  userId: ID!
+}
+
+"""
+Autogenerated input type of SafetyResponderDutySet
+"""
+input SafetyResponderDutySetInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  When you are pushed; left out keeps it.
+  """
+  hears: SafetyResponderHears
+
+  """
+  Whether you are on duty.
+  """
+  onDuty: Boolean!
+}
+
+"""
+Autogenerated return type of SafetyResponderDutySet.
+"""
+type SafetyResponderDutySetPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  You, as you now stand.
+  """
+  safetyResponder: SafetyResponder!
+}
+
+"""
+When a safety responder is pushed about the alerts they cover.
+"""
+enum SafetyResponderHears {
+  """
+  Every alert as it is sent.
+  """
+  ALL
+
+  """
+  Only when nobody on shift picked it up in time, or the guest sent it again: backup for venue staff (the default).
+  """
+  ESCALATED
+
+  """
+  Never; they look in Arbiter when they choose.
+  """
+  NONE
+}
+
+"""
+What a safety responder does for the community.
+"""
+enum SafetyResponderKind {
+  """
+  One of the community's moderators.
+  """
+  MODERATOR
+
+  """
+  A social worker or support professional.
+  """
+  SOCIAL_WORKER
+}
+
+"""
+Autogenerated input type of SafetyResponderRemove
+"""
+input SafetyResponderRemoveInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The member (user ID).
+  """
+  userId: ID!
+}
+
+"""
+Autogenerated return type of SafetyResponderRemove.
+"""
+type SafetyResponderRemovePayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  Whether they were a responder.
+  """
+  removed: Boolean!
+}
+
+"""
+Autogenerated input type of SafetyResponderSave
+"""
+input SafetyResponderSaveInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  When they are pushed. Left out: ESCALATED for someone new, else unchanged.
+  """
+  hears: SafetyResponderHears
+
+  """
+  What they do. Left out: MODERATOR for someone new, else unchanged.
+  """
+  kind: SafetyResponderKind
+
+  """
+  The locales they cover, with every locale within them; empty for every venue.
+  Left out: every venue for someone new, else unchanged.
+  """
+  localeIds: [ID!]
+
+  """
+  The member (user ID or email).
+  """
+  userId: ID!
+}
+
+"""
+Autogenerated return type of SafetyResponderSave.
+"""
+type SafetyResponderSavePayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The responder as they now stand.
+  """
+  safetyResponder: SafetyResponder!
 }
 
 """

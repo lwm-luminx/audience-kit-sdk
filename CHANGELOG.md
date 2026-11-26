@@ -3,6 +3,18 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.101.0 (2026-11-26)
+
+- StaffKitServices: safety responders, the social workers and moderators who back up venue staff on safety alerts
+  from Arbiter (API doc/SAFETY_ALERTS.md, "Responders"). `SafetyResponderClient` reads the alerts the caller covers
+  (`alerts(localeID:)`, the whole community or their locales; admins every venue), their own settings
+  (`responder()`, `SafetyResponder`: kind, coverage, when they're pushed) and changes them (`setDuty`), registers Arbiter for pushes (`registerDevice`), and acts on an
+  alert as venue staff do (`see`, `acknowledge`, `sendMessage`, `shareSupport`, `close`), plus `shareResource`, which
+  puts a community resource (`resources(localeID:)`) in the thread and its chat room. `StaffSafetyAlert` gains
+  `venue` (with its locale), `acknowledgedByResponder` and each message's shared `resource` (`SharedResource`, with `sensitive`), all
+  optional so Velvet's reads are unchanged. `SafetyAlertPush.isForResponder` tells a responder's push apart. The
+  staff and consumer schemas are refreshed from the API's next branch.
+
 ## 0.100.0 (2026-11-25)
 
 - StaffKitServices: MagTek card readers at the door, through Magensa's Unigate gateway (API `Payments::Magtek`).

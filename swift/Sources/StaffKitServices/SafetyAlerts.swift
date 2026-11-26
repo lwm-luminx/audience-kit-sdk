@@ -14,6 +14,33 @@ public struct StaffSafetyAlert: Decodable, Sendable, Identifiable, Hashable {
         /// The guest's name, or the staff member's first name.
         public let senderName: String
         public let createdAt: String
+        /// A community resource staff or a responder shared (shareSafetyAlertResource); the body says the same in
+        /// text. Nil from an API before resource sharing, and in Velvet's reads, which don't ask for it.
+        public let resource: SharedResource?
+    }
+
+    /// A community resource shared in the thread: a shelter, food, a clinic. `sensitive` ones (a DV service) must
+    /// never be kept anywhere that shows they were opened.
+    public struct SharedResource: Decodable, Sendable, Identifiable, Hashable {
+        public let id: String
+        public let title: String
+        public let phone: String?
+        public let textNumber: String?
+        public let address: String?
+        public let url: String?
+        public let intakeNote: String?
+        public let sensitive: Bool
+    }
+
+    /// Where it was sent, for a responder's list across venues, with its locale (for the resources to share).
+    public struct VenueRef: Decodable, Sendable, Hashable {
+        public struct LocaleRef: Decodable, Sendable, Hashable {
+            public let id: String
+            public let name: String?
+        }
+        public let id: String
+        public let name: String?
+        public let locale: LocaleRef?
     }
 
     public struct Reporter: Decodable, Sendable, Hashable {
@@ -56,6 +83,10 @@ public struct StaffSafetyAlert: Decodable, Sendable, Identifiable, Hashable {
     public let reporter: Reporter?
     public let event: EventRef?
     public let messages: [Message]
+    /// Where it was sent; asked for only in a responder's reads (`SafetyResponderClient`).
+    public let venue: VenueRef?
+    /// A safety responder picked it up, not the venue's staff; nil from an API before responders.
+    public let acknowledgedByResponder: Bool?
 
     /// Still waiting for someone, or picked up and not closed: what the pinned card shows.
     public var isActive: Bool { state == "OPEN" || state == "ACKNOWLEDGED" }

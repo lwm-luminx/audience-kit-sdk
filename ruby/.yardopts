@@ -1,0 +1,8 @@
+--markup markdown
+--title "AudienceKit SDK for Ruby"
+--readme README.md
+--no-private
+lib/**/*.rb
+-
+CHANGELOG.md
+docs/*.md

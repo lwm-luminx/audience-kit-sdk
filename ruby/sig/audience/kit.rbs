@@ -1,31 +1,668 @@
+# Signatures for the audience-kit gem's public API.
 module Audience
   module Kit
     VERSION: String
+    API_VERSION: String
+    PRODUCTION_BASE_URL: String
     DEFAULT_BASE_URL: String
-
-    class Error < StandardError
-    end
+    API_VERSION_HEADER: String
+    CLIENT_HEADER: String
 
     attr_writer self.base_url: String?
     attr_writer self.token: String?
-    attr_writer self.connection: untyped
-
+    attr_writer self.audience_id: String?
+    attr_writer self.host: String?
+    attr_writer self.session: Session?
+    def self.client_header: () -> String
+    def self.older?: (String minimum, ?String version) -> bool
     def self.base_url: () -> String
     def self.token: () -> String?
+    def self.audience_id: () -> String?
+    def self.host: () -> String?
     def self.configure: () { (singleton(Kit)) -> void } -> singleton(Kit)
-    def self.connection: () -> untyped
-    def self.get: (String path) -> untyped
+    def self.session: () -> Session
+    def self.query: (String document, ?Hash[String, untyped]? variables) -> Hash[String, untyped]
+    def self.reset!: () -> void
 
-    class Event
-      attr_reader data: Hash[String, untyped]
-      def self.find: (untyped id) -> Event
-      def initialize: (Hash[String, untyped] data) -> void
+    type json = Hash[String, untyped]
+
+    class GraphQLError
+      attr_reader message: String
+      attr_reader path: Array[String | Integer]?
+      attr_reader extensions: json?
+      def initialize: (message: String, ?path: Array[String | Integer]?, ?extensions: json?) -> void
+      def self.from_h: (untyped data) -> GraphQLError
+      def code: () -> String?
     end
 
-    class Venue
-      attr_reader data: Hash[String, untyped]
+    class Error < StandardError
+      UNAUTHENTICATED: String
+      FORBIDDEN: String
+      NOT_FOUND: String
+      INVALID: String
+      RATE_LIMITED: String
+      CONFLICT: String
+      INTERNAL: String
+      NOT_SIGNED_IN: String
+      SIGN_IN_REJECTED: String
+      SIGN_IN_FAILED: String
+      HTTP: String
+      NETWORK: String
+      DECODING: String
+      GRAPHQL: String
+      MISSING_CONFIGURATION: String
+      STORAGE: String
+      UPDATE_REQUIRED: String
+      UNSUPPORTED_API_VERSION: String
+      UNSUPPORTED_API_VERSION_ERROR: String
+
+      attr_reader code: String
+      attr_reader status: Integer?
+      attr_reader fields: Hash[String, Array[String]]
+      attr_reader errors: Array[GraphQLError]
+      attr_reader minimum_sdk_version: String?
+      def initialize: (?String message, ?code: String, ?status: Integer?, ?fields: Hash[String, Array[String]],
+                       ?errors: Array[GraphQLError], ?minimum_sdk_version: String?) -> void
+      def self.graphql: (Array[GraphQLError] errors) -> Error
+      def unauthenticated?: () -> bool
+      def undefined_field?: () -> bool
+    end
+
+    module Environment
+      PRODUCTION: String
+      STAGING: String
+      HEADER: String
+      KNOWN: Array[String]
+    end
+
+    module GraphQLEndpoint
+      CONSUMER: String
+      def self.path: (String audience_id, ?String endpoint) -> String
+    end
+
+    class Configuration
+      attr_reader base_url: String
+      attr_reader host: String?
+      attr_reader audience_id: String?
+      attr_reader facebook_app_id: String?
+      attr_reader environment: String
+      attr_reader trusted_credential_origins: Array[String]
+      def initialize: (?base_url: String, ?host: String?, ?audience_id: String?, ?facebook_app_id: String?,
+                       ?environment: String, ?trusted_credential_origins: Array[String]) -> void
+      def api_base: (Credential? credential) -> String
+      def self.same_origin?: (String lhs, String rhs) -> bool
+    end
+
+    class Credential
+      attr_reader token: String
+      attr_reader user_id: String?
+      attr_reader audience_id: String?
+      attr_reader role: String
+      attr_reader endpoint: String
+      attr_reader venue_device_id: String?
+      attr_reader expires_at: Time?
+      attr_reader api_version: String
+      attr_reader scopes: Array[String]
+      attr_reader audience: String?
+      def initialize: (token: String, endpoint: String, ?user_id: String?, ?audience_id: String?, ?role: String,
+                       ?venue_device_id: String?, ?expires_at: Time?, ?api_version: String, ?scopes: Array[String],
+                       ?audience: String?) -> void
+      def self.from_h: (json data) -> Credential
+      def to_h: () -> json
+      def expired?: (?Time at) -> bool
+      def expires_within?: (Numeric seconds, ?Time at) -> bool
+      def service?: () -> bool
+      def scope?: (String scope) -> bool
+      def origin: () -> String?
+    end
+
+    interface _CredentialStore
+      def load: () -> Credential?
+      def save: (Credential credential) -> void
+      def delete: () -> void
+    end
+
+    module CredentialStore : _CredentialStore
+    end
+
+    class MemoryCredentialStore
+      include CredentialStore
+      def initialize: (?Credential? credential) -> void
+    end
+
+    class SessionCredentialStore
+      include CredentialStore
+      attr_reader key: String
+      def initialize: (untyped session, ?key: String) -> void
+    end
+
+    class DeviceDescription
+      attr_reader identifier: String
+      attr_reader type: String
+      attr_reader model: String?
+      attr_reader version: String?
+      attr_reader build: String?
+      def initialize: (identifier: String, ?type: String, ?model: String?, ?version: String?, ?build: String?) -> void
+      def to_body: () -> Hash[String, String]
+    end
+
+    class SchemaShape
+      attr_reader fields: Hash[String, Array[String]]?
+      def initialize: (?Hash[String, Array[String]]? fields) -> void
+      def self.everything: () -> SchemaShape
+      def has?: (String type, String field) -> bool
+    end
+
+    class Coordinate
+      attr_reader latitude: Float
+      attr_reader longitude: Float
+      attr_reader beacon_major: Integer?
+      attr_reader beacon_minor: Integer?
+      def initialize: (latitude: Numeric, longitude: Numeric, ?beacon_major: Integer?, ?beacon_minor: Integer?) -> void
+      def self.from_wkt: (String wkt) -> Coordinate?
+      def to_input: () -> Hash[String, Numeric]
+      def to_wkt: () -> String
+      def distance_to: (Coordinate other) -> Float
+    end
+
+    class Color
+      attr_reader red: Float
+      attr_reader green: Float
+      attr_reader blue: Float
+      attr_reader alpha: Float
+      def initialize: (red: Numeric, green: Numeric, blue: Numeric, ?alpha: Numeric) -> void
+      def self.from_hex: (String hex) -> Color?
+      def self.from_theme: (json? theme, String token, ?dark: bool) -> Color?
+      def to_css: () -> String
+      def to_hex: () -> String
+    end
+
+    module CoverPass
+      PREFIX: String
+      WINDOW_SECONDS: Integer
+      def self.window: (Integer epoch_seconds) -> Integer
+      def self.seconds_until_next_window: (Integer epoch_seconds) -> Integer
+      def self.signature: (String admission_id, String pass_secret, Integer window) -> String
+      def self.code: (String admission_id, String pass_secret, ?Integer? epoch_seconds) -> String
+      def self.code?: (String code) -> bool
+    end
+
+    module ReportTarget
+      MESSAGE: String
+      PERSON: String
+      PHOTO: String
+      PING: String
+      PRIVATE_MESSAGE: String
+      POST: String
+      POST_COMMENT: String
+      VENUE: String
+      ALL: Array[String]
+      INTIMATE_IMAGE: String
+      REASONS: Array[String]
+    end
+
+    class Model
+      attr_reader raw: json
+      alias data raw
+      def self.from: (untyped data) -> instance?
+      def self.list: (untyped data) -> Array[instance]
+      def self.attributes: () -> Array[Symbol]
+      def initialize: (json raw) -> void
+      def []: (String | Symbol key) -> untyped
+      def dig: (*(String | Symbol) keys) -> untyped
+      def to_h: () -> json
+      def to_json: (*untyped) -> String
+    end
+
+    class Page < Model
+      def id: () -> String
+      def name: () -> String
+      def photo_url: () -> String?
+      def banner_url: () -> String?
+    end
+
+    class Profile < Model
+      def id: () -> String
+      def name: () -> String
+      def avatar_url: () -> String?
+    end
+
+    class Audience < Model
+      def id: () -> String
+      def name: () -> String
+      def subdomain: () -> String?
+      def theme: () -> Hash[String, untyped]?
+      def color: (String token, ?dark: bool) -> Color?
+    end
+
+    class SelfUser < Model
+      def id: () -> String
+      def name: () -> String
+      def first_name: () -> String?
+      def last_name: () -> String?
+      def email_address: () -> String?
+      def admin?: () -> bool
+      def presence: () -> String?
+    end
+
+    class Tag < Model
+      def id: () -> String
+      def name: () -> String
+      def color_hex: () -> String?
+      def tribe?: () -> bool
+      def color: () -> Color?
+    end
+
+    class TribeIdentification < Model
+      def private?: () -> bool
+      def tag: () -> Tag?
+    end
+
+    class Locale < Model
+      def id: () -> String
+      def name: () -> String
+      def label: () -> String?
+      def city_names: () -> Array[String]
+      def banner_url: () -> String?
+      def place_id: () -> String?
+    end
+
+    class Location < Model
+      def id: () -> String?
+      def address: () -> String?
+      def place_id: () -> String?
+      def coordinate: () -> Coordinate?
+    end
+
+    class Money < Model
+      def cents: () -> Integer
+      SYMBOLS: Hash[String, String]
+      def currency: () -> String
+      def amount: () -> Float
+      def format: () -> String
+      def to_s: () -> String
+    end
+
+    class AdmissionOffer < Model
+      def price: () -> Money?
+      def url: () -> String?
+      def seller_key: () -> String?
+      def seller_name: () -> String?
+    end
+
+    class ChatMessage < Model
+      def id: () -> String
+      def name: () -> String?
+      def user_id: () -> String?
+      def avatar_url: () -> String?
+      def photo_url: () -> String?
+      def sent_at: () -> Time?
+      def role: () -> String?
+      def kind: () -> String?
+      def title: () -> String?
+      def pinned?: () -> bool
+      def body: () -> String?
+    end
+
+    class Venue < Model
+      def id: () -> String
+      def name: () -> String
+      def hidden?: () -> bool
+      def order: () -> Integer?
+      def photo_url: () -> String?
+      def banner_url: () -> String?
+      def locale: () -> Locale?
+      def location: () -> Location?
+      def tags: () -> Array[Tag]
+      def facebook_page: () -> Page?
+      def description: () -> String?
+      def address: () -> String?
+      def phone: () -> String?
+      def website: () -> String?
+      def social_links: () -> Array[Hash[String, untyped]]
+      def recent_messages: () -> Array[ChatMessage]
+      def upcoming_events: () -> Array[Event]
+      def chat_open: () -> bool?
+      def coordinate: () -> Coordinate?
       def self.find: (untyped id) -> Venue
-      def initialize: (Hash[String, untyped] data) -> void
+    end
+
+    class Person < Model
+      def id: () -> String
+      def name: () -> String
+      def avatar_url: () -> String?
+      def banner_url: () -> String?
+      def order: () -> Integer?
+      def global?: () -> bool
+      def like_required?: () -> bool
+      def tags: () -> Array[Tag]
+      def locales: () -> Array[Locale]
+      def facebook_page: () -> Page?
+      def home_venue: () -> Venue?
+      def involvements: () -> Array[Hash[String, untyped]]
+    end
+
+    class CoverCharge < Model
+      def amount: () -> Money?
+      def fee: () -> Money?
+      def total: () -> Money?
+      def night: () -> String?
+      def from: () -> Time?
+      def payable?: () -> bool
+      def event: () -> Hash[String, untyped]?
+      def coat_check: () -> Hash[String, untyped]?
+      def scale_min: () -> Money?
+      def scale_max: () -> Money?
+      def scale_suggested: () -> Money?
+      def sliding_scale?: () -> bool
+      def coat_check?: () -> bool
+    end
+
+    class Event < Model
+      def id: () -> String
+      def name: () -> String
+      def description: () -> String?
+      def start_at: () -> Time?
+      def end_at: () -> Time?
+      def featured?: () -> bool
+      def canceled?: () -> bool
+      def banner_url: () -> String?
+      def source_url: () -> String?
+      def locale: () -> Locale?
+      def tags: () -> Array[Tag]
+      def venue_name: () -> String?
+      def venue: () -> Venue?
+      def rsvp: () -> String?
+      def rsvp_count: () -> Integer?
+      def hosts: () -> Array[Profile]
+      def lineup: () -> Array[Profile]
+      def jockeys: () -> Array[Profile]
+      def jockey_label: () -> String?
+      def ticket_url: () -> String?
+      def offers: () -> Array[AdmissionOffer]
+      def cover: () -> CoverCharge?
+      def effective_hosts: () -> Array[Profile]
+      def ended?: (?Time at) -> bool
+      def self.find: (untyped id) -> Event
+    end
+
+    class EventSeries < Model
+      def id: () -> String
+      def name: () -> String
+      def description: () -> String?
+      def recurrence_text: () -> String?
+      def starts_on: () -> String?
+      def start_time: () -> String?
+      def time_zone: () -> String?
+      def duration_minutes: () -> Integer?
+      def banner_url: () -> String?
+      def locale: () -> Locale?
+      def tags: () -> Array[Tag]
+      def venue_name: () -> String?
+      def venue: () -> Venue?
+    end
+
+    class EventRSVP < Model
+      def count: () -> Integer
+      def mine: () -> String?
+      def mine_source: () -> String?
+      def going: () -> Integer?
+      def interested: () -> Integer?
+      def tickets: () -> Integer?
+      def attendees: () -> Array[Hash[String, untyped]]
+      def going?: () -> bool
+      def attendee_profiles: () -> Array[Profile]
+    end
+
+    class Admission < Model
+      def id: () -> String
+      def status: () -> String
+      def kind: () -> String
+      def night: () -> String?
+      def quantity: () -> Integer
+      def tier: () -> String?
+      def claim_check_number: () -> String?
+      def amount: () -> Money?
+      def fee: () -> Money?
+      def total: () -> Money?
+      def refundable?: () -> bool
+      def pass_secret: () -> String?
+      def scan_count: () -> Integer
+      def checked_in_at: () -> Time?
+      def created_at: () -> Time?
+      def profile: () -> Profile?
+      def venue: () -> Hash[String, untyped]?
+      def event: () -> Hash[String, untyped]?
+      def paid?: () -> bool
+      def pass_code: (?Integer? epoch_seconds) -> String?
+    end
+
+    class CoverPurchase < Model
+      def admission: () -> Admission?
+      def provider: () -> String?
+      def payment_intent_client_secret: () -> String?
+      def publishable_key: () -> String?
+      def stripe_account_id: () -> String?
+      def square_application_id: () -> String?
+      def square_location_id: () -> String?
+    end
+
+    class VenueCover < Model
+      def id: () -> String
+      def name: () -> String
+      def charge: () -> CoverCharge?
+      def viewer_admission: () -> Admission?
+      def viewer_coat_check: () -> Admission?
+    end
+
+    class Publication < Model
+      def id: () -> String
+      def name: () -> String
+      def masthead: () -> String?
+      def about: () -> String?
+      def website_url: () -> String?
+      def photo_url: () -> String?
+      def trusted?: () -> bool
+      def accepts_op_eds?: () -> bool
+      def op_ed_guidelines: () -> String?
+      def locale: () -> Locale?
+      def person: () -> Profile?
+      def ad_free_offered?: () -> bool
+      def ad_free_tip_cents: () -> Integer?
+      def ad_free_days: () -> Integer?
+    end
+
+    class Article < Model
+      def id: () -> String
+      def slug: () -> String?
+      def title: () -> String
+      def summary: () -> String?
+      def byline: () -> String?
+      def kind: () -> String?
+      def published_at: () -> Time?
+      def edited?: () -> bool
+      def pinned?: () -> bool
+      def teaser?: () -> bool
+      def canonical_url: () -> String?
+      def disclosure: () -> String?
+      def hero_photo_url: () -> String?
+      def hero_alt_text: () -> String?
+      def publication: () -> Publication?
+      def body: () -> String?
+      def viewer_ad_free?: () -> bool
+      def featured_nationally?: () -> bool
+      def status: () -> String?
+      def review_note: () -> String?
+      def submitted_at: () -> Time?
+      def subjects: () -> Hash[String, Array[Hash[String, untyped]]]
+    end
+
+    class PublicListing < Model
+      def kind: () -> String
+      def id: () -> String
+      def path: () -> String?
+      def visibility: () -> String?
+      def title: () -> String?
+      def description: () -> String?
+      def address: () -> String?
+      def phone: () -> String?
+      def website: () -> String?
+      def listed: () -> bool?
+      def image: () -> String?
+      def start_at: () -> Time?
+      def end_at: () -> Time?
+      def venue_name: () -> String?
+      def ticket_url: () -> String?
+      def canceled: () -> bool?
+      def cover_cents: () -> Integer?
+      def public?: () -> bool
+    end
+
+    class CalendarFeed < Model
+      def url: () -> String
+      def webcal_url: () -> String
+      def google_url: () -> String
+      def venue_ids: () -> Array[String]
+      def follows?: (String venue_id) -> bool
+    end
+
+    class PublicListingsPage
+      attr_reader listings: Array[PublicListing]
+      attr_reader page_count: Integer
+      attr_reader next_page: Integer?
+      def self.from_h: (json json) -> PublicListingsPage
+    end
+
+    class ArticlesPage
+      attr_reader articles: Array[Article]
+      attr_reader end_cursor: String?
+      attr_reader next_page: bool
+      def self.from_connection: (json? connection) -> ArticlesPage
+      def next_page?: () -> bool
+    end
+
+    class Community
+      attr_reader audience: Audience?
+      attr_reader locales: Array[Locale]
+      attr_reader venues: Array[Venue]
+      attr_reader people: Array[Person]
+      attr_reader events: Array[Event]
+      attr_reader event_series: Array[EventSeries]
+    end
+
+    class ReportResult
+      attr_reader reported: bool
+      attr_reader blocked: bool
+      def reported?: () -> bool
+      def blocked?: () -> bool
+    end
+
+    class Tribes
+      attr_reader tribes: Array[Tag]
+      attr_reader mine: Array[TribeIdentification]
+    end
+
+    module Queries
+      def self.all: () -> Hash[String, String]
+      def self.report_location: (String fields) -> String
+      def self.chat_room: (Symbol | String kind, ?watch: bool) -> String
+      def self.event_fields: (SchemaShape shape) -> String
+      def self.venue_fields: (SchemaShape shape) -> String
+      def self.locale_fields: (SchemaShape shape) -> String
+      def self.article_fields: (SchemaShape shape) -> String
+      def self.articles_about: (Symbol | String topic) -> [String, ^(SchemaShape) -> String]
+    end
+
+    module Operations
+      def audience: () -> Audience
+      def me: () -> SelfUser?
+      def venues: () -> Array[Venue]
+      def people: () -> Array[Person]
+      def locales: () -> Array[Locale]
+      def closest_locale: (Coordinate near) -> Locale?
+      def report_location: (Coordinate position, String fields) -> json
+      def community: () -> Community
+      def events: (?window: String, ?locale_id: String?, ?venue_id: String?, ?first: Integer) -> Array[Event]
+      def event: (String id) -> Event?
+      def event_series: (?locale_id: String?, ?venue_id: String?, ?first: Integer) -> Array[EventSeries]
+      def venue_detail: (String id, ?recent_messages: Integer) -> Venue?
+      def node_type: (String id) -> String?
+      def public_listings_page: (?Integer page) -> PublicListingsPage
+      def public_listings: () -> Array[PublicListing]
+      def public_listing: (String | Symbol kind, String id) -> PublicListing?
+      def public_tonight: (String venue_id) -> json
+      def rsvp_event: (String event_id, String state) -> String
+      def cancel_rsvp: (String event_id) -> EventRSVP
+      def event_rsvp: (String event_id, ?first: Integer) -> EventRSVP?
+      def tribes: () -> Tribes
+      def identify_with_tribe: (String tag_id, ?private: bool?) -> Array[TribeIdentification]
+      def leave_tribe: (String tag_id) -> Array[TribeIdentification]
+      def register_device: (String notification_token, ?app_id: String?, ?sandbox: bool?) -> bool
+      def venue_cover: (String venue_id) -> VenueCover?
+      def venue_offers: (String venue_id, ?night: String?) -> Array[AdmissionOffer]
+      def admissions: () -> Array[Admission]
+      def buy_cover: (String venue_id, ?amount_cents: Integer?, ?currency: String) -> CoverPurchase
+      def buy_coat_check: (String venue_id, ?quantity: Integer) -> CoverPurchase
+      def pay_cover: (String admission_id, source_id: String, ?verification_token: String?) -> Admission
+      def confirm_cover: (String admission_id) -> Admission
+      def refund_admission: (String admission_id) -> Admission
+      def articles: (?locale_id: String?, ?publication_id: String?, ?first: Integer?) -> Array[Article]
+      def articles_page: (?locale_id: String?, ?publication_id: String?, ?first: Integer, ?after: String?) -> ArticlesPage
+      def national_articles: (?locale_id: String?, ?first: Integer?) -> Array[Article]
+      def article: (String id) -> Article?
+      def articles_about: (String | Symbol topic, String id, ?first: Integer?) -> Array[Article]
+      def publications: () -> Array[Publication]
+      def local_publications: (String locale_id) -> Array[Publication]
+      def publication: (String id) -> Publication?
+      def my_op_eds: () -> Array[Article]
+      def submit_op_ed: (String publication_id, title: String, body: String, ?summary: String?, ?byline: String?) -> Article
+      def calendar_feed: () -> CalendarFeed?
+      def create_calendar_feed: (?reset: bool) -> CalendarFeed
+      def follow_venue_in_calendar: (String venue_id, ?following: bool) -> CalendarFeed
+      def delete_calendar_feed: () -> bool
+      def send_chat_message: (String message, ?venue_id: String?, ?locale_id: String?, ?prompt_id: String?) -> ChatMessage
+      def remove_chat_message: (String message_id) -> String
+      def report_content: (String target_type, String id, ?reason: String?, ?block: bool) -> ReportResult
+      def block_user: (String user_id) -> nil
+      def unblock_user: (String user_id) -> nil
+    end
+
+    class Session
+      include Operations
+      SERVICE_RENEW_BEFORE: Integer
+      attr_reader configuration: Configuration
+      def initialize: (?configuration: Configuration, ?store: _CredentialStore, ?http: untyped) -> void
+      def self.from_env: (?Hash[String, String] env, ?http: untyped) -> Session
+      def self.build: (configuration: Configuration, ?token: String?, ?http: untyped) -> Session
+      def self.describe: (String document, String? operation_name) -> [String, String?]
+      def signed_in?: () -> bool
+      def credential: () -> Credential?
+      def session_token: () -> String?
+      def sign_in_with_facebook_token: (String access_token, device: DeviceDescription) -> Credential
+      def sign_in_with_facebook_code: (String code, redirect_uri: String, device: DeviceDescription, ?facebook_app_id: String?) -> Credential
+      def sign_in_with_google: (String id_token, device: DeviceDescription, ?name: String?, ?access_token: String?) -> Credential
+      def connect_google: (String id_token, device: DeviceDescription) -> Credential
+      def sign_in_with_apple: (String identity_token, device: DeviceDescription, ?authorization_code: String?,
+                               ?redirect_uri: String?, ?nonce: String?, ?first_name: String?, ?last_name: String?) -> Credential
+      def sign_in_with_review_code: (String code, device: DeviceDescription) -> Credential
+      def connect_facebook: (String code, redirect_uri: String, device: DeviceDescription) -> Credential
+      def refresh_session: () -> Credential
+      def use_service_token: (String service_token) -> Credential
+      def use_bearer_token: (String token) -> Credential
+      def adopt: (Credential credential) -> Credential
+      def switch_audience: (String audience_id) -> Credential
+      def sign_out: () -> void
+      def delete_account: () -> bool
+      def session_rejected: (String? token) -> bool
+      def branding: (?host: String?, ?app: String?) -> json
+      def audience_id: () -> String
+      def graphql: (String document, ?json? variables, ?operation_name: String?, ?endpoint: String) -> json
+      def shaped_graphql: (Array[String] types, json? variables, String operation_name) { (SchemaShape) -> String } -> json
+      def schema_fields: (Array[String] types, ?endpoint: String) -> Hash[String, Array[String]]
+      def cached_schema_fields: (Array[String] types, ?endpoint: String) -> Hash[String, Array[String]]?
+      def request: (String path, ?method: Symbol, ?query: Hash[String, untyped], ?body: untyped, ?authenticated: bool,
+                    ?headers: Hash[String, String], ?base_url: String?) -> String
+      def url: (String? string) -> String?
     end
   end
 end

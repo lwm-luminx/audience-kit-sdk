@@ -7,7 +7,7 @@ Gem::Specification.new do |spec|
   spec.version = Audience::Kit::VERSION
   spec.authors = ["Love Wins Media, Inc."]
 
-  spec.summary = "AudienceKit SDK for Ruby: an audience's venues and events over the AudienceKit API"
+  spec.summary = "AudienceKit SDK for Ruby: sign people in and read an audience's venues, events, news and chat"
   spec.description = <<~TEXT
     Ruby client for AudienceKit, the platform behind Hot Mess. Source-available under the AudienceKit SDK License 1.2:
     use it only with AudienceKit as hosted by Love Wins Media, Inc. See LICENSE.
@@ -26,9 +26,10 @@ Gem::Specification.new do |spec|
   spec.metadata["changelog_uri"] = "https://github.com/lwm-luminx/audience-kit-sdk/blob/main/ruby/CHANGELOG.md"
   spec.metadata["rubygems_mfa_required"] = "true"
 
-  # Only what a program that requires the gem needs, plus the license, README and changelog.
+  # Only what a program that requires the gem needs, plus the license, README, changelog and guides (which the YARD
+  # reference on RubyDoc.info includes).
   spec.files = Dir.chdir(File.expand_path(__dir__)) do
-    Dir["lib/**/*.rb", "sig/**/*.rbs"] + %w[LICENSE README.md CHANGELOG.md]
+    Dir["lib/**/*.rb", "sig/**/*.rbs", "docs/*.md", ".yardopts"] + %w[LICENSE README.md CHANGELOG.md]
   end
   spec.bindir = "exe"
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }

@@ -45,6 +45,19 @@ jobs:
       # Specs (SimpleCov fails them when a line or branch of lib/ isn't covered, since CI sets CI) and RuboCop.
       - run: bundle exec rake
       - run: gem build audience-kit.gemspec
+      # The gem's GraphQL documents, checked against the API schema like the other SDKs' (once: they're the same on
+      # every Ruby).
+      - if: matrix.ruby == '3.4'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: GraphQL documents match the API schema
+        if: matrix.ruby == '3.4'
+        run: |
+          bundle exec bin/graphql-documents build/graphql
+          # The checker imports graphql from where it lives, so the package goes at the repository root.
+          (cd .. && npm install --silent --no-save --no-package-lock graphql@16)
+          node ../scripts/graphql/check.mjs --schema ../graphql/schema.graphql --endpoint consumer build/graphql
 
   release:
     # Publishes the gem to rubygems.org when main carries a version that isn't there yet, then tags the commit

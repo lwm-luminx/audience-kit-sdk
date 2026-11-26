@@ -71,19 +71,39 @@ export class AudienceKitError extends Error {
   readonly status?: number;
   /** The GraphQL errors, for `GRAPHQL`. */
   readonly errors: GraphQLErrorEntry[];
-  /** The API's own message, for `SIGN_IN_FAILED` and `SIGN_IN_REJECTED`, when it sent one. */
+  /** The API's own message, for `SIGN_IN_FAILED` and `SIGN_IN_REJECTED`, and for a REST error whose body had one. */
   readonly faultMessage?: string;
+  /**
+   * The API's error code from a REST error's body (`{ "error": "<code>", "message": "..." }`): `INVALID`,
+   * `RATE_LIMITED`, `CONFLICT` and so on, when it sent one.
+   */
+  readonly apiCode?: string;
+  /** A REST error's messages by field (`fields`), on `INVALID`. */
+  readonly fields?: Record<string, string[]>;
+  /** Why a REST error refused (`reason`), on `FORBIDDEN`. */
+  readonly reason?: string;
 
   constructor(
     code: AudienceKitErrorCode,
     message: string,
-    options: { status?: number; errors?: GraphQLErrorEntry[]; cause?: unknown; faultMessage?: string } = {},
+    options: {
+      status?: number;
+      errors?: GraphQLErrorEntry[];
+      cause?: unknown;
+      faultMessage?: string;
+      apiCode?: string;
+      fields?: Record<string, string[]>;
+      reason?: string;
+    } = {},
   ) {
     super(message, options.cause === undefined ? undefined : { cause: options.cause });
     this.code = code;
     this.status = options.status;
     this.errors = options.errors ?? [];
     this.faultMessage = options.faultMessage;
+    this.apiCode = options.apiCode;
+    this.fields = options.fields;
+    this.reason = options.reason;
   }
 
   /** Whether the session ended (`UNAUTHORIZED`): show sign-in again. */
@@ -149,17 +169,54 @@ export class AudienceKitError extends Error {
     return new AudienceKitError("TOKEN_STORAGE", `The session couldn't be saved. ${detail}`);
   }
 
-  /** The error for an unsuccessful HTTP status. */
-  static forStatus(status: number): AudienceKitError {
-    switch (status) {
-      case 401:
-        return AudienceKitError.unauthorized();
-      case 403:
-        return AudienceKitError.forbidden();
-      case 404:
-        return AudienceKitError.notFound();
-      default:
-        return AudienceKitError.http(status);
-    }
+  /**
+   * The error for an unsuccessful HTTP status. `body` is the response's, whose REST error JSON (`error`, `message`,
+   * `fields`, `reason`) the error keeps as `apiCode`, `faultMessage`, `fields` and `reason`.
+   */
+  static forStatus(status: number, body?: string | null): AudienceKitError {
+    const base = (() => {
+      switch (status) {
+        case 401:
+          return AudienceKitError.unauthorized();
+        case 403:
+          return AudienceKitError.forbidden();
+        case 404:
+          return AudienceKitError.notFound();
+        default:
+          return AudienceKitError.http(status);
+      }
+    })();
+    const detail = restErrorBody(body);
+    return new AudienceKitError(base.code, detail?.message ?? base.message, {
+      status,
+      faultMessage: detail?.message,
+      apiCode: detail?.error,
+      fields: detail?.fields,
+      reason: detail?.reason,
+    });
   }
+}
+
+/** A REST error body's parts, or null when `body` isn't one. */
+function restErrorBody(
+  body: string | null | undefined,
+): { error?: string; message?: string; fields?: Record<string, string[]>; reason?: string } | null {
+  if (!body) return null;
+  let json: unknown;
+  try {
+    json = JSON.parse(body);
+  } catch {
+    return null;
+  }
+  if (!json || typeof json !== "object" || Array.isArray(json)) return null;
+  const record = json as Record<string, unknown>;
+  const text = (value: unknown) => (typeof value === "string" && value !== "" ? value : undefined);
+  const fields = graphQLErrorFields({ message: "", extensions: { fields: record.fields } });
+  const detail = {
+    error: text(record.error),
+    message: text(record.message),
+    fields: Object.keys(fields).length > 0 ? fields : undefined,
+    reason: text(record.reason),
+  };
+  return detail.error || detail.message || detail.fields || detail.reason ? detail : null;
 }

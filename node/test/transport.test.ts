@@ -14,8 +14,20 @@ describe("the fetch transport", () => {
     expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 
-  it("uses the global fetch by default", () => {
-    expect(() => new FetchTransport()).not.toThrow();
+  it("uses the global fetch by default, called on the global object as browsers and Workers require", async () => {
+    const original = globalThis.fetch;
+    let receiver: unknown;
+    globalThis.fetch = async function (this: unknown) {
+      receiver = this;
+      if (this !== undefined && this !== globalThis) throw new TypeError("Illegal invocation");
+      return new Response("ok");
+    } as typeof fetch;
+    try {
+      expect(await new FetchTransport().execute(request)).toEqual({ status: 200, body: "ok" });
+      expect(receiver === undefined || receiver === globalThis).toBe(true);
+    } finally {
+      globalThis.fetch = original;
+    }
   });
 
   it("refuses to start without any fetch", () => {

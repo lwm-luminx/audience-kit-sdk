@@ -72,11 +72,13 @@ private func article(_ id: String, _ title: String) -> String {
     #expect(try await MemberActions.goingTo(api.client, eventID: "e1") == .attending)
     #expect(try await MemberActions.calendarLinks(api.client).webcalUrl == "webcal://f")
     #expect(try await MemberActions.calendarLinks(api.client, venueID: "v1").googleUrl == "https://g")
+    #if canImport(CryptoKit)
     let pass = try #require(try await MemberActions.doorPass(api.client, venueID: "v1",
                                                             at: Date(timeIntervalSince1970: 1_000_005)))
     #expect(pass.code.hasPrefix("HMC1.adm-1.33333."))
-    #expect(pass.refreshInSeconds == 25)
+    #expect(pass.refreshInSeconds == 15)
     #expect(try await MemberActions.doorPass(api.client, venueID: "gone") == nil)
+    #endif
     let result = try await MemberActions.reportHarassment(api.client, messageID: "m1")
     #expect(result.reported && result.blocked)
     #expect(api.requests.last?.string("reason") == "Harassment or hate")

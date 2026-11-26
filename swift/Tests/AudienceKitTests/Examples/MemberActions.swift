@@ -16,6 +16,7 @@ public enum MemberActions {
         return try await client.createCalendarFeed().links
     }
 
+    #if canImport(CryptoKit)
     /// The door code and how many seconds it's good for.
     public struct DoorPass: Equatable, Sendable {
         public let code: String
@@ -34,6 +35,7 @@ public enum MemberActions {
         else { return nil }
         return DoorPass(code: code, refreshInSeconds: CoverPass.secondsRemaining(at: date))
     }
+    #endif
 
     /// Reports a chat message as harassment and blocks whoever sent it.
     public static func reportHarassment(_ client: AudienceKitClient, messageID: String) async throws -> ReportResult {

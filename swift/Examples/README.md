@@ -8,6 +8,6 @@ so the same code feeds a SwiftUI view, a widget or a watch app, and the SDK's te
 | --- | --- |
 | [`WhatsOn.swift`](../Tests/AudienceKitTests/Examples/WhatsOn.swift) | A locale's upcoming events grouped by night, in the locale's time zone, for a list or a widget |
 | [`NewsDigest.swift`](../Tests/AudienceKitTests/Examples/NewsDigest.swift) | A Markdown digest of a locale's news and its national news |
-| [`MemberActions.swift`](../Tests/AudienceKitTests/Examples/MemberActions.swift) | What a signed-in member does: RSVP, calendar links, the door pass and reporting |
+| [`MemberActions.swift`](../Tests/AudienceKitTests/Examples/MemberActions.swift) | What a signed-in member does: RSVP, calendar links, the door pass (Apple platforms, which have CryptoKit) and reporting |
 
 Signing in, the session and realtime are in the [package's README](../README.md).

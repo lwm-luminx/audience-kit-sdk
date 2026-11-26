@@ -325,6 +325,19 @@ private func makeClient(
         #expect(try store.load()?.token == "fresh-token")
     }
 
+    @Test func leavesAFreshStaffTokenAlone() async throws {
+        let stub = Stub { _ in .json(status: 200, body: #"{"data":{"venues":{"list":{"nodes":[]}}}}"#) }
+        let (client, store) = makeClient(stub, token: nil)
+        let old = makeCredential(baseURL: stub.baseURL, token: "staff-token")
+        // A staff session runs 30 days; one just issued has nearly all of them left.
+        try store.save(Credential(token: old.token, userId: old.userId, audienceId: old.audienceId, role: old.role,
+                                  endpoint: old.endpoint, expiresAt: Date().addingTimeInterval(30 * 24 * 60 * 60 - 60)))
+
+        _ = try await client.venues()
+
+        #expect(stub.requests.map(\.path) == ["/v1/audience/\(audienceID)/graphql"])
+    }
+
     @Test func keepsATokenWithTimeLeftAndUsesTheOldOneWhenRefreshFails() async throws {
         let stub = Stub { request in
             request.path == "/v1/token/refresh"

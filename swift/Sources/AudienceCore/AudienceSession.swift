@@ -255,14 +255,17 @@ public actor AudienceSession {
 
     static let refreshPath = "/v1/token/refresh"
     /// Refresh once the token has this long left, or has run out (the API still trades an expired one for 30 days).
-    static let refreshWindow: TimeInterval = 30 * 24 * 60 * 60
+    /// Shorter than the shortest session the API issues (30 days for staff, 90 for members): at 30 days a staff
+    /// token was due the moment it was issued, so every session refreshed on its first call and then hourly, about
+    /// 46 refreshes a minute across the apps in November 2026.
+    static let refreshWindow: TimeInterval = 7 * 24 * 60 * 60
     /// How long to wait after a refresh that didn't work (offline, say) before trying again.
     static let refreshRetryInterval: TimeInterval = 60 * 60
     private var refreshAttemptedAt: Date?
 
     /// Trades the session token for a new one with a later ``Credential/expiresAt`` (`POST /v1/token/refresh`) and
     /// stores it. The session and the person stay the same, so no ``SessionEvent`` is sent. The SDK does this by
-    /// itself before a call when the token is within 30 days of expiring, so apps rarely need to. A 401 means the
+    /// itself before a call when the token is within 7 days of expiring, so apps rarely need to. A 401 means the
     /// session ended, like any other call.
     @discardableResult
     public func refreshSession() async throws -> Credential {

@@ -48780,9 +48780,9 @@ input SafetyResponderSaveInput {
   localeIds: [ID!]
 
   """
-  The member (user ID or email).
+  The member (user ID or email). Left out: the admin themselves, so an admin can cover alerts from Arbiter.
   """
-  userId: ID!
+  userId: ID
 }
 
 """

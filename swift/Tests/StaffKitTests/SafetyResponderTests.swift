@@ -74,6 +74,18 @@ private let responderAlertJSON = #"""
     #expect(try lastRequest(stub).input["onDuty"] as? Bool == false)
 }
 
+@Test func anAdminCoversEveryVenue() async throws {
+    let stub = Stub { _ in
+        .json(status: 200, body: #"{"data":{"saveSafetyResponder":{"safetyResponder":{"kind":"SOCIAL_WORKER","hears":"ESCALATED","onDuty":true,"everywhere":true,"locales":[]}}}}"#)
+    }
+    let responder = try await responderClient(stub).coverEveryVenue(kind: "SOCIAL_WORKER")
+    #expect(responder.everywhere && responder.onDuty && responder.coverage == "Every venue")
+    let request = try lastRequest(stub)
+    #expect(request.input["kind"] as? String == "SOCIAL_WORKER")
+    #expect((request.input["localeIds"] as? [Any])?.isEmpty == true)
+    #expect(request.input["userId"] == nil)
+}
+
 @Test func aResponderActsOnAnAlertAndSharesAResource() async throws {
     let stub = Stub { request in
         let query = (try? request.jsonBody()["query"] as? String) ?? ""

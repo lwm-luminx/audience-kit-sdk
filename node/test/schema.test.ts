@@ -39,6 +39,26 @@ const documents: Record<string, string> = {
   removeChatMessage: Queries.removeChatMessage,
   venueChatRoom: Queries.chatRoom({ kind: "venue", id: "v" }, true),
   localeChatRoom: Queries.chatRoom({ kind: "locale", id: "l" }),
+  articles: Queries.articles(),
+  articlesPage: Queries.articlesPage(),
+  nationalArticles: Queries.nationalArticles(),
+  article: Queries.article(),
+  articlesAboutVenue: Queries.articlesAbout("venue"),
+  articlesAboutEvent: Queries.articlesAbout("event"),
+  articlesAboutPerson: Queries.articlesAbout("person"),
+  articlesAboutLocale: Queries.articlesAbout("locale"),
+  publications: Queries.publications(),
+  publication: Queries.publication(),
+  myOpEds: Queries.myOpEds(),
+  submitOpEd: Queries.submitOpEd,
+  calendarFeed: Queries.calendarFeed,
+  createCalendarFeed: Queries.createCalendarFeed,
+  setCalendarFeedVenue: Queries.setCalendarFeedVenue,
+  deleteCalendarFeed: Queries.deleteCalendarFeed,
+  reportContent: Queries.reportContent,
+  blockUser: Queries.blockUser,
+  unblockUser: Queries.unblockUser,
+  deleteAccount: Queries.deleteAccount,
 };
 
 describe("the SDK's documents", () => {
@@ -57,5 +77,13 @@ describe("the SDK's documents", () => {
     expect(Queries.venueOffers(bare)).not.toContain("$night");
     expect(Queries.venueDetail(bare)).not.toContain("$recentMessages");
     expect(Queries.events(bare)).not.toContain("rsvp");
+    for (const build of [Queries.articles, Queries.articlesPage, Queries.nationalArticles, Queries.article, Queries.publications, Queries.publication, Queries.myOpEds]) {
+      expect(build(bare)).toMatch(/^query \w+ \{ id \}$/);
+    }
+    expect(Queries.articlesAbout("locale", bare)).toBe("query ArticlesAbout { id }");
+    const beforeTips = new SchemaShape({ Audience: ["soapbox"], Article: ["id"], Publication: ["id"] });
+    expect(Queries.articles(beforeTips)).not.toContain("viewerAdFree");
+    expect(Queries.publication(beforeTips)).not.toContain("adFreeOffered");
+    expect(Queries.nationalArticles(beforeTips)).toBe("query NationalArticles { id }");
   });
 });

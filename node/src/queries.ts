@@ -311,3 +311,157 @@ export function chatRoom(room: ChatRoom, watch = false): string {
 }
 fragment Line on ChatMessage { ${CHAT_MESSAGE_FIELDS} }`;
 }
+
+// Soapbox (news)
+
+/** The types the Soapbox documents depend on: the root's `soapbox` and each listing's `articles`. */
+export const SOAPBOX_TYPES = ["Audience", "Venue", "Event", "Person", "Locale", "Article", "Publication"] as const;
+export const PUBLICATION_SUMMARY_FIELDS = "id name photoUrl trusted acceptsOpEds";
+export const ARTICLE_FIELDS =
+  "id slug title summary byline kind publishedAt edited pinned teaser canonicalUrl disclosure heroPhotoUrl heroAltText " +
+  `publication { ${PUBLICATION_SUMMARY_FIELDS} }`;
+export const ARTICLE_SUBJECT_FIELDS = "venues { id name } events { id name } people { id name } locales { id name }";
+export const PUBLICATION_FIELDS =
+  "id name masthead about websiteUrl photoUrl trusted acceptsOpEds opEdGuidelines locale { id name } person { id name }";
+export const OP_ED_FIELDS = `${ARTICLE_FIELDS} status reviewNote submittedAt`;
+
+/** The article fields this audience's API has: the tip to read without ads came later. */
+export function articleFields(shape: SchemaShape = EVERYTHING): string {
+  if (!shape.has("Article", "viewerAdFree") || !shape.has("Publication", "adFreeOffered")) return ARTICLE_FIELDS;
+  return `${ARTICLE_FIELDS.replace(PUBLICATION_SUMMARY_FIELDS, `${PUBLICATION_SUMMARY_FIELDS} adFreeOffered`)} viewerAdFree`;
+}
+
+export function publicationFields(shape: SchemaShape = EVERYTHING): string {
+  return shape.has("Publication", "adFreeOffered")
+    ? `${PUBLICATION_FIELDS} adFreeOffered adFreeTipCents adFreeDays viewerAdFree viewerAdFreeUntil`
+    : PUBLICATION_FIELDS;
+}
+
+/** The document for an audience without Soapbox: asks for nothing the helpers read, under the operation's name. */
+function noSoapbox(name: string): string {
+  return `query ${name} { id }`;
+}
+
+export function articles(shape: SchemaShape = EVERYTHING): string {
+  if (!shape.has("Audience", "soapbox")) return noSoapbox("Articles");
+  return `query Articles($localeId: ID, $publicationId: ID, $first: Int) {
+  soapbox { articles(localeId: $localeId, publicationId: $publicationId, first: $first) { nodes { ${articleFields(shape)} } } }
+}`;
+}
+
+/** A page of the audience's live articles (pinned first, then newest), for lists that load more. */
+export function articlesPage(shape: SchemaShape = EVERYTHING): string {
+  if (!shape.has("Audience", "soapbox")) return noSoapbox("ArticlesPage");
+  return `query ArticlesPage($localeId: ID, $publicationId: ID, $first: Int, $after: String) {
+  soapbox { articles(localeId: $localeId, publicationId: $publicationId, first: $first, after: $after) {
+    nodes { ${articleFields(shape)} }
+    pageInfo { endCursor hasNextPage }
+  } }
+}`;
+}
+
+/** The audience's national news; an API from before national news gets a document that asks for none. */
+export function nationalArticles(shape: SchemaShape = EVERYTHING): string {
+  if (!shape.has("Audience", "soapbox") || !shape.has("Article", "featuredNationally")) return noSoapbox("NationalArticles");
+  return `query NationalArticles($localeId: ID, $first: Int) {
+  soapbox { articles(national: true, localeId: $localeId, first: $first) { nodes { ${articleFields(shape)} featuredNationally } } }
+}`;
+}
+
+export function article(shape: SchemaShape = EVERYTHING): string {
+  if (!shape.has("Audience", "soapbox")) return noSoapbox("Article");
+  return `query Article($id: ID!) {
+  soapbox { article(id: $id) { ${articleFields(shape)} body ${ARTICLE_SUBJECT_FIELDS} } }
+}`;
+}
+
+export function publications(shape: SchemaShape = EVERYTHING): string {
+  if (!shape.has("Audience", "soapbox")) return noSoapbox("Publications");
+  return `query Publications {
+  soapbox { publications { ${publicationFields(shape)} } }
+}`;
+}
+
+export function publication(shape: SchemaShape = EVERYTHING): string {
+  if (!shape.has("Audience", "soapbox")) return noSoapbox("Publication");
+  return `query Publication($id: ID!) {
+  soapbox { publication(id: $id) { ${publicationFields(shape)} } }
+}`;
+}
+
+export function myOpEds(shape: SchemaShape = EVERYTHING): string {
+  if (!shape.has("Audience", "soapbox")) return noSoapbox("MyOpEds");
+  return `query MyOpEds {
+  soapbox { myOpEds { ${OP_ED_FIELDS} } }
+}`;
+}
+
+/** What an article can be about: a venue, event, person or locale. */
+export type ArticleTopic = "venue" | "event" | "person" | "locale";
+
+const ARTICLE_TOPICS: Record<ArticleTopic, [type: string, open: string, close: string]> = {
+  venue: ["Venue", "venues { venue(id: $id) { ", " } }"],
+  event: ["Event", "events { event(id: $id) { ", " } }"],
+  person: ["Person", "people { person(id: $id) { ", " } }"],
+  locale: ["Locale", "locale(id: $id) { ", " }"],
+};
+
+/** The listing type the "In the news" document for `topic` depends on. */
+export function articlesAboutType(topic: ArticleTopic): string {
+  return ARTICLE_TOPICS[topic][0];
+}
+
+/** Live articles about a venue, event, person or locale ("In the news"). */
+export function articlesAbout(topic: ArticleTopic, shape: SchemaShape = EVERYTHING): string {
+  const [type, open, close] = ARTICLE_TOPICS[topic];
+  if (!shape.has(type, "articles")) return noSoapbox("ArticlesAbout");
+  return `query ArticlesAbout($id: ID!, $first: Int) {
+  ${open}articles { list(first: $first) { nodes { ${articleFields(shape)} } } }${close}
+}`;
+}
+
+export const submitOpEd = `mutation SubmitOpEd($publicationId: ID!, $title: String!, $body: String!, $summary: String, $byline: String) {
+  submitOpEd(input: { publicationId: $publicationId, title: $title, body: $body, summary: $summary, byline: $byline }) {
+    article { ${OP_ED_FIELDS} }
+  }
+}`;
+
+// Calendar subscription
+
+export const CALENDAR_FEED_FIELDS = "url webcalUrl googleUrl venues { id }";
+
+export const calendarFeed = `query CalendarFeed {
+  me { calendarFeed { ${CALENDAR_FEED_FIELDS} } }
+}`;
+
+export const createCalendarFeed = `mutation CreateCalendarFeed($reset: Boolean) {
+  createCalendarFeed(input: { reset: $reset }) { calendarFeed { ${CALENDAR_FEED_FIELDS} } }
+}`;
+
+export const setCalendarFeedVenue = `mutation SetCalendarFeedVenue($venueId: ID!, $following: Boolean) {
+  setCalendarFeedVenue(input: { venueId: $venueId, following: $following }) { calendarFeed { ${CALENDAR_FEED_FIELDS} } }
+}`;
+
+export const deleteCalendarFeed = `mutation DeleteCalendarFeed {
+  deleteCalendarFeed(input: {}) { deleted }
+}`;
+
+// Moderation and the account
+
+/** Files a report with the audience's admins, blocking the person behind it when `$block`. */
+export const reportContent = `mutation ReportContent($targetType: ReportTarget!, $targetId: ID!, $reason: String, $block: Boolean) {
+  reportContent(input: { targetType: $targetType, targetId: $targetId, reason: $reason, block: $block }) { reported blocked }
+}`;
+
+export const blockUser = `mutation BlockUser($userId: ID!) {
+  blockUser(input: { userId: $userId }) { blockedUsers { id } }
+}`;
+
+export const unblockUser = `mutation UnblockUser($userId: ID!) {
+  unblockUser(input: { userId: $userId }) { blockedUsers { id } }
+}`;
+
+/** Deletes the signed-in person's account for good. */
+export const deleteAccount = `mutation DeleteAccount($confirm: Boolean!) {
+  deleteAccount(input: { confirm: $confirm }) { deleted }
+}`;

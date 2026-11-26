@@ -1,6 +1,9 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  // The examples import the package by name, as an app would; here that's the source.
+  resolve: { alias: { "audience-kit": fileURLToPath(new URL("./src/index.ts", import.meta.url)) } },
   test: {
     include: ["test/**/*.test.ts"],
     coverage: {

@@ -637,3 +637,172 @@ export interface BrandingTheme {
   light?: Record<string, string>;
   dark?: Record<string, string>;
 }
+
+// Soapbox (news)
+
+/** What an article is: a news story, an op-ed, a review and so on, as the API names it. */
+export type ArticleKind = string;
+
+/** A publication as an article carries it. */
+export interface PublicationSummary {
+  id: string;
+  name: string;
+  photoUrl?: string | null;
+  /** Whether the audience's admins trust it: its articles show in the news without review. */
+  trusted: boolean;
+  /** Whether it takes op-eds from readers (`submitOpEd`). */
+  acceptsOpEds: boolean;
+  /** Whether a reader can tip to read it without ads. Only on APIs that have the tip. */
+  adFreeOffered?: boolean;
+}
+
+/** A listing an article is about. */
+export interface ArticleSubject {
+  id: string;
+  name: string;
+}
+
+/** A Soapbox article. `body` (Markdown) and what it is about come with `article(id)`, not in lists. */
+export interface Article {
+  id: string;
+  slug: string;
+  title: string;
+  summary?: string | null;
+  byline: string;
+  kind: ArticleKind;
+  /** ISO 8601; null for an op-ed that hasn't run. */
+  publishedAt?: string | null;
+  edited: boolean;
+  pinned: boolean;
+  /** A teaser carries only the start of the article: link `canonicalUrl` for the rest, on the publication's site. */
+  teaser: boolean;
+  canonicalUrl?: string | null;
+  /** Show it with the article when there is one (a paid partnership, a conflict of interest). */
+  disclosure?: string | null;
+  heroPhotoUrl?: string | null;
+  heroAltText?: string | null;
+  publication: PublicationSummary;
+  featuredNationally?: boolean;
+  viewerAdFree?: boolean;
+  body?: string;
+  venues?: ArticleSubject[];
+  events?: ArticleSubject[];
+  people?: ArticleSubject[];
+  locales?: ArticleSubject[];
+  /** An op-ed's review, for the person who sent it (`myOpEds`). */
+  status?: string | null;
+  reviewNote?: string | null;
+  submittedAt?: string | null;
+}
+
+/** A page of articles, with the cursor for the next (`articlesPage`). */
+export interface ArticlesPage {
+  articles: Article[];
+  endCursor: string | null;
+  hasNextPage: boolean;
+}
+
+/** A Soapbox publication: a paper, a blog, a person's column. */
+export interface Publication extends PublicationSummary {
+  masthead?: string | null;
+  about?: string | null;
+  websiteUrl?: string | null;
+  opEdGuidelines?: string | null;
+  locale?: ArticleSubject | null;
+  person?: ArticleSubject | null;
+  adFreeTipCents?: number | null;
+  adFreeDays?: number;
+  viewerAdFree?: boolean;
+  viewerAdFreeUntil?: string | null;
+}
+
+// Calendar subscription
+
+/** The signed-in person's calendar subscription: every event they're going to, and every event at venues they follow. */
+export interface CalendarFeed {
+  /** The `.ics` feed. Treat it as a secret: anyone with it sees the person's plans. */
+  url: string;
+  /** The same feed as a `webcal://` link, which opens the device's calendar app. */
+  webcalUrl: string;
+  /** A link that adds the feed to Google Calendar. */
+  googleUrl: string;
+  /** The venues followed in it. */
+  venues: { id: string }[];
+}
+
+// Moderation
+
+/** What `reportContent` reports, as the API's `ReportTarget` names it. */
+export type ReportTarget =
+  | "MESSAGE"
+  | "PERSON"
+  | "PHOTO"
+  | "PING"
+  | "PRIVATE_MESSAGE"
+  | "POST"
+  | "POST_COMMENT"
+  | "VENUE";
+
+/**
+ * The reason for an intimate image shared without the consent of the person in it. The API gives a report with this
+ * reason a 48-hour deadline (the US Take It Down Act), so keep the wording.
+ */
+export const INTIMATE_IMAGE_REASON = "Intimate image shared without consent";
+
+/** The reasons to offer when someone reports something, worded as the Swift, Kotlin and PHP SDKs word them. */
+export const REPORT_REASONS = ["Spam", "Harassment or hate", "Sexual content", INTIMATE_IMAGE_REASON, "Scam or fraud", "Other"] as const;
+
+/** What a report did. */
+export interface ReportResult {
+  reported: boolean;
+  blocked: boolean;
+}
+
+// Public listings (REST)
+
+/** A listing as the audience shows anyone: plain text, ready for a template. */
+export interface PublicListing {
+  kind: "venue" | "event" | "post" | string;
+  id: string;
+  /** Its path on the audience's own website. */
+  path?: string | null;
+  /** `public`, or `community` for listings shown in full only to members (`isPublicListing`). */
+  visibility?: string | null;
+  title?: string | null;
+  description?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  listed?: boolean | null;
+  image?: string | null;
+  /** ISO 8601, for events. */
+  start_at?: string | null;
+  end_at?: string | null;
+  venue_name?: string | null;
+  ticket_url?: string | null;
+  is_canceled?: boolean | null;
+  cover_cents?: number | null;
+}
+
+/** Whether anyone may see the listing in full; "community" listings show in full only to members. */
+export function isPublicListing(listing: PublicListing): boolean {
+  return listing.visibility == null || listing.visibility === "public";
+}
+
+/** One page of public listings: up to 500 venues, then events, then posts. */
+export interface PublicListingsPage {
+  listings: PublicListing[];
+  pageCount: number;
+  /** The next page's number, or null on the last. */
+  nextPage: number | null;
+}
+
+/** Everything the audience lists, read in one go (`community()`); a part whose module the audience lacks is empty. */
+export interface Community {
+  audience: Audience | null;
+  locales: AudienceLocale[];
+  venues: Venue[];
+  people: Person[];
+  events: Event[];
+  eventSeries: EventSeries[];
+}

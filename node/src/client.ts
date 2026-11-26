@@ -18,6 +18,15 @@ import {
   connectionItems,
   type Admission,
   type AdmissionOffer,
+  type Article,
+  type ArticlesPage,
+  type CalendarFeed,
+  type Community,
+  type Publication,
+  type PublicListing,
+  type PublicListingsPage,
+  type ReportResult,
+  type ReportTarget,
   type Audience,
   type AudienceLocale,
   type Branding,
@@ -92,6 +101,12 @@ export interface AudienceKitClientOptions {
   monitor?: GraphQLMonitor;
 }
 
+/** The environment variables `AudienceKitClient.fromEnvironment` reads. */
+export type EnvironmentVariables = Record<string, string | undefined>;
+
+/** How long before a service token's session expires the client trades the token again, in seconds. */
+export const SERVICE_RENEW_BEFORE_SECONDS = 60;
+
 /** The sign-in JSON (`POST /v1/token`), which says everything the app needs about the session so it never decodes the JWT. */
 export type SignInResult = Credential;
 
@@ -133,12 +148,121 @@ export class AudienceKitClient {
   private resolvedAudienceId: string | null = null;
   /** The fields each type has in an audience's schema, by "audience|endpoint|type" (`schemaFields`). */
   private readonly schemaFieldCache = new Map<string, Set<string>>();
+  /** The service token (`akst_…`) this client trades for sessions, when it acts for the audience. */
+  private serviceToken: string | null = null;
+  /** When the traded service session expires, in milliseconds since the epoch. */
+  private serviceExpiresAt: number | null = null;
+  private serviceTrade: Promise<Credential> | null = null;
 
   constructor(options: AudienceKitClientOptions = {}) {
     this.configuration = resolveConfiguration(options.configuration);
     this.tokenStore = options.tokenStore ?? new InMemoryTokenStore();
     this.transport = options.transport ?? new FetchTransport();
     this.monitor = options.monitor ?? null;
+  }
+
+  /**
+   * A client configured from the environment, for servers, jobs and scripts: `AUDIENCEKIT_TOKEN` (a service token,
+   * `akst_…`, traded for sessions as `useServiceToken` does, or another bearer value such as an application API key)
+   * and, when set, `AUDIENCEKIT_BASE_URL`, `AUDIENCEKIT_HOST`, `AUDIENCEKIT_AUDIENCE_ID` and `AUDIENCEKIT_ENVIRONMENT`.
+   * Reads `process.env` unless given `environment`.
+   */
+  static fromEnvironment(
+    environment: EnvironmentVariables = (globalThis as { process?: { env: EnvironmentVariables } }).process?.env ?? {},
+    options: Omit<AudienceKitClientOptions, "configuration"> = {},
+  ): AudienceKitClient {
+    const read = (name: string): string | undefined => {
+      const value = environment[name];
+      return value ? value : undefined;
+    };
+    const client = new AudienceKitClient({
+      ...options,
+      configuration: {
+        baseUrl: read("AUDIENCEKIT_BASE_URL"),
+        host: read("AUDIENCEKIT_HOST"),
+        audienceId: read("AUDIENCEKIT_AUDIENCE_ID"),
+        environment: read("AUDIENCEKIT_ENVIRONMENT") === "staging" ? "staging" : undefined,
+      },
+      // Each client keeps its own session: one traded from a service token isn't meant to outlive the process.
+      tokenStore: options.tokenStore ?? new InMemoryTokenStore(),
+    });
+    const token = read("AUDIENCEKIT_TOKEN");
+    if (token?.startsWith("akst_")) client.serviceToken = token;
+    else if (token) client.bearerToken = token;
+    return client;
+  }
+
+  /** A bearer value from the environment, stored on first use (the token store's methods may be async). */
+  private bearerToken: string | null = null;
+
+  /**
+   * Acts for the audience with a service token an admin minted in its console (`akst_<prefix>_<secret>`): a server or
+   * agent rather than a person. The client trades it at `POST /v1/token/service` for an hour-long session now, trades
+   * it again a minute before that runs out, and once more when the API refuses the session (after a key rotation). A
+   * token with `public:read` reads the public listings (`publicListings()`). A revoked token throws `UNAUTHORIZED`.
+   */
+  async useServiceToken(serviceToken: string): Promise<Credential> {
+    this.serviceToken = serviceToken;
+    this.bearerToken = null;
+    return this.tradeServiceToken();
+  }
+
+  /**
+   * Sends `token` as is (an application API key, or a session JWT minted elsewhere) as `Authorization: Bearer`, to the
+   * configured base URL and audience.
+   */
+  async useBearerToken(token: string): Promise<void> {
+    this.serviceToken = null;
+    this.serviceExpiresAt = null;
+    this.bearerToken = null;
+    await this.store({ token, userId: "", audienceId: this.configuration.audienceId, role: "bearer", expiresAt: null });
+  }
+
+  /** Trades the service token for a session, once at a time however many calls ask together. */
+  private tradeServiceToken(): Promise<Credential> {
+    this.serviceTrade ??= this.performServiceTrade().finally(() => {
+      this.serviceTrade = null;
+    });
+    return this.serviceTrade;
+  }
+
+  private async performServiceTrade(): Promise<Credential> {
+    const secret = this.serviceToken;
+    if (secret === null) throw AudienceKitError.notSignedIn();
+    const response = await this.perform(
+      { method: "POST", path: "/v1/token/service", body: { service_token: secret }, authenticated: false },
+      null,
+    );
+    if (response.status === 401 || response.status === 403) {
+      this.serviceToken = null;
+      this.serviceExpiresAt = null;
+      throw new AudienceKitError("UNAUTHORIZED", "The service token was refused: it is invalid or was revoked.", {
+        status: response.status,
+      });
+    }
+    if (response.status < 200 || response.status >= 300) throw AudienceKitError.forStatus(response.status);
+    const json = this.parseJson(response.body) as Partial<Credential> | null;
+    if (!json || typeof json !== "object" || typeof json.token !== "string") {
+      throw AudienceKitError.decoding("The service token response had no token.");
+    }
+    const credential: Credential = { ...json, token: json.token, userId: json.userId ?? "", role: json.role ?? "service" };
+    const expires = credential.expiresAt ? Date.parse(credential.expiresAt) : NaN;
+    this.serviceExpiresAt = Number.isNaN(expires) ? null : expires;
+    await this.store(credential);
+    return credential;
+  }
+
+  /** Makes sure a service token or a bearer value from the environment has a session before a call that needs one. */
+  private async ensureSession(): Promise<void> {
+    if (this.bearerToken !== null) {
+      const token = this.bearerToken;
+      await this.useBearerToken(token);
+      return;
+    }
+    if (this.serviceToken === null) return;
+    const stored = await this.storedToken();
+    const renewAt = this.serviceExpiresAt === null ? null : this.serviceExpiresAt - SERVICE_RENEW_BEFORE_SECONDS * 1000;
+    if (stored === null || (renewAt !== null && Date.now() >= renewAt)) await this.tradeServiceToken();
   }
 
   /** Listens for session changes, to route between sign-in and content. Returns a function that stops listening. */
@@ -285,6 +409,9 @@ export class AudienceKitClient {
     }
     this.resolvedAudienceId = null;
     this.schemaFieldCache.clear();
+    this.serviceToken = null;
+    this.serviceExpiresAt = null;
+    this.bearerToken = null;
     this.emit("signedOut");
   }
 
@@ -372,6 +499,7 @@ export class AudienceKitClient {
    * the audience that owns the configured host.
    */
   async audienceId(): Promise<string> {
+    await this.ensureSession();
     const known = this.configuration.audienceId ?? this.resolvedAudienceId;
     if (known) return known;
 
@@ -763,15 +891,284 @@ export class AudienceKitClient {
     await this.graphQL(Queries.removeChatMessage, { variables: { messageId: id }, operationName: "RemoveMyChatMessage" });
   }
 
+  /**
+   * Everything the audience lists, read in one go: the audience, its locales, venues, people, upcoming events and event
+   * series. A part whose module the audience doesn't have comes back empty.
+   */
+  async community(): Promise<Community> {
+    const optional = async <T>(read: () => Promise<T>): Promise<T | null> => {
+      try {
+        return await read();
+      } catch (error) {
+        if (error instanceof AudienceKitError && error.isUndefinedField) return null;
+        throw error;
+      }
+    };
+    const [audience, locales, venues, people, events, eventSeries] = await Promise.all([
+      optional(() => this.audience()),
+      optional(() => this.locales()),
+      optional(() => this.venues()),
+      optional(() => this.people()),
+      optional(() => this.events()),
+      optional(() => this.eventSeries()),
+    ]);
+    return {
+      audience,
+      locales: locales ?? [],
+      venues: venues ?? [],
+      people: people ?? [],
+      events: events ?? [],
+      eventSeries: eventSeries ?? [],
+    };
+  }
+
+  // Soapbox (news)
+
+  /**
+   * The audience's live articles, pinned first, then newest: a locale's news, or one publication's, when given. Empty
+   * when the audience doesn't have Soapbox.
+   */
+  async articles(options: { localeId?: string | null; publicationId?: string | null; first?: number | null } = {}): Promise<Article[]> {
+    const data = await this.graphQLForShape<SoapboxData>(Queries.SOAPBOX_TYPES, Queries.articles, {
+      variables: compact({ localeId: options.localeId, publicationId: options.publicationId, first: options.first }),
+      operationName: "Articles",
+    });
+    return data.soapbox?.articles?.nodes?.filter(isPresent) ?? [];
+  }
+
+  /**
+   * A page of the audience's live articles, for lists that "Show more": pass the last page's `endCursor` as `after`
+   * for the next.
+   */
+  async articlesPage(
+    options: { localeId?: string | null; publicationId?: string | null; first?: number; after?: string | null } = {},
+  ): Promise<ArticlesPage> {
+    const data = await this.graphQLForShape<SoapboxData>(Queries.SOAPBOX_TYPES, Queries.articlesPage, {
+      variables: compact({ localeId: options.localeId, publicationId: options.publicationId, first: options.first ?? 20, after: options.after }),
+      operationName: "ArticlesPage",
+    });
+    const connection = data.soapbox?.articles;
+    return {
+      articles: connection?.nodes?.filter(isPresent) ?? [],
+      endCursor: connection?.pageInfo?.endCursor ?? null,
+      hasNextPage: connection?.pageInfo?.hasNextPage ?? false,
+    };
+  }
+
+  /** The audience's national news: articles its admins featured nationally in the last 14 days (a locale's share, when given). */
+  async nationalArticles(options: { localeId?: string | null; first?: number | null } = {}): Promise<Article[]> {
+    const data = await this.graphQLForShape<SoapboxData>(Queries.SOAPBOX_TYPES, Queries.nationalArticles, {
+      variables: compact({ localeId: options.localeId, first: options.first }),
+      operationName: "NationalArticles",
+    });
+    return data.soapbox?.articles?.nodes?.filter(isPresent) ?? [];
+  }
+
+  /** One article with its Markdown `body` and what it is about; null when there's none, or no Soapbox. */
+  async article(id: string): Promise<Article | null> {
+    const data = await this.graphQLForShape<SoapboxData>(Queries.SOAPBOX_TYPES, Queries.article, { variables: { id }, operationName: "Article" });
+    return data.soapbox?.article ?? null;
+  }
+
+  /** Live articles about a venue, event or person, newest first, or a locale's news: "In the news" on a listing's page. */
+  async articlesAbout(topic: Queries.ArticleTopic, id: string, first: number | null = null): Promise<Article[]> {
+    type Listing = { articles?: { list?: Connection<Article> | null } | null } | null;
+    const data = await this.graphQLForShape<{
+      venues?: { venue?: Listing };
+      events?: { event?: Listing };
+      people?: { person?: Listing };
+      locale?: Listing;
+    }>([...Queries.SOAPBOX_TYPES, Queries.articlesAboutType(topic)], (shape) => Queries.articlesAbout(topic, shape), {
+      variables: compact({ id, first }),
+      operationName: "ArticlesAbout",
+    });
+    const listing = data.venues?.venue ?? data.events?.event ?? data.people?.person ?? data.locale ?? null;
+    return connectionItems(listing?.articles?.list ?? null);
+  }
+
+  /** The audience's publications. */
+  async publications(): Promise<Publication[]> {
+    const data = await this.graphQLForShape<SoapboxData>(Queries.SOAPBOX_TYPES, Queries.publications, { operationName: "Publications" });
+    return data.soapbox?.publications ?? [];
+  }
+
+  /** The publications covering a locale: the "local publishers" at the top of its news. */
+  async localPublications(localeId: string): Promise<Publication[]> {
+    const wanted = localeId.toLowerCase();
+    return (await this.publications()).filter((publication) => publication.locale?.id.toLowerCase() === wanted);
+  }
+
+  /** One publication, for its page and its "Write an op-ed" button; null when there's none. */
+  async publication(id: string): Promise<Publication | null> {
+    const data = await this.graphQLForShape<SoapboxData>(Queries.SOAPBOX_TYPES, Queries.publication, {
+      variables: { id },
+      operationName: "Publication",
+    });
+    return data.soapbox?.publication ?? null;
+  }
+
+  /** The op-eds the signed-in person sent, newest first, with their `status` and the publication's `reviewNote`. */
+  async myOpEds(): Promise<Article[]> {
+    const data = await this.graphQLForShape<SoapboxData>(Queries.SOAPBOX_TYPES, Queries.myOpEds, { operationName: "MyOpEds" });
+    return data.soapbox?.myOpEds ?? [];
+  }
+
+  /**
+   * Sends a publication that accepts op-eds an op-ed under the signed-in person's name (`byline` overrides it). The
+   * publication runs it or declines it with a note; `myOpEds()` shows which.
+   */
+  async submitOpEd(input: { publicationId: string; title: string; body: string; summary?: string | null; byline?: string | null }): Promise<Article> {
+    const data = await this.graphQL<{ submitOpEd: { article: Article } }>(Queries.submitOpEd, {
+      variables: { summary: null, byline: null, ...input },
+      operationName: "SubmitOpEd",
+    });
+    return data.submitOpEd.article;
+  }
+
+  // Calendar subscription
+
+  /** The signed-in person's calendar subscription, or null before they made one. */
+  async calendarFeed(): Promise<CalendarFeed | null> {
+    const data = await this.graphQL<{ me?: { calendarFeed?: CalendarFeed | null } | null }>(Queries.calendarFeed, { operationName: "CalendarFeed" });
+    return data.me?.calendarFeed ?? null;
+  }
+
+  /**
+   * Their subscription, made on first ask: `url`, `webcalUrl` and `googleUrl` add every event they're going to to their
+   * own calendar. `reset` gives it a new link, so the old one stops working.
+   */
+  async createCalendarFeed(reset = false): Promise<CalendarFeed> {
+    const data = await this.graphQL<{ createCalendarFeed: { calendarFeed: CalendarFeed } }>(Queries.createCalendarFeed, {
+      variables: { reset },
+      operationName: "CreateCalendarFeed",
+    });
+    return data.createCalendarFeed.calendarFeed;
+  }
+
+  /** Follows a venue in their subscription, so every event there shows up in their calendar (or, with `following` false, stops). */
+  async followVenueInCalendar(venueId: string, following = true): Promise<CalendarFeed> {
+    const data = await this.graphQL<{ setCalendarFeedVenue: { calendarFeed: CalendarFeed } }>(Queries.setCalendarFeedVenue, {
+      variables: { venueId, following },
+      operationName: "SetCalendarFeedVenue",
+    });
+    return data.setCalendarFeedVenue.calendarFeed;
+  }
+
+  /** Ends their subscription: calendars subscribed to it stop updating. */
+  async deleteCalendarFeed(): Promise<boolean> {
+    const data = await this.graphQL<{ deleteCalendarFeed?: { deleted?: boolean } | null }>(Queries.deleteCalendarFeed, {
+      operationName: "DeleteCalendarFeed",
+    });
+    return data.deleteCalendarFeed?.deleted === true;
+  }
+
+  // Moderation and the account
+
+  /**
+   * Files a report with the audience's admins (App Store guideline 1.2, Google Play's user-generated content policy).
+   * With `block`, the person behind it is blocked too. Offer `REPORT_REASONS` as the reasons.
+   */
+  async reportContent(targetType: ReportTarget, id: string, options: { reason?: string | null; block?: boolean } = {}): Promise<ReportResult> {
+    const data = await this.graphQL<{ reportContent?: Partial<ReportResult> | null }>(Queries.reportContent, {
+      variables: { targetType, targetId: id, reason: options.reason ?? null, block: options.block ?? false },
+      operationName: "ReportContent",
+    });
+    return { reported: data.reportContent?.reported === true, blocked: data.reportContent?.blocked === true };
+  }
+
+  /** Blocks a member (their user ID): they and the signed-in person stop seeing each other's messages. */
+  async blockUser(userId: string): Promise<void> {
+    await this.graphQL(Queries.blockUser, { variables: { userId }, operationName: "BlockUser" });
+  }
+
+  /** Unblocks a member blocked with `blockUser` or a report. */
+  async unblockUser(userId: string): Promise<void> {
+    await this.graphQL(Queries.unblockUser, { variables: { userId }, operationName: "UnblockUser" });
+  }
+
+  /**
+   * Deletes the signed-in person's account for good (App Store guideline 5.1.1(v), Google Play's account deletion
+   * rule). The API erases their data and signs them out everywhere, so the session is forgotten here too. It can't be
+   * undone: ask first. Returns whether the account is gone; when it isn't, the person stays signed in.
+   */
+  async deleteAccount(): Promise<boolean> {
+    const data = await this.graphQL<{ deleteAccount?: { deleted?: boolean } | null }>(Queries.deleteAccount, {
+      variables: { confirm: true },
+      operationName: "DeleteAccount",
+    });
+    const deleted = data.deleteAccount?.deleted === true;
+    if (deleted) await this.signOut();
+    return deleted;
+  }
+
+  // Public listings (REST)
+
+  /**
+   * One page (from 1) of the audience's public listings: up to 500 venues, then events, then posts, as its websites
+   * show them. Needs a service token with the `public:read` scope (`useServiceToken`).
+   */
+  async publicListingsPage(page = 1): Promise<PublicListingsPage> {
+    const json = this.parseJson(await this.data({ path: "/v1/public/listings", query: { page: String(Math.max(1, page)) } })) as {
+      listings?: PublicListing[] | null;
+      page_count?: number | string | null;
+      next_page?: number | string | null;
+    } | null;
+    const number = (value: unknown): number | null => {
+      const parsed = typeof value === "number" ? value : typeof value === "string" && value !== "" ? Number(value) : NaN;
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+    return {
+      listings: Array.isArray(json?.listings) ? json.listings : [],
+      pageCount: number(json?.page_count) ?? 1,
+      nextPage: number(json?.next_page),
+    };
+  }
+
+  /** Every public listing, page by page. */
+  async publicListings(): Promise<PublicListing[]> {
+    const listings: PublicListing[] = [];
+    let page = 1;
+    for (;;) {
+      const found = await this.publicListingsPage(page);
+      listings.push(...found.listings);
+      if (found.nextPage === null || found.nextPage <= page) return listings;
+      page = found.nextPage;
+    }
+  }
+
+  /** One public listing, or null when there's none. */
+  async publicListing(kind: "venue" | "event" | "post", id: string): Promise<PublicListing | null> {
+    const paths = { venue: "venues", event: "events", post: "posts" } as const;
+    const path = paths[kind];
+    if (!path) throw new TypeError(`A listing is a venue, event or post, not ${String(kind)}.`);
+    try {
+      return this.parseJson(await this.data({ path: `/v1/public/${path}/${encodeURIComponent(id)}` })) as PublicListing;
+    } catch (error) {
+      if (error instanceof AudienceKitError && error.code === "NOT_FOUND") return null;
+      throw error;
+    }
+  }
+
+  /** Tonight at a venue, as a screen facing the room shows it: tonight's event, who's on and what's next. */
+  async publicTonight<T = Record<string, unknown>>(venueId: string): Promise<T> {
+    return this.parseJson(await this.data({ path: `/v1/public/venues/${encodeURIComponent(venueId)}/tonight` })) as T;
+  }
+
   // REST
 
   /** Sends a request to a REST endpoint and returns the body of a successful response. */
   async data(request: APIRequest): Promise<string> {
     const authenticated = request.authenticated ?? true;
-    const token = authenticated ? await this.storedToken() : null;
+    if (authenticated) await this.ensureSession();
+    let token = authenticated ? await this.storedToken() : null;
     if (authenticated && token === null) throw AudienceKitError.notSignedIn();
 
-    const response = await this.perform(request, token);
+    let response = await this.perform(request, token);
+    if (response.status === 401 && token !== null && this.serviceToken !== null) {
+      // A service session the API refused (a key rotation, say): trade the token once more and try again.
+      token = (await this.tradeServiceToken()).token;
+      response = await this.perform(request, token);
+    }
     if (response.status >= 200 && response.status < 300) return response.body;
     if (response.status === 401 && token !== null) {
       await this.sessionRejected(token);
@@ -835,6 +1232,26 @@ export class AudienceKitClient {
       throw AudienceKitError.decoding(error instanceof Error ? error.message : "The body wasn't JSON.");
     }
   }
+}
+
+interface SoapboxData {
+  soapbox?: {
+    articles?: { nodes?: (Article | null)[] | null; pageInfo?: { endCursor?: string | null; hasNextPage?: boolean } | null } | null;
+    article?: Article | null;
+    publications?: Publication[] | null;
+    publication?: Publication | null;
+    myOpEds?: Article[] | null;
+  } | null;
+}
+
+/** `values` without the nulls and undefineds, for variables a document declares as optional. */
+function compact(values: Record<string, unknown>): Record<string, unknown> | null {
+  const kept = Object.fromEntries(Object.entries(values).filter(([, value]) => value !== null && value !== undefined));
+  return Object.keys(kept).length > 0 ? kept : null;
+}
+
+function isPresent<T>(value: T | null | undefined): value is T {
+  return value !== null && value !== undefined;
 }
 
 /** An event's rsvp mixin as the API sends it, attendees in a connection. */

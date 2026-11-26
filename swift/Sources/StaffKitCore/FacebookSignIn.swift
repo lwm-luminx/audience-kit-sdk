@@ -28,14 +28,26 @@ public final class FacebookSignIn: NSObject, ASWebAuthenticationPresentationCont
     private var appSwitch: CheckedContinuation<URL?, Never>?
     private var activeObserver: NSObjectProtocol?
 
+    /// The Login for Business configuration the dialog opens with: the platform's sign-in one unless another is given,
+    /// such as ``ManagementPlatform/facebookPublishLoginConfigurationID`` for linking a Page to post as.
+    public let configurationID: String
+
     public init(platform: ManagementPlatform,
-                ownScheme: String? = Bundle.main.object(forInfoDictionaryKey: "AudienceKitURLScheme") as? String) {
+                ownScheme: String? = Bundle.main.object(forInfoDictionaryKey: "AudienceKitURLScheme") as? String,
+                configurationID: String? = nil) {
         self.platform = platform
         self.ownScheme = ownScheme
+        self.configurationID = configurationID ?? platform.facebookLoginConfigurationID
+    }
+
+    /// Facebook sign-in with the platform's publishing configuration, for linking a Page and its Instagram account
+    /// (``SocialAccountsClient/linkFacebook(_:code:redirectURI:facebookAppID:pageID:)``); nil where it has none.
+    public static func forLinkingPages(platform: ManagementPlatform) -> FacebookSignIn? {
+        platform.facebookPublishLoginConfigurationID.map { FacebookSignIn(platform: platform, configurationID: $0) }
     }
 
     public func signIn() async throws -> Credential {
-        let flow = FacebookOAuth(appID: platform.facebookAppID, configurationID: platform.facebookLoginConfigurationID,
+        let flow = FacebookOAuth(appID: platform.facebookAppID, configurationID: configurationID,
                                  returnScheme: ownScheme)
         if let url = Self.facebookAppURL(for: flow), UIApplication.shared.canOpenURL(url) {
             return try await signInWithFacebookApp(url: url, flow: flow)

@@ -7,6 +7,10 @@ audience's venues, people, locales, events, cover and chat over GraphQL, the sam
 - No runtime dependencies. The login itself (Facebook, Google, Apple) stays in your app: the SDK takes the token it
   gives you.
 
+Guides: [Signing people in](docs/sign-in.md), [Building a website](docs/websites.md) and the
+[Reference](docs/reference.md). [`examples/`](examples/README.md) has small programs (a listings page, a news digest, a
+Facebook sign-in server, a member's night out, a community export) that the tests run against a stub API.
+
 ## Installation
 
 ```sh
@@ -68,6 +72,22 @@ forgets it.
 Sign-in can fail with code `SIGN_IN_REJECTED` (the token is invalid, or from an app the audience doesn't use) or
 `SIGN_IN_FAILED` (the message is the API's).
 
+## Servers and scripts: service tokens
+
+A server that reads the audience rather than a person's view of it uses a service token an admin minted in the
+audience's console. Keep it in the environment:
+
+```ts
+// AUDIENCEKIT_TOKEN=akst_… AUDIENCEKIT_HOST=hotmess.social
+const client = AudienceKitClient.fromEnvironment();
+const listings = await client.publicListings();   // needs the public:read scope
+const { venues, events } = await client.community();
+```
+
+The client trades the token for an hour-long session and renews it itself. `useServiceToken(token)` does the same with
+a token from elsewhere, and `useBearerToken(apiKey)` sends an application API key as is. See
+[Building a website](docs/websites.md).
+
 ## Session ends
 
 Sessions don't expire, but they end when the person signs out elsewhere or removes the app from Facebook. Then any call
@@ -123,6 +143,15 @@ const here = await client.reportLocation({ latitude, longitude }, "venue { id na
 
 await client.sendChatMessage("hello", { kind: "venue", id: venue.id });
 await client.removeChatMessage(message.id);
+```
+
+### News, calendar and reporting
+
+```ts
+const news = await client.articles({ localeId: locales[0]?.id, first: 10 });   // empty without Soapbox
+const feed = await client.createCalendarFeed();         // feed.webcalUrl, feed.googleUrl
+await client.followVenueInCalendar(venue.id);
+await client.reportContent("MESSAGE", message.id, { reason: REPORT_REASONS[1], block: true });
 ```
 
 ### Cover

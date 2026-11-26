@@ -2,6 +2,28 @@
 
 The `audience-kit` npm package keeps its own version, separate from the Swift and Kotlin SDKs' `VERSION`.
 
+## 0.3.0 (2026-11-26)
+
+Everything a website, bot or backend job needs, at the level of the PHP SDK, with guides and examples:
+
+- Service tokens: `useServiceToken()` trades an `akst_…` token at `POST /v1/token/service` for an hour-long session,
+  trades it again a minute before it runs out (once, however many calls ask together) and once more when the API
+  refuses it. `useBearerToken()` sends an application API key as is. `AudienceKitClient.fromEnvironment()` reads
+  `AUDIENCEKIT_TOKEN`, `AUDIENCEKIT_BASE_URL`, `AUDIENCEKIT_HOST`, `AUDIENCEKIT_AUDIENCE_ID` and
+  `AUDIENCEKIT_ENVIRONMENT`.
+- Public listings (`public:read`): `publicListingsPage()`, `publicListings()`, `publicListing(kind, id)`,
+  `publicTonight(venueId)`, and `isPublicListing()`.
+- `community()`: the audience, locales, venues, people, upcoming events and event series in one call, a part whose
+  module the audience lacks coming back empty.
+- Soapbox news: `articles()`, `articlesPage()`, `nationalArticles()`, `article()`, `articlesAbout()`,
+  `publications()`, `localPublications()`, `publication()`, `myOpEds()` and `submitOpEd()`; empty, not failing, for an
+  audience without Soapbox.
+- Calendar subscription: `calendarFeed()`, `createCalendarFeed()`, `followVenueInCalendar()`, `deleteCalendarFeed()`.
+- Moderation and the account: `reportContent()` (with `REPORT_REASONS`), `blockUser()`, `unblockUser()` and
+  `deleteAccount()`.
+- `docs/` (signing people in, building a website, the reference) and `examples/`, which the tests run against a stub
+  API. Both are published on developer.audiencekit.com.
+
 ## 0.2.0 (2026-11-25)
 
 - `Velvet`: what a Velvet TV screen that runs JavaScript (Samsung TVs on Tizen) needs. `VenueDeviceClient` pairs the

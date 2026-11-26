@@ -4,6 +4,8 @@ export {
   type APIRequest,
   type AppleCredential,
   type AudienceKitClientOptions,
+  type EnvironmentVariables,
+  SERVICE_RENEW_BEFORE_SECONDS,
   type GraphQLOptions,
   type SessionEvent,
   type SessionListener,

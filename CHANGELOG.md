@@ -3,7 +3,7 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
-## 0.105.0 (2026-11-26)
+## 0.106.0 (2026-11-26)
 
 - StaffKit: Backstage's departure timeline. `TalentManagementClient.showNightDepartures()` reads, by event, where each
   of the performer's coming appearances is (`ShowNightDeparture`: the venue's latitude, longitude and address) and
@@ -12,6 +12,16 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   times the app worked out (`ShowNightPlanTimes`: ready by, leave by, arrive by, curtain), for the show-night Live
   Activity it pushes; the phone's location stays on the phone. Needs the API's `setShowNightPlan` and
   `PersonEventEdge.appearances`.
+
+## 0.105.0 (2026-11-26)
+
+- StaffKit: letting go of a safety alert on staff devices (API doc/SAFETY_ALERTS.md, "Retention"). The API sends a
+  silent push (`kind = safety_alert_retract`) once an alert's thread is deleted, or when the counselor takes the
+  venue's staff out of the guest's side. `SafetyAlertRetraction(userInfo:)` reads it; on iOS and the Mac `apply()`
+  takes that alert's delivered and pending notifications down (scope `.all`) and posts
+  `SafetyAlertRetraction.received` for open screens. `reportSafetyAlertScreenshot(id:)` (Velvet) and
+  `SafetyResponderClient.reportScreenshot(id:)` (Arbiter) put a screenshot of an alert in the crisis audit log.
+  The staff schemas are refreshed from the API.
 
 ## 0.104.0 (2026-11-26)
 

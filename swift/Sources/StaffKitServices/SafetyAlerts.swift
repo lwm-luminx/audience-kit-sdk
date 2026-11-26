@@ -1,6 +1,9 @@
 import Foundation
 import AudienceCore
 import StaffKitCore
+#if canImport(UserNotifications) && !os(tvOS)
+import UserNotifications
+#endif
 
 /// A guest's "I feel unsafe" alert at a venue, as staff see it (audience-kit api/doc/SAFETY_ALERTS.md): every device
 /// on shift hears it, one picks it up ("I'm on it"), they talk in a private thread, and whoever closes it says how it
@@ -356,6 +359,14 @@ extension VenueManagementClient {
         return try await safetyAlertMutation("closeSafetyAlert", "mutation VelvetCloseSafetyAlert($input: SafetyAlertCloseInput!) { closeSafetyAlert(input: $input) { safetyAlert { \(Self.safetyAlertFields) } } }", input)
     }
 
+    /// Tells AudienceKit this device took a screenshot of the alert: it goes in the crisis audit log and, while the
+    /// alert is open, as a staff-only note. Call it on `UIApplication.userDidTakeScreenshotNotification` while an alert
+    /// is on screen; Android blocks the screenshot instead.
+    @discardableResult
+    public func reportSafetyAlertScreenshot(id: String) async throws -> StaffSafetyAlert {
+        try await safetyAlertMutation("reportSafetyAlertScreenshot", "mutation VelvetReportSafetyAlertScreenshot($input: SafetyAlertScreenshotReportInput!) { reportSafetyAlertScreenshot(input: $input) { safetyAlert { \(Self.safetyAlertFields) } } }", ["id": .string(id)])
+    }
+
     private struct SafetyAlertPayload: Decodable, Sendable { let safetyAlert: StaffSafetyAlert? }
 
     /// Runs one of the alert mutations, each named `name` and answering `{ safetyAlert }`.
@@ -392,3 +403,52 @@ public struct SafetyAlertPush: Sendable, Hashable, Identifiable {
         self.init(alertID: alertID, venueID: venueID, audienceID: string("audience_id"))
     }
 }
+
+/// A silent push telling the app to let go of a safety alert (`data.kind = safety_alert_retract`, API SafetyAlertJob
+/// `purged` and `staff_removed`): its thread was deleted, or the counselor took the venue's staff out of the guest's
+/// side. The app takes the alert's notifications down (`.all`) and forgets what it kept of the thread.
+public struct SafetyAlertRetraction: Sendable, Hashable {
+    public enum Scope: String, Sendable { case thread, all }
+
+    public let alertID: String
+    public let scope: Scope
+
+    public init(alertID: String, scope: Scope) { self.alertID = alertID; self.scope = scope }
+
+    public init?(userInfo: [AnyHashable: Any]) {
+        guard (userInfo["kind"] as? String) == "safety_alert_retract",
+              let alertID = userInfo["alert_id"] as? String, !alertID.isEmpty else { return nil }
+        self.init(alertID: alertID, scope: Scope(rawValue: userInfo["scope"] as? String ?? "") ?? .all)
+    }
+
+    /// Whether a delivered notification is about this alert: its `alert_id`, or the `safety_alert:<id>` thread the API
+    /// gives every alert push.
+    public func matches(userInfo: [AnyHashable: Any], threadIdentifier: String = "") -> Bool {
+        (userInfo["alert_id"] as? String) == alertID || threadIdentifier == "safety_alert:\(alertID)"
+    }
+
+    /// Posted on the main queue when a retraction arrives, its `object` the SafetyAlertRetraction, so open screens
+    /// can drop the alert.
+    public static let received = Notification.Name("AudienceKitSafetyAlertRetraction")
+}
+
+#if canImport(UserNotifications) && !os(tvOS)
+extension SafetyAlertRetraction {
+    /// Takes the alert's delivered and pending notifications down (only for `.all`), then posts `received`.
+    public func apply(center: UNUserNotificationCenter = .current()) async {
+        if scope == .all {
+            let delivered = await center.deliveredNotifications()
+            let ids = delivered.filter { matches(userInfo: $0.request.content.userInfo,
+                                                 threadIdentifier: $0.request.content.threadIdentifier) }
+                               .map(\.request.identifier)
+            center.removeDeliveredNotifications(withIdentifiers: ids)
+            let pending = await center.pendingNotificationRequests()
+            center.removePendingNotificationRequests(withIdentifiers: pending.filter {
+                matches(userInfo: $0.content.userInfo, threadIdentifier: $0.content.threadIdentifier)
+            }.map(\.identifier))
+        }
+        let retraction = self
+        await MainActor.run { NotificationCenter.default.post(name: Self.received, object: retraction) }
+    }
+}
+#endif

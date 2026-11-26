@@ -2448,6 +2448,181 @@ type CoatCheck implements ICharge {
 }
 
 """
+A food pantry, shelter, clinic, STI testing, mental health, crisis or DV
+service, paged like a venue. Show title in lists and screen titles: for a DV or
+stalking resource it is a neutral title.
+"""
+type CommunityResource {
+  """
+  Where it is.
+  """
+  address: String
+
+  """
+  When its details were last checked; null until someone has, and the apps show no date.
+  """
+  checkedAt: ISO8601Date
+
+  """
+  What it offers.
+  """
+  description: String
+
+  """
+  What it offers and for whom: food, shelter, health-coverage, sti-testing,
+  mental-health, dv-stalking, crisis, youth-safe, lgbtq-affirming,
+  no-id-required, faith-based or secular.
+  """
+  facets: [String!]!
+
+  """
+  Left out of the directory and flyers.
+  """
+  hidden: Boolean! @endpoint(in: [STAFF])
+
+  """
+  Its regular opening hours.
+  """
+  hours: [CommunityResourceSlot!]!
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  What to bring or expect, e.g. "No ID needed."
+  """
+  intakeNote: String
+
+  """
+  Where it is.
+  """
+  latitude: Float
+
+  """
+  The locale it is in.
+  """
+  locale: Locale!
+
+  """
+  Where it is.
+  """
+  longitude: Float
+
+  """
+  Its real name, for its page.
+  """
+  name: String!
+
+  """
+  What lists show instead of its name, if anything.
+  """
+  neutralTitle: String
+
+  """
+  Its next session from now, or the one under way, within a week.
+  """
+  nextSession: CommunityResourceSession
+
+  """
+  Whether its regular hours cover now.
+  """
+  openNow: Boolean!
+
+  """
+  The number to call.
+  """
+  phone: String
+
+  """
+  A DV or stalking resource: show the quick-exit button, keep it out of history
+  and recents, and use title everywhere but its page body.
+  """
+  sensitive: Boolean!
+
+  """
+  Recurring sessions, e.g. mobile pantry stops.
+  """
+  sessions: [CommunityResourceSlot!]!
+
+  """
+  Where its details were checked.
+  """
+  sourceUrl: String
+
+  """
+  The number to text.
+  """
+  textNumber: String
+
+  """
+  What lists, flyers and screen titles call it.
+  """
+  title: String!
+
+  """
+  Its website.
+  """
+  url: String
+}
+
+"""
+A resource's next session, or the one under way.
+"""
+type CommunityResourceSession {
+  """
+  When it ends.
+  """
+  endsAt: ISO8601DateTime!
+
+  """
+  Which session it is.
+  """
+  session: CommunityResourceSlot!
+
+  """
+  When it starts.
+  """
+  startsAt: ISO8601DateTime!
+}
+
+"""
+A resource's regular hours on some days, or one of its recurring sessions (a mobile pantry stop).
+"""
+type CommunityResourceSlot {
+  """
+  Where a session is, when it is somewhere else.
+  """
+  address: String
+
+  """
+  Weekdays (0 = Sunday); empty for every day.
+  """
+  days: [Int!]!
+
+  """
+  Start, HH:MM local time; null when not known.
+  """
+  from: String
+
+  """
+  Anything to know about it.
+  """
+  note: String
+
+  """
+  What the place a session is at is called.
+  """
+  place: String
+
+  """
+  End, HH:MM local time; null when not known.
+  """
+  until: String
+}
+
+"""
 The viewer's role on this audience's staff console, decided for this request: what the console shows them.
 """
 enum ConsoleRole {
@@ -15719,6 +15894,31 @@ type ResearchResult {
 }
 
 """
+A community you belong to, and where you stand there as a safety responder.
+"""
+type ResponderCommunity {
+  """
+  The community.
+  """
+  audienceId: ID!
+
+  """
+  Its name, e.g. Hot Mess.
+  """
+  name: String!
+
+  """
+  Whether you have an application there nobody decided yet.
+  """
+  pending: Boolean!
+
+  """
+  Whether you are a safety responder there already.
+  """
+  responder: Boolean!
+}
+
+"""
 A written take on a film, a show, an event, a venue or a person (talent or an
 organization), by a member or a publication. There is no rating.
 """
@@ -16596,6 +16796,11 @@ type SafetyAlert {
   acknowledgedByName: String
 
   """
+  A safety responder picked it up, not the venue's staff: they are here to help in the thread, not on their way.
+  """
+  acknowledgedByResponder: Boolean!
+
+  """
   When it was closed or cancelled.
   """
   closedAt: ISO8601DateTime
@@ -16623,7 +16828,7 @@ type SafetyAlert {
   """
   The event that was on when it was sent.
   """
-  event: Event @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"]) @endpoint(in: [STAFF])
+  event: Event @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
 
   """
   Why it needs a look.
@@ -16643,7 +16848,7 @@ type SafetyAlert {
   """
   Why the AI host raised it for the guest (Glam fast lane); null when the guest sent it themselves.
   """
-  hostContext: SafetyAlertHostContext @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"]) @endpoint(in: [STAFF])
+  hostContext: SafetyAlertHostContext @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
 
   """
   Its UUID.
@@ -16658,7 +16863,7 @@ type SafetyAlert {
   """
   How staff closed it.
   """
-  outcome: SafetyAlertOutcome @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"]) @endpoint(in: [STAFF])
+  outcome: SafetyAlertOutcome @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
 
   """
   Where in the venue they are.
@@ -16676,7 +16881,7 @@ type SafetyAlert {
   remindedAt: ISO8601DateTime
 
   """
-  Who sent it.
+  Who sent it. The venue's staff and admins only; safety responders see the name the thread shows.
   """
   reporter: Profile @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"]) @endpoint(in: [STAFF])
 
@@ -16703,12 +16908,12 @@ type SafetyAlert {
   """
   Whether this device or session has opened it (seeSafetyAlert).
   """
-  seenByMe: Boolean! @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"]) @endpoint(in: [STAFF])
+  seenByMe: Boolean! @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
 
   """
   What staff noted when they closed it.
   """
-  staffNote: String @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"]) @endpoint(in: [STAFF])
+  staffNote: String @requires(permissions: ["chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"]) @endpoint(in: [STAFF])
 
   """
   Where it stands.
@@ -16855,6 +17060,11 @@ type SafetyAlertMessage {
   Its UUID.
   """
   id: ID!
+
+  """
+  A community resource staff or a responder shared (shareSafetyAlertResource); the body says the same in text.
+  """
+  resource: CommunityResource
 
   """
   Who sent it: the guest's name, or the staff member's first name.
@@ -17012,6 +17222,257 @@ type SafetyPoster {
   What the QR code opens: <web app>/help/<code>. It never expires.
   """
   url: String!
+}
+
+"""
+A request to be a safety responder, with the accreditation the applicant holds.
+Only the audience's admins and the applicant see it.
+"""
+type SafetyResponderApplication {
+  """
+  The community they applied to.
+  """
+  audienceId: ID!
+
+  """
+  The community's name.
+  """
+  audienceName: String!
+
+  """
+  When they applied.
+  """
+  createdAt: ISO8601DateTime!
+
+  """
+  The accreditation they hold.
+  """
+  credential: SafetyResponderCredential!
+
+  """
+  What it is, when credential is OTHER.
+  """
+  credentialOther: String
+
+  """
+  The applicant's email, for the admins to check with them; null for the applicant.
+  """
+  email: String
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  Who issued it: a state, country or organization.
+  """
+  issuedBy: String
+
+  """
+  What they would do.
+  """
+  kind: SafetyResponderKind!
+
+  """
+  Its license or certificate number.
+  """
+  licenseNumber: String
+
+  """
+  The applicant's name.
+  """
+  name: String!
+
+  """
+  The applicant's note to the admins.
+  """
+  note: String
+
+  """
+  The reviewing admin's note; null for the applicant.
+  """
+  reviewNote: String
+
+  """
+  When an admin decided it.
+  """
+  reviewedAt: ISO8601DateTime
+
+  """
+  Where it stands.
+  """
+  status: SafetyResponderApplicationStatus!
+}
+
+"""
+Where an application to be a safety responder stands.
+"""
+enum SafetyResponderApplicationStatus {
+  """
+  Approved: they are a safety responder.
+  """
+  APPROVED
+
+  """
+  An admin declined it.
+  """
+  DECLINED
+
+  """
+  Waiting for an admin.
+  """
+  PENDING
+
+  """
+  The applicant withdrew it.
+  """
+  WITHDRAWN
+}
+
+"""
+Autogenerated input type of SafetyResponderApplicationWithdraw
+"""
+input SafetyResponderApplicationWithdrawInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  Your application.
+  """
+  id: ID!
+}
+
+"""
+Autogenerated return type of SafetyResponderApplicationWithdraw.
+"""
+type SafetyResponderApplicationWithdrawPayload {
+  """
+  It, withdrawn.
+  """
+  application: SafetyResponderApplication!
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+}
+
+"""
+Autogenerated input type of SafetyResponderApply
+"""
+input SafetyResponderApplyInput {
+  """
+  The community: one you are a member of.
+  """
+  audienceId: ID!
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  The accreditation you hold.
+  """
+  credential: SafetyResponderCredential!
+
+  """
+  What it is, when credential is OTHER.
+  """
+  credentialOther: String
+
+  """
+  Who issued it: a state, country or organization.
+  """
+  issuedBy: String
+
+  """
+  What you would do.
+  """
+  kind: SafetyResponderKind!
+
+  """
+  Its license or certificate number.
+  """
+  licenseNumber: String
+
+  """
+  Anything the admins should know.
+  """
+  note: String
+}
+
+"""
+Autogenerated return type of SafetyResponderApply.
+"""
+type SafetyResponderApplyPayload {
+  """
+  Your application.
+  """
+  application: SafetyResponderApplication!
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+}
+
+"""
+The accreditation someone applying to be a safety responder holds.
+"""
+enum SafetyResponderCredential {
+  """
+  Trained crisis counselor (a crisis line, say).
+  """
+  CRISIS_COUNSELOR
+
+  """
+  Licensed clinical social worker.
+  """
+  LCSW
+
+  """
+  Licensed master social worker, or an MSW.
+  """
+  LMSW
+
+  """
+  Licensed professional counselor, or another licensed therapist.
+  """
+  LPC
+
+  """
+  Community moderator training.
+  """
+  MODERATOR_TRAINING
+
+  """
+  Something else, named in credentialOther.
+  """
+  OTHER
+
+  """
+  Certified peer support specialist.
+  """
+  PEER_SUPPORT
+}
+
+"""
+What a safety responder does for the community.
+"""
+enum SafetyResponderKind {
+  """
+  One of the community's moderators.
+  """
+  MODERATOR
+
+  """
+  A social worker or support professional.
+  """
+  SOCIAL_WORKER
 }
 
 """
@@ -18348,6 +18809,18 @@ type StaffMutation {
   ): PersonHeadshotAddPayload @requires(permissions: ["people:write:mine", "people:write:my_troupes"])
 
   """
+  Asks to be a community's safety responder, backing up venue staff on safety
+  alerts in Arbiter, with the accreditation you hold. Its admins approve or
+  decline it; only they see it.
+  """
+  applyToBeSafetyResponder(
+    """
+    Parameters for SafetyResponderApply
+    """
+    input: SafetyResponderApplyInput!
+  ): SafetyResponderApplyPayload @requires(permissions: ["safety:write:self"])
+
+  """
   Starts a talent listing of your own (a performer, persona or group), in no
   audience you can see (the shared tenant): you own it and manage it in
   Backstage. Audiences can list it later; it stays yours.
@@ -18476,6 +18949,16 @@ type StaffMutation {
     """
     input: VenueUpdateInput!
   ): VenueUpdatePayload @requires(permissions: ["venues:write:mine", "venues:write:venue", "locales:admin:mine"])
+
+  """
+  Withdraws your application to be a safety responder, while nobody has decided it.
+  """
+  withdrawSafetyResponderApplication(
+    """
+    Parameters for SafetyResponderApplicationWithdraw
+    """
+    input: SafetyResponderApplicationWithdrawInput!
+  ): SafetyResponderApplicationWithdrawPayload @requires(permissions: ["safety:write:self"])
 }
 
 """
@@ -19866,6 +20349,11 @@ type UserState {
   recentChatPush: Boolean!
 
   """
+  The communities they belong to, to apply to be a safety responder in (Arbiter).
+  """
+  responderCommunities: [ResponderCommunity!]! @endpoint(in: [STAFF])
+
+  """
   One of the safety alerts they sent here, by ID.
   """
   safetyAlert(
@@ -19879,6 +20367,11 @@ type UserState {
   Safety alerts they sent here, newest first: any still open, and the ones closed in the last day.
   """
   safetyAlerts: [SafetyAlert!]!
+
+  """
+  Their applications to be a safety responder, newest first.
+  """
+  safetyResponderApplications: [SafetyResponderApplication!]! @endpoint(in: [STAFF])
 
   """
   Their own profile, with what only they see.

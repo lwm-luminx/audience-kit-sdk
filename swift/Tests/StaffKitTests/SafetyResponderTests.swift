@@ -118,3 +118,47 @@ private let responderAlertJSON = #"""
     let stub = Stub { _ in .json(status: 200, body: #"{"data":{"seeSafetyAlert":null}}"#) }
     await #expect(throws: SafetyAlertError.self) { try await responderClient(stub).see(id: "gone") }
 }
+
+private let applicationJSON = #"{"id":"a1","audienceId":"audience","audienceName":"Hot Mess","name":"Dee Lopez","email":"dee@example.com","kind":"SOCIAL_WORKER","credential":"LCSW","credentialOther":null,"licenseNumber":"LCSW-1234","issuedBy":"Utah","note":"Weekends","status":"PENDING","reviewNote":null,"createdAt":"2026-11-26T05:00:00Z","reviewedAt":null}"#
+
+@Test func someoneSignedInOnThePlatformAppliesToBeAResponder() async throws {
+    let stub = Stub { request in
+        let query = (try? request.jsonBody()["query"] as? String) ?? ""
+        if query.contains("applyToBeSafetyResponder") {
+            return .json(status: 200, body: #"{"data":{"applyToBeSafetyResponder":{"application":\#(applicationJSON)}}}"#)
+        }
+        return .json(status: 200, body: #"{"data":{"me":{"responderCommunities":[{"audienceId":"audience","name":"Hot Mess","responder":false,"pending":false}],"safetyResponderApplications":[]}}}"#)
+    }
+    let session = AudienceManagementSession(baseURL: stub.baseURL, credentialStore: InMemoryCredentialStore(credential: makeCredential(audienceID: nil, on: stub.baseURL)), session: stub.session)
+    let client = SafetyResponderApplyClient(session: session)
+    #expect(client.canApply)
+    let overview = try await client.overview()
+    #expect(overview.communities.map(\.name) == ["Hot Mess"] && overview.applications.isEmpty)
+    #expect(try #require(stub.requests.last).path == "/v1/staffql")
+
+    let application = try await client.apply(SafetyResponderApplicationInput(audienceID: "audience", credential: "LCSW",
+                                                                             licenseNumber: " LCSW-1234 ", issuedBy: "Utah", note: ""))
+    #expect(application.isPending && application.credentialTitle.hasPrefix("LCSW") && application.statusTitle == "Waiting for an admin")
+    let input = try lastRequest(stub).input
+    #expect(input["licenseNumber"] as? String == "LCSW-1234" && input["note"] == nil && input["kind"] as? String == "SOCIAL_WORKER")
+}
+
+@Test func anAdminApprovesAnApplicationForSomeLocales() async throws {
+    let stub = Stub { request in
+        let query = (try? request.jsonBody()["query"] as? String) ?? ""
+        if query.contains("reviewSafetyResponderApplication") {
+            return .json(status: 200, body: #"{"data":{"reviewSafetyResponderApplication":{"application":\#(applicationJSON.replacingOccurrences(of: "\"PENDING\"", with: "\"APPROVED\""))}}}"#)
+        }
+        return .json(status: 200, body: #"{"data":{"safetyResponderApplications":[\#(applicationJSON)]}}"#)
+    }
+    let client = responderClient(stub)
+    let queue = try await client.applications()
+    #expect(queue.map(\.email) == ["dee@example.com"])
+    #expect(try lastRequest(stub).variables["status"] as? String == "PENDING")
+    let decided = try await client.review(id: "a1", approve: true, localeIDs: ["l1"], note: "Checked")
+    #expect(decided.status == "APPROVED")
+    let input = try lastRequest(stub).input
+    #expect(input["approve"] as? Bool == true && input["localeIds"] as? [String] == ["l1"] && input["note"] as? String == "Checked")
+    _ = try await client.review(id: "a1", approve: false)
+    #expect(try lastRequest(stub).input["localeIds"] == nil)
+}

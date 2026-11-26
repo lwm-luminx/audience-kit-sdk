@@ -3,6 +3,14 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.103.0 (2026-11-26)
+
+- StaffKit: applying to be a safety responder (API doc/SAFETY_ALERTS.md, "Applying"). `SafetyResponderApplyClient`, on
+  the audience-less staffql, lists the communities someone belongs to and their applications (`overview()`), applies
+  with the accreditation they hold (`apply(_:)`, `SafetyResponderApplicationInput`) and withdraws (`withdraw(id:)`).
+  Admins read an audience's queue with `SafetyResponderClient.applications(status:)` and decide with
+  `review(id:approve:localeIDs:note:)`. `SafetyResponderApplication.credentials` lists the accreditations to offer.
+
 ## 0.102.0 (2026-11-26)
 
 - StaffKit: `SafetyResponderClient.coverEveryVenue(kind:)`, so an admin can make themselves a safety responder for

@@ -87,8 +87,8 @@ class AudienceKitError(Exception):
         return cls(NOT_SIGNED_IN, "You're not signed in.")
 
     @classmethod
-    def unauthorized(cls) -> AudienceKitError:
-        return cls(UNAUTHENTICATED, "Your session has ended. Sign in again to continue.", status=401)
+    def unauthorized(cls, message: str = "Your session has ended. Sign in again to continue.") -> AudienceKitError:
+        return cls(UNAUTHENTICATED, message, status=401)
 
     @classmethod
     def sign_in_rejected(cls) -> AudienceKitError:

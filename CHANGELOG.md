@@ -3,6 +3,11 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.102.0 (2026-11-26)
+
+- StaffKit: `SafetyResponderClient.coverEveryVenue(kind:)`, so an admin can make themselves a safety responder for
+  every venue from Arbiter (API `saveSafetyResponder` without `userId`).
+
 ## 0.101.0 (2026-11-26)
 
 - StaffKitServices: safety responders, the social workers and moderators who back up venue staff on safety alerts

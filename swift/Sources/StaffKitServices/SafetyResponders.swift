@@ -82,6 +82,17 @@ public struct SafetyResponderClient: Sendable {
                                          variables: ["input": .object(input)], as: Response.self).setSafetyResponderDuty?.safetyResponder
     }
 
+    /// An admin makes themselves a responder for every venue (`kind` MODERATOR or SOCIAL_WORKER), on duty and pushed
+    /// for escalated alerts. Refused for anyone who isn't an admin of the audience.
+    @discardableResult
+    public func coverEveryVenue(kind: String = "MODERATOR") async throws -> SafetyResponder {
+        struct Payload: Decodable, Sendable { let safetyResponder: SafetyResponder }
+        struct Response: Decodable, Sendable { let saveSafetyResponder: Payload }
+        return try await session.graphQL("mutation ArbiterCoverEveryVenue($input: SafetyResponderSaveInput!) { saveSafetyResponder(input: $input) { safetyResponder { \(Self.responderFields) } } }",
+                                         variables: ["input": .object(["kind": .string(kind), "localeIds": .array([])])],
+                                         as: Response.self).saveSafetyResponder.safetyResponder
+    }
+
     /// The community resources in a locale (and the locales above and within it), to share with a guest.
     public func resources(localeID: String) async throws -> [StaffSafetyAlert.SharedResource] {
         struct Response: Decodable, Sendable { let communityResources: [StaffSafetyAlert.SharedResource] }

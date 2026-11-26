@@ -1,6 +1,6 @@
 // A Markdown digest of a locale's news, for a newsletter or a Discord post.
 //
-//   AUDIENCEKIT_TOKEN=akst_… AUDIENCEKIT_HOST=hotmess.social node --experimental-strip-types news-digest.ts "Denver"
+//   AUDIENCEKIT_TOKEN=<application API key> AUDIENCEKIT_HOST=hotmess.social node --experimental-strip-types news-digest.ts "Denver"
 //
 // Returns nothing for an audience without Soapbox, rather than failing.
 import { AudienceKitClient, type Article } from "audience-kit";

@@ -18,10 +18,10 @@ use crate::config::{
 use crate::credential::Credential;
 use crate::error::{Error, GraphQLError, Result};
 use crate::models::{
-    Audience, Branding, Coordinate, Event, EventSeries, Locale, Node, Person, PublicListing, PublicListingsPage,
-    SelfUser, Venue,
+    Article, ArticlesPage, Audience, Branding, Coordinate, Event, EventSeries, Locale, Node, Person, PublicListing,
+    PublicListingsPage, Publication, SelfUser, Venue,
 };
-use crate::operations::{self as ops, EventQuery, Operation};
+use crate::operations::{self as ops, ArticleQuery, ArticleTopic, EventQuery, Operation};
 use crate::queries;
 use crate::schema::SchemaShape;
 
@@ -644,6 +644,52 @@ impl Client {
     /// Recurring events, optionally in one locale or at one venue.
     pub async fn event_series(&self, locale_id: Option<&str>, venue_id: Option<&str>) -> Result<Vec<EventSeries>> {
         self.run(ops::event_series(locale_id, venue_id, 100)).await
+    }
+
+    // News (Soapbox): every call is empty, rather than failing, for an audience without Soapbox.
+
+    /// The audience's live articles, pinned first, then newest, optionally for one locale or publication.
+    pub async fn articles(&self, query: &ArticleQuery) -> Result<Vec<Article>> {
+        self.run(ops::articles(query)).await
+    }
+
+    /// A page of articles, with `end_cursor` to pass as `after` for the next ("Show more").
+    pub async fn articles_page(&self, query: &ArticleQuery) -> Result<ArticlesPage> {
+        self.run(ops::articles_page(query)).await
+    }
+
+    /// Articles featured nationally.
+    pub async fn national_articles(&self, locale_id: Option<&str>, first: Option<u32>) -> Result<Vec<Article>> {
+        self.run(ops::national_articles(locale_id, first)).await
+    }
+
+    /// One article, with its Markdown body and what it is about.
+    pub async fn article(&self, id: &str) -> Result<Option<Article>> {
+        self.run(ops::article(id)).await
+    }
+
+    /// Live articles about a venue, event, person or locale: "In the news" on its page.
+    pub async fn articles_about(&self, topic: ArticleTopic, id: &str, first: Option<u32>) -> Result<Vec<Article>> {
+        self.run(ops::articles_about(topic, id, first)).await
+    }
+
+    /// The publications the audience carries.
+    pub async fn publications(&self) -> Result<Vec<Publication>> {
+        self.run(ops::publications()).await
+    }
+
+    /// The publications covering a locale: the "local publishers" at the top of its news.
+    pub async fn local_publications(&self, locale_id: &str) -> Result<Vec<Publication>> {
+        let all = self.publications().await?;
+        Ok(all
+            .into_iter()
+            .filter(|publication| publication.locale.as_ref().is_some_and(|l| l.id.eq_ignore_ascii_case(locale_id)))
+            .collect())
+    }
+
+    /// One publication.
+    pub async fn publication(&self, id: &str) -> Result<Option<Publication>> {
+        self.run(ops::publication(id)).await
     }
 
     /// Everything the audience lists: the audience, locales, venues, people, upcoming events and series, fetched at

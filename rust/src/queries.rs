@@ -205,6 +205,123 @@ pub fn schema_fields(types: &[&str]) -> String {
     format!("query SchemaFields {{ {} }}", selections.join(" "))
 }
 
+// Soapbox (news)
+
+/// The types the Soapbox documents depend on: the root's `soapbox` and each listing's `articles`.
+pub const SOAPBOX_TYPES: &[&str] = &["Audience", "Venue", "Event", "Person", "Locale", "Article", "Publication"];
+
+const PUBLICATION_SUMMARY_FIELDS: &str = "id name photoUrl trusted acceptsOpEds";
+const ARTICLE_SUBJECT_FIELDS: &str = "venues { id name } events { id name } people { id name } locales { id name }";
+const PUBLICATION_FIELDS: &str = "id name masthead about websiteUrl photoUrl trusted acceptsOpEds opEdGuidelines locale { id name } person { id name }";
+
+/// An article's fields, as lists show it (no body).
+pub fn article_fields(_shape: &SchemaShape) -> String {
+    format!(
+        "id slug title summary byline kind publishedAt edited pinned teaser canonicalUrl disclosure heroPhotoUrl \
+         heroAltText publication {{ {PUBLICATION_SUMMARY_FIELDS} }}"
+    )
+}
+
+/// The document for an audience without Soapbox: asks for nothing the models read, under the operation's name.
+fn no_soapbox(name: &str) -> String {
+    format!("query {name} {{ id }}")
+}
+
+/// The audience's live articles, pinned first, then newest.
+pub fn articles(shape: &SchemaShape) -> String {
+    if !shape.has("Audience", "soapbox") {
+        return no_soapbox("Articles");
+    }
+    format!(
+        "query Articles($localeId: ID, $publicationId: ID, $first: Int) {{\n  soapbox {{ articles(localeId: $localeId, \
+         publicationId: $publicationId, first: $first) {{\n    nodes {{ {} }}\n  }} }}\n}}",
+        article_fields(shape)
+    )
+}
+
+/// A page of articles, with the cursor for the next.
+pub fn articles_page(shape: &SchemaShape) -> String {
+    if !shape.has("Audience", "soapbox") {
+        return no_soapbox("ArticlesPage");
+    }
+    format!(
+        "query ArticlesPage($localeId: ID, $publicationId: ID, $first: Int, $after: String) {{\n  soapbox {{ \
+         articles(localeId: $localeId, publicationId: $publicationId, first: $first, after: $after) {{\n    nodes {{ \
+         {} }}\n    pageInfo {{ endCursor hasNextPage }}\n  }} }}\n}}",
+        article_fields(shape)
+    )
+}
+
+/// Articles featured nationally.
+pub fn national_articles(shape: &SchemaShape) -> String {
+    if !shape.has("Audience", "soapbox") || !shape.has("Article", "featuredNationally") {
+        return no_soapbox("NationalArticles");
+    }
+    format!(
+        "query NationalArticles($localeId: ID, $first: Int) {{\n  soapbox {{ articles(national: true, localeId: \
+         $localeId, first: $first) {{\n    nodes {{ {} featuredNationally }}\n  }} }}\n}}",
+        article_fields(shape)
+    )
+}
+
+/// One article, with its body and what it is about.
+pub fn article(shape: &SchemaShape) -> String {
+    if !shape.has("Audience", "soapbox") {
+        return no_soapbox("Article");
+    }
+    format!(
+        "query Article($id: ID!) {{\n  soapbox {{ article(id: $id) {{ {} body {ARTICLE_SUBJECT_FIELDS} }} }}\n}}",
+        article_fields(shape)
+    )
+}
+
+/// The publications the audience carries.
+pub fn publications(shape: &SchemaShape) -> String {
+    if !shape.has("Audience", "soapbox") {
+        return no_soapbox("Publications");
+    }
+    format!("query Publications {{\n  soapbox {{ publications {{ {PUBLICATION_FIELDS} }} }}\n}}")
+}
+
+/// One publication.
+pub fn publication(shape: &SchemaShape) -> String {
+    if !shape.has("Audience", "soapbox") {
+        return no_soapbox("Publication");
+    }
+    format!("query Publication($id: ID!) {{\n  soapbox {{ publication(id: $id) {{ {PUBLICATION_FIELDS} }} }}\n}}")
+}
+
+fn articles_about(shape: &SchemaShape, type_name: &str, open: &str, close: &str) -> String {
+    if !shape.has(type_name, "articles") {
+        return no_soapbox("ArticlesAbout");
+    }
+    format!(
+        "query ArticlesAbout($id: ID!, $first: Int) {{\n  {open}articles {{ list(first: $first) {{ nodes {{ {} }} }} \
+         }}{close}\n}}",
+        article_fields(shape)
+    )
+}
+
+/// Live articles about a venue.
+pub fn articles_about_venue(shape: &SchemaShape) -> String {
+    articles_about(shape, "Venue", "venues { venue(id: $id) { ", " } }")
+}
+
+/// Live articles about an event.
+pub fn articles_about_event(shape: &SchemaShape) -> String {
+    articles_about(shape, "Event", "events { event(id: $id) { ", " } }")
+}
+
+/// Live articles about a person.
+pub fn articles_about_person(shape: &SchemaShape) -> String {
+    articles_about(shape, "Person", "people { person(id: $id) { ", " } }")
+}
+
+/// Live articles about a locale.
+pub fn articles_about_locale(shape: &SchemaShape) -> String {
+    articles_about(shape, "Locale", "locale(id: $id) { ", " }")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

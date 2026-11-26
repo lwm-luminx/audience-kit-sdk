@@ -59,11 +59,11 @@ client = Client.from_environment()  # AUDIENCEKIT_TOKEN=akst_…, AUDIENCEKIT_HO
 
 for listing in client.public_listings():  # needs the public:read scope
     print(listing.kind, listing.title)
-
-community = client.community()  # the audience, locales, venues, people, events and series
 ```
 
-The client trades the token for an hour-long session and renews it before it runs out. See
+The client trades the token for an hour-long session and renews it before it runs out. A service token reads the
+public listings; for the GraphQL reads (`community()`, `events()`, news), set an application API key as
+`AUDIENCEKIT_TOKEN` (anything not starting `akst_` is sent as is) or pass it to `use_bearer_token()`. See
 [Building a website](docs/websites.md).
 
 ### News, cover, chat and the calendar

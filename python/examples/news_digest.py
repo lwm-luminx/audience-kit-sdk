@@ -1,6 +1,6 @@
 """A Markdown digest of a locale's news, for a newsletter or a Discord post.
 
-    AUDIENCEKIT_TOKEN=akst_… AUDIENCEKIT_HOST=hotmess.social python news_digest.py Denver
+    AUDIENCEKIT_TOKEN=<application API key> AUDIENCEKIT_HOST=hotmess.social python news_digest.py Denver
 
 Returns nothing for an audience without Soapbox, rather than failing.
 """

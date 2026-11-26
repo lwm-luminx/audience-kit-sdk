@@ -8,7 +8,10 @@ use serde::Serialize;
 use serde_json::{Map, Value, json};
 
 use crate::error::{Error, Result};
-use crate::models::{Audience, Coordinate, Event, EventSeries, Locale, Node, Person, SelfUser, Venue, decode_list};
+use crate::models::{
+    Article, ArticlesPage, Audience, Coordinate, Event, EventSeries, Locale, Node, Person, Publication, SelfUser,
+    Venue, decode_list,
+};
 use crate::queries;
 use crate::schema::SchemaShape;
 
@@ -228,6 +231,126 @@ pub fn event_series(locale_id: Option<&str>, venue_id: Option<&str>, first: u32)
     .with_types(queries::EVENT_TYPES)
 }
 
+/// Which articles to list.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ArticleQuery {
+    /// Only this locale's.
+    pub locale_id: Option<String>,
+    /// Only this publication's.
+    pub publication_id: Option<String>,
+    /// At most this many.
+    pub first: Option<u32>,
+    /// After this cursor (an [`ArticlesPage`]'s `end_cursor`), for "Show more".
+    pub after: Option<String>,
+}
+
+/// What an article can be about.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ArticleTopic {
+    /// A venue.
+    Venue,
+    /// An event.
+    Event,
+    /// A person.
+    Person,
+    /// A locale.
+    Locale,
+}
+
+fn article_variables(query: &ArticleQuery, paged: bool) -> Value {
+    let mut variables = Map::new();
+    if let Some(locale) = &query.locale_id {
+        variables.insert("localeId".into(), json!(locale));
+    }
+    if let Some(publication) = &query.publication_id {
+        variables.insert("publicationId".into(), json!(publication));
+    }
+    if let Some(first) = query.first.or(paged.then_some(20)) {
+        variables.insert("first".into(), json!(first));
+    }
+    if let (true, Some(after)) = (paged, &query.after) {
+        variables.insert("after".into(), json!(after));
+    }
+    Value::Object(variables)
+}
+
+/// The audience's live articles, pinned first, then newest; empty without Soapbox.
+pub fn articles(query: &ArticleQuery) -> Operation<Vec<Article>> {
+    Operation::new("Articles", Document::Shaped(queries::articles), |data| {
+        Ok(list_at(data, &["soapbox", "articles", "nodes"], Article::from_json))
+    })
+    .with_variables(article_variables(query, false))
+    .with_types(queries::SOAPBOX_TYPES)
+}
+
+/// A page of articles (20 unless `first` says), with the cursor for the next.
+pub fn articles_page(query: &ArticleQuery) -> Operation<ArticlesPage> {
+    Operation::new("ArticlesPage", Document::Shaped(queries::articles_page), |data| {
+        let page_info = data.pointer("/soapbox/articles/pageInfo");
+        Ok(ArticlesPage {
+            articles: list_at(data, &["soapbox", "articles", "nodes"], Article::from_json),
+            end_cursor: page_info.and_then(|info| info.get("endCursor")).and_then(Value::as_str).map(String::from),
+            has_next_page: page_info.and_then(|info| info.get("hasNextPage")).and_then(Value::as_bool).unwrap_or(false),
+        })
+    })
+    .with_variables(article_variables(query, true))
+    .with_types(queries::SOAPBOX_TYPES)
+}
+
+/// Articles featured nationally; empty without Soapbox.
+pub fn national_articles(locale_id: Option<&str>, first: Option<u32>) -> Operation<Vec<Article>> {
+    let query = ArticleQuery { locale_id: locale_id.map(String::from), first, ..Default::default() };
+    Operation::new("NationalArticles", Document::Shaped(queries::national_articles), |data| {
+        Ok(list_at(data, &["soapbox", "articles", "nodes"], Article::from_json))
+    })
+    .with_variables(article_variables(&query, false))
+    .with_types(queries::SOAPBOX_TYPES)
+}
+
+/// One article, with its body and what it is about.
+pub fn article(id: &str) -> Operation<Option<Article>> {
+    Operation::new("Article", Document::Shaped(queries::article), |data| {
+        Ok(one_at(data, &["soapbox", "article"], Article::from_json))
+    })
+    .with_variables(json!({"id": id}))
+    .with_types(queries::SOAPBOX_TYPES)
+}
+
+/// Live articles about a listing ("In the news" on its page); empty without Soapbox.
+pub fn articles_about(topic: ArticleTopic, id: &str, first: Option<u32>) -> Operation<Vec<Article>> {
+    let (document, path): (fn(&SchemaShape) -> String, &'static [&'static str]) = match topic {
+        ArticleTopic::Venue => (queries::articles_about_venue, &["venues", "venue", "articles", "list", "nodes"]),
+        ArticleTopic::Event => (queries::articles_about_event, &["events", "event", "articles", "list", "nodes"]),
+        ArticleTopic::Person => (queries::articles_about_person, &["people", "person", "articles", "list", "nodes"]),
+        ArticleTopic::Locale => (queries::articles_about_locale, &["locale", "articles", "list", "nodes"]),
+    };
+    let mut variables = Map::new();
+    variables.insert("id".into(), json!(id));
+    if let Some(first) = first {
+        variables.insert("first".into(), json!(first));
+    }
+    Operation::new("ArticlesAbout", Document::Shaped(document), move |data| Ok(list_at(data, path, Article::from_json)))
+        .with_variables(Value::Object(variables))
+        .with_types(queries::SOAPBOX_TYPES)
+}
+
+/// The publications the audience carries; empty without Soapbox.
+pub fn publications() -> Operation<Vec<Publication>> {
+    Operation::new("Publications", Document::Shaped(queries::publications), |data| {
+        Ok(list_at(data, &["soapbox", "publications"], Publication::from_json))
+    })
+    .with_types(queries::SOAPBOX_TYPES)
+}
+
+/// One publication.
+pub fn publication(id: &str) -> Operation<Option<Publication>> {
+    Operation::new("Publication", Document::Shaped(queries::publication), |data| {
+        Ok(one_at(data, &["soapbox", "publication"], Publication::from_json))
+    })
+    .with_variables(json!({"id": id}))
+    .with_types(queries::SOAPBOX_TYPES)
+}
+
 /// Every document a typed call can send, built for an audience with every module (`<OperationName>`, text), for
 /// checking them against the API's schema.
 pub fn documents() -> Vec<(String, String)> {
@@ -244,6 +367,16 @@ pub fn documents() -> Vec<(String, String)> {
         (events(&EventQuery::default()).name, events(&EventQuery::default()).text(&shape)),
         (event("x").name, event("x").text(&shape)),
         (event_series(None, None, 1).name, event_series(None, None, 1).text(&shape)),
+        (articles(&ArticleQuery::default()).name, articles(&ArticleQuery::default()).text(&shape)),
+        (articles_page(&ArticleQuery::default()).name, articles_page(&ArticleQuery::default()).text(&shape)),
+        (national_articles(None, None).name, national_articles(None, None).text(&shape)),
+        (article("x").name, article("x").text(&shape)),
+        (publications().name, publications().text(&shape)),
+        (publication("x").name, publication("x").text(&shape)),
+        ("ArticlesAboutVenue".into(), articles_about(ArticleTopic::Venue, "x", None).text(&shape)),
+        ("ArticlesAboutEvent".into(), articles_about(ArticleTopic::Event, "x", None).text(&shape)),
+        ("ArticlesAboutPerson".into(), articles_about(ArticleTopic::Person, "x", None).text(&shape)),
+        ("ArticlesAboutLocale".into(), articles_about(ArticleTopic::Locale, "x", None).text(&shape)),
     ]
 }
 
@@ -287,7 +420,8 @@ mod tests {
     #[test]
     fn every_document_is_named_for_its_operation() {
         for (name, text) in documents() {
-            assert!(text.starts_with(&format!("query {name}")), "{name}: {text}");
+            let operation = if name.starts_with("ArticlesAbout") { "ArticlesAbout" } else { name.as_str() };
+            assert!(text.starts_with(&format!("query {operation}")), "{name}: {text}");
         }
     }
 }

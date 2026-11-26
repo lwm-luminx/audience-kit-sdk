@@ -34,6 +34,11 @@ runs out (once, however many calls are waiting), and once more if the API refuse
 say). A token an admin revoked throws `AudienceKitError` with `UNAUTHORIZED`. An application API key works the same
 way through `AUDIENCEKIT_TOKEN` or `useBearerToken()`: it is sent as is.
 
+**What a service token reads today:** the public listings below. The GraphQL reads (`community()`, `events()`,
+`venues()`, news and the rest) refuse a service session for now, so a site that renders from them uses an application
+API key from the audience's console: set it as `AUDIENCEKIT_TOKEN` (anything not starting `akst_` is sent as is) or
+pass it to `useBearerToken()`. Keep it on the server, like a service token.
+
 ## The public listings
 
 What the audience shows anyone, as its own websites show it: up to 500 venues, then events, then posts, a page at a
@@ -61,7 +66,8 @@ five-minute cache.
 
 For a site that renders from the richer GraphQL models (venues with their locales, points and tags; events with their
 venues, hosts and tickets), `community()` reads the audience, its locales, venues, people, upcoming events and event
-series together. A part whose module the audience doesn't have comes back empty.
+series together, with an application API key or a person's session. A part whose module the audience doesn't have
+comes back empty.
 
 ```ts
 import { eventHostedBy, listingName, locationCoordinate } from "audience-kit";

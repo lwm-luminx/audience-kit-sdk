@@ -1,6 +1,6 @@
 """The whole community as JSON, for a static site generator (Pelican, MkDocs, Hugo) to build pages from.
 
-AUDIENCEKIT_TOKEN=akst_… AUDIENCEKIT_HOST=hotmess.social python community_export.py > community.json
+AUDIENCEKIT_TOKEN=<application API key> AUDIENCEKIT_HOST=hotmess.social python community_export.py > community.json
 """
 
 from __future__ import annotations

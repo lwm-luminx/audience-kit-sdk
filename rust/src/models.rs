@@ -938,3 +938,160 @@ impl PublicListingsPage {
         })
     }
 }
+
+// Soapbox (news)
+
+/// A listing an article is about, or a publication's locale or person.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Subject {
+    /// Its ID.
+    pub id: String,
+    /// Its name.
+    pub name: Option<String>,
+}
+
+fn subject(object: &Object) -> Option<Subject> {
+    Some(Subject { id: id_of(object)?, name: str_at(object, "name") })
+}
+
+fn subjects(value: Option<&Value>) -> Vec<Subject> {
+    list_of(value, subject).unwrap_or_default()
+}
+
+/// A publication the audience carries: a paper, a blog or a person writing on their own.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Publication {
+    /// Its ID.
+    pub id: String,
+    /// Its name.
+    pub name: String,
+    /// Its photo or logo.
+    pub photo_url: Option<String>,
+    /// Whether the audience trusts it to publish without review.
+    pub trusted: bool,
+    /// Whether it takes op-eds from readers.
+    pub accepts_op_eds: bool,
+    /// Its masthead.
+    pub masthead: Option<String>,
+    /// About it.
+    pub about: Option<String>,
+    /// Its own website.
+    pub website_url: Option<String>,
+    /// What it asks of op-eds.
+    pub op_ed_guidelines: Option<String>,
+    /// The locale it covers.
+    pub locale: Option<Subject>,
+    /// The person who writes it, for a one-person publication.
+    pub person: Option<Subject>,
+}
+
+impl Publication {
+    /// Decodes a publication from the API's JSON.
+    pub fn from_json(value: &Value) -> Option<Self> {
+        let object = value.as_object()?;
+        Some(Publication {
+            id: id_of(object)?,
+            name: str_at(object, "name").unwrap_or_default(),
+            photo_url: str_at(object, "photoUrl"),
+            trusted: bool_at(object, "trusted"),
+            accepts_op_eds: bool_at(object, "acceptsOpEds"),
+            masthead: str_at(object, "masthead"),
+            about: str_at(object, "about"),
+            website_url: str_at(object, "websiteUrl"),
+            op_ed_guidelines: str_at(object, "opEdGuidelines"),
+            locale: object.get("locale").and_then(Value::as_object).and_then(subject),
+            person: object.get("person").and_then(Value::as_object).and_then(subject),
+        })
+    }
+}
+
+/// A Soapbox article. `body` (Markdown) and what it's about come with [`Client::article`], not in lists; a `teaser`
+/// carries only the start, so link `canonical_url` for the rest.
+///
+/// [`Client::article`]: crate::Client::article
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Article {
+    /// Its ID.
+    pub id: String,
+    /// Its slug, for a URL.
+    pub slug: String,
+    /// Its title.
+    pub title: String,
+    /// Who wrote it.
+    pub byline: String,
+    /// `NEWS` or `OP_ED`.
+    pub kind: String,
+    /// Its publication.
+    pub publication: Publication,
+    /// A sentence or two about it.
+    pub summary: Option<String>,
+    /// When it was published.
+    pub published_at: Option<DateTime<Utc>>,
+    /// Whether it changed after it was published.
+    pub edited: bool,
+    /// Whether it is pinned to the top.
+    pub pinned: bool,
+    /// Whether it carries only the start, with the rest at `canonical_url`.
+    pub teaser: bool,
+    /// Where it was first published.
+    pub canonical_url: Option<String>,
+    /// A conflict of interest the writer disclosed; show it with the article.
+    pub disclosure: Option<String>,
+    /// Its photo.
+    pub hero_photo_url: Option<String>,
+    /// Its photo's description.
+    pub hero_alt_text: Option<String>,
+    /// Whether it is featured nationally.
+    pub featured_nationally: bool,
+    /// Its Markdown body (one article only).
+    pub body: Option<String>,
+    /// The venues it is about.
+    pub venues: Vec<Subject>,
+    /// The events it is about.
+    pub events: Vec<Subject>,
+    /// The people it is about.
+    pub people: Vec<Subject>,
+    /// The locales it is about.
+    pub locales: Vec<Subject>,
+}
+
+impl Article {
+    /// Decodes an article from the API's JSON.
+    pub fn from_json(value: &Value) -> Option<Self> {
+        let object = value.as_object()?;
+        Some(Article {
+            id: id_of(object)?,
+            slug: str_at(object, "slug").unwrap_or_default(),
+            title: str_at(object, "title").unwrap_or_default(),
+            byline: str_at(object, "byline").unwrap_or_default(),
+            kind: str_at(object, "kind").unwrap_or_else(|| "NEWS".into()),
+            publication: object.get("publication").and_then(Publication::from_json)?,
+            summary: str_at(object, "summary"),
+            published_at: parse_datetime(object.get("publishedAt")),
+            edited: bool_at(object, "edited"),
+            pinned: bool_at(object, "pinned"),
+            teaser: bool_at(object, "teaser"),
+            canonical_url: str_at(object, "canonicalUrl"),
+            disclosure: str_at(object, "disclosure"),
+            hero_photo_url: str_at(object, "heroPhotoUrl"),
+            hero_alt_text: str_at(object, "heroAltText"),
+            featured_nationally: bool_at(object, "featuredNationally"),
+            body: str_at(object, "body"),
+            venues: subjects(object.get("venues")),
+            events: subjects(object.get("events")),
+            people: subjects(object.get("people")),
+            locales: subjects(object.get("locales")),
+        })
+    }
+}
+
+/// A page of articles, and the cursor for the next.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ArticlesPage {
+    /// The articles.
+    pub articles: Vec<Article>,
+    /// Pass as `after` for the next page.
+    pub end_cursor: Option<String>,
+    /// Whether there is a next page.
+    pub has_next_page: bool,
+}

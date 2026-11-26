@@ -1,6 +1,6 @@
 // The whole community as JSON, for a static site generator (Astro, Eleventy, Hugo) to build pages from.
 //
-//   AUDIENCEKIT_TOKEN=akst_… AUDIENCEKIT_HOST=hotmess.social node --experimental-strip-types community-export.ts > community.json
+//   AUDIENCEKIT_TOKEN=<application API key> AUDIENCEKIT_HOST=hotmess.social node --experimental-strip-types community-export.ts > community.json
 import {
   AudienceKitClient,
   colorFromHex,

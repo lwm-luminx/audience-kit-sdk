@@ -23,7 +23,7 @@ or in `Cargo.toml`:
 
 ```toml
 [dependencies]
-audiencekit = "0.1"
+audiencekit = "0.2"
 ```
 
 Rust 1.85 or newer. TLS is rustls by default; `default-features = false, features = ["native-tls"]` uses the
@@ -32,25 +32,30 @@ platform's.
 ## Usage
 
 ```rust
-use audiencekit::{Client, EventQuery, EventWindow};
+use audiencekit::{ArticleQuery, Client, EventQuery, EventWindow};
 
-// An audience service token (akst_…), minted by the audience's admins in its console. The client trades it for an
-// hour-long session at POST /v1/token/service, and again before that runs out.
-let client = Client::builder().service_token(std::env::var("AUDIENCEKIT_TOKEN").unwrap()).build()?;
+// Configured from AUDIENCEKIT_TOKEN and AUDIENCEKIT_HOST (or AUDIENCEKIT_AUDIENCE_ID).
+let client = Client::from_env()?;
 
-let community = client.community().await?; // audience, locales, venues, people, upcoming events and series at once
-let venues = client.venues().await?;
-let past = client.events(&EventQuery { window: EventWindow::Past, first: 20, ..Default::default() }).await?;
-let in_a_locale = client.events(&EventQuery { locale_id: Some(locale_id), ..Default::default() }).await?;
-
-// The public listings (venues, events and posts as the audience's websites show them): a `public:read` token.
+// The public listings (venues, events and posts as the audience's websites show them): a public:read service token.
 let listings = client.public_listings().await?;
+
+// The GraphQL reads: an application API key or a person's session.
+let community = client.community().await?; // audience, locales, venues, people, upcoming events and series at once
+let past = client.events(&EventQuery { window: EventWindow::Past, first: 20, ..Default::default() }).await?;
+let news = client.articles(&ArticleQuery { first: Some(10), ..Default::default() }).await?;
 ```
+
+- [Building a website](docs/websites.md): credentials, the public listings, the community, news and caching.
+- [Reference](docs/reference.md): every call, model and error.
+- [Examples](examples/README.md): a static listings page, a news digest and a community export, each a program you
+  can run.
 
 `Client` is cheap to clone and safe to share across tasks (hold one in an axum `State`). Every model is
 `serde::Serialize`, so a host can hand records to a model or a tool result as JSON as they are.
 
-Other credentials: `.session(credential)` for a session the API issued to a person (it is sent to the API instance
+A service token (`akst_…`, `.service_token(…)`) is traded for an hour-long session at `POST /v1/token/service` and
+renewed before it runs out. Other credentials: `.session(credential)` for a session the API issued to a person (it is sent to the API instance
 that issued it), `.auth(Auth::Bearer(…))` for an application's API key or a bare JWT (set `.audience_id(…)` or
 `.host(…)` so the client knows which audience to query). `Client::from_env()` reads `AUDIENCEKIT_TOKEN` (a token
 starting `akst_` is a service token), `AUDIENCEKIT_BASE_URL`, `AUDIENCEKIT_AUDIENCE_ID` and `AUDIENCEKIT_HOST`.
@@ -67,20 +72,20 @@ Your own documents: `client.graphql(query, variables, operation_name)` returns t
 goose reaches AudienceKit two ways, and this crate is the second:
 
 1. **As an MCP extension**, no code: a `streamable_http` extension pointed at `https://api.audiencekit.com/v1/mcp`
-   with `Authorization: Bearer <audience token>` (the plan in audience_kit_api `doc/plans/GOOSE_INTEGRATION_PLAN.md`).
+   with `Authorization: Bearer <audience token>`.
 2. **Natively, in goosed**, with this crate: read the community into goosed (or a goose builtin extension built on
    `rmcp`) with `Client::from_env()?.community().await?`, and keep it fresh on a schedule. `cargo run --example
    community` prints what that reads, as JSON.
 
 Which listings a service token reads depends on its scopes. Today a `public:read` token reads the public listings
 (`public_listings`, `public_listing`, `public_tonight`); the GraphQL calls (`community`, `venues`, `events`, …) need a
-person's session or an application key until the API lets an agent-scoped service token read listings over GraphQL (audience_kit_api #719).
+person's session or an application key until the API lets a service token read listings over GraphQL.
 
 ## Development
 
 ```sh
 cargo test
-cargo llvm-cov --fail-under-lines 85      # the repository's coverage floor (98% at 0.1.0)
+cargo llvm-cov --fail-under-lines 85   # the repository's coverage floor 
 cargo run --example graphql_documents -- target/graphql
 node ../scripts/graphql/check.mjs --schema ../graphql/schema.graphql --endpoint consumer target/graphql
 ```

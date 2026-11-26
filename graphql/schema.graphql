@@ -19281,7 +19281,7 @@ type Mutation {
     Parameters for SafetyAlertMessageSend
     """
     input: SafetyAlertMessageSendInput!
-  ): SafetyAlertMessageSendPayload @requires(permissions: ["users:write:self", "chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*"])
+  ): SafetyAlertMessageSendPayload @requires(permissions: ["users:write:self", "chat:moderate:mine", "chat:moderate:venue", "audience:moderate:*", "safety:moderate:responder"])
 
   """
   Follows a venue in the signed-in user's calendar subscription
@@ -24886,6 +24886,11 @@ type SafetyAlert {
   acknowledgedByName: String
 
   """
+  A safety responder picked it up, not the venue's staff: they are here to help in the thread, not on their way.
+  """
+  acknowledgedByResponder: Boolean!
+
+  """
   When it was closed or cancelled.
   """
   closedAt: ISO8601DateTime
@@ -25060,6 +25065,11 @@ type SafetyAlertMessage {
   Its UUID.
   """
   id: ID!
+
+  """
+  A community resource staff or a responder shared (shareSafetyAlertResource); the body says the same in text.
+  """
+  resource: CommunityResource
 
   """
   Who sent it: the guest's name, or the staff member's first name.

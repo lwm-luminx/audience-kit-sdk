@@ -3,6 +3,17 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.108.0 (2026-11-26)
+
+- StaffKit: Link Facebook and Link Instagram, for posting as a listing's Facebook Page and the Instagram professional
+  account linked to it (the API's doc/SOCIAL_PUBLISHING.md). `SocialAccountsClient` reads a person's or venue's
+  posting accounts (`LinkedSocialAccounts`, `LinkedSocialAccount`), links the Page with the code from Facebook's
+  dialog (`linkFacebook(_:code:redirectURI:facebookAppID:pageID:)`; the API exchanges it) and unlinks an account.
+  `ManagementPlatform.facebookPublishLoginConfigurationID` is the publishing Login for Business configuration
+  (production 1658512575778916 on AudienceKit - Platform, next 1160883476308008 on AudienceKit - Next; `canLinkSocialAccounts` is false for a platform without one), and
+  `FacebookSignIn.forLinkingPages(platform:)` opens the dialog with it. Needs the API's `facebookCode` and
+  `redirectUri` on `connectSocialFacebook` (audience_kit_api #979).
+
 ## 0.107.0 (2026-11-26)
 
 - StaffKit: YouTube videos as playlist tracks, and gathering their licenses (API doc/MEDIA_LICENSES.md). Many queer

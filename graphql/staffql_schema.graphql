@@ -3453,6 +3453,91 @@ type DoorNight {
 }
 
 """
+A phone call with 911 or 988 that a safety alert's counselor opened, which the guest and staff may join.
+"""
+type EmergencyBridge {
+  """
+  When 911 or 988 answered.
+  """
+  connectedAt: ISO8601DateTime
+
+  """
+  When the counselor opened it.
+  """
+  createdAt: ISO8601DateTime!
+
+  """
+  When it ended or failed.
+  """
+  endedAt: ISO8601DateTime
+
+  """
+  Its UUID.
+  """
+  id: ID!
+
+  """
+  Whether it can still be joined.
+  """
+  isOpen: Boolean!
+
+  """
+  Where it stands.
+  """
+  state: EmergencyBridgeState!
+
+  """
+  Who it dials.
+  """
+  target: EmergencyBridgeTarget!
+}
+
+"""
+Where an emergency call on a safety alert stands.
+"""
+enum EmergencyBridgeState {
+  """
+  911 or 988 answered.
+  """
+  CONNECTED
+
+  """
+  Dialing 911 or 988.
+  """
+  DIALING
+
+  """
+  The call ended.
+  """
+  ENDED
+
+  """
+  The call didn't connect: call from a phone.
+  """
+  FAILED
+
+  """
+  Waiting for the counselor to join; nothing is dialed until then.
+  """
+  WAITING
+}
+
+"""
+Who an emergency call on a safety alert dials (startEmergencyBridge).
+"""
+enum EmergencyBridgeTarget {
+  """
+  988, the Suicide and Crisis Lifeline.
+  """
+  CRISIS_LINE
+
+  """
+  911, from the venue's number, so dispatch has its address.
+  """
+  EMERGENCY
+}
+
+"""
 A GraphQL endpoint of the API.
 """
 enum Endpoint {
@@ -16963,6 +17048,11 @@ type SafetyAlert {
   What they wrote, if anything.
   """
   description: String
+
+  """
+  The latest phone call with 911 or 988 its counselor opened, open or not; joinEmergencyBridge joins an open one.
+  """
+  emergencyBridge: EmergencyBridge
 
   """
   When it went to the venue's managers too: nobody picked it up in time, or the guest sent it again.

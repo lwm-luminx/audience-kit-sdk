@@ -51438,9 +51438,15 @@ input SocialFacebookConnectInput {
   facebookAppId: String
 
   """
+  An authorization code from the Facebook login dialog, which the apps open with
+  the publishing configuration; send with redirectUri.
+  """
+  facebookCode: String
+
+  """
   A Facebook user token from signing in.
   """
-  facebookToken: String!
+  facebookToken: String
 
   """
   The venue or person; the audience itself when blank.
@@ -51451,6 +51457,11 @@ input SocialFacebookConnectInput {
   The Page's Facebook ID; the owner's own Page when blank.
   """
   pageId: String
+
+  """
+  The redirect URI facebookCode was issued for.
+  """
+  redirectUri: String
 }
 
 """

@@ -3007,6 +3007,11 @@ type AudienceMediaView implements IAudienceMedia {
     kinds: [MediaItemKind!]
 
     """
+    Staff only: only items whose license stands so, e.g. NEEDED.
+    """
+    licenseStatuses: [MediaLicenseStatus!]
+
+    """
     Only items in this playlist.
     """
     playlistId: ID
@@ -3035,6 +3040,11 @@ type AudienceMediaView implements IAudienceMedia {
     Only recordings, live versions, music videos and scenes not yet linked to a song.
     """
     withoutSong: Boolean = false
+
+    """
+    Only videos on YouTube with no Spotify track or ISRC.
+    """
+    youtubeOnly: Boolean = false
   ): [MediaItem!]!
 
   """
@@ -11677,6 +11687,11 @@ interface IAudienceMedia @mixin(extensionKey: "media", field: "media", null: fal
     kinds: [MediaItemKind!]
 
     """
+    Staff only: only items whose license stands so, e.g. NEEDED.
+    """
+    licenseStatuses: [MediaLicenseStatus!]
+
+    """
     Only items in this playlist.
     """
     playlistId: ID
@@ -11705,6 +11720,11 @@ interface IAudienceMedia @mixin(extensionKey: "media", field: "media", null: fal
     Only recordings, live versions, music videos and scenes not yet linked to a song.
     """
     withoutSong: Boolean = false
+
+    """
+    Only videos on YouTube with no Spotify track or ISRC.
+    """
+    youtubeOnly: Boolean = false
   ): [MediaItem!]!
 
   """
@@ -17693,6 +17713,32 @@ type MediaItem {
   When it came out.
   """
   year: Int
+
+  """
+  The YouTube channel that posted its video.
+  """
+  youtubeChannel: String
+
+  """
+  That channel's page.
+  """
+  youtubeChannelUrl: String
+
+  """
+  Its YouTube video id.
+  """
+  youtubeId: String
+
+  """
+  On YouTube with no Spotify track or ISRC: no catalog a venue license covers
+  knows it, so its rights are asked for directly.
+  """
+  youtubeOnly: Boolean!
+
+  """
+  Its YouTube page.
+  """
+  youtubeUrl: String
 }
 
 """
@@ -17803,6 +17849,39 @@ type MediaLabel {
   The tag or collection, e.g. lesbian or new-since-2018.
   """
   name: String!
+}
+
+"""
+Where gathering the license to play a media item stands
+(MediaItem.license_status). A song released only on YouTube has no ISRC and
+isn't in the catalogs a venue's music service or PRO licenses cover, so its
+rights are asked for directly.
+"""
+enum MediaLicenseStatus {
+  """
+  The rights holder said no.
+  """
+  DECLINED
+
+  """
+  Licensed to play.
+  """
+  GRANTED
+
+  """
+  Its rights holder still needs asking.
+  """
+  NEEDED
+
+  """
+  Covered another way, or won't be played in public.
+  """
+  NOT_NEEDED
+
+  """
+  Asked; waiting on an answer.
+  """
+  REQUESTED
 }
 
 """

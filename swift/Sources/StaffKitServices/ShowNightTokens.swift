@@ -46,7 +46,7 @@ extension TalentManagementClient {
 
     /// The chosen audience's staff endpoint, or the audience-less one while a performer works on their own listings
     /// with no audience chosen.
-    private func showNightGraphQL<Response: Decodable & Sendable>(_ query: String, variables: [String: GraphQLValue],
+    func showNightGraphQL<Response: Decodable & Sendable>(_ query: String, variables: [String: GraphQLValue],
                                                                  as type: Response.Type) async throws -> Response {
         do {
             return try await session.graphQL(query, variables: variables, as: type)

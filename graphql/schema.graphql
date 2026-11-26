@@ -17098,6 +17098,16 @@ type Location implements HasBanner & HasPhoto & HasTimestamps & Node {
   id: ID!
 
   """
+  Its point's latitude, in degrees; null without a point.
+  """
+  latitude: Float
+
+  """
+  Its point's longitude, in degrees; null without a point.
+  """
+  longitude: Float
+
+  """
   The photo's CDN URL, if there is one.
   """
   photoUrl: PhotoURL
@@ -21013,6 +21023,13 @@ One of a person's events, and how they're on it: themselves, or through a troupe
 """
 type PersonEventEdge {
   """
+  Their entries on its lineup, or their troupes', in running order: when they go
+  on (projectedStartsAt as the night runs, else startsAt) and any curtain call.
+  Empty when they are billed but not on its lineup.
+  """
+  appearances: [Appearance!]!
+
+  """
   A cursor for use in pagination.
   """
   cursor: String!
@@ -24901,6 +24918,16 @@ type SafetyAlert {
   concerns: [SafetyAlertConcern!]!
 
   """
+  When a licensed crisis counselor joined.
+  """
+  counselorJoinedAt: ISO8601DateTime
+
+  """
+  The licensed crisis counselor on it, as the guest is told; null until one joins.
+  """
+  counselorName: String
+
+  """
   When it was sent.
   """
   createdAt: ISO8601DateTime!
@@ -24939,6 +24966,12 @@ type SafetyAlert {
   Staff sent it to rehearse (sendPracticeSafetyAlert); nobody needs help.
   """
   practice: Boolean!
+
+  """
+  Its thread and free text were deleted after it ended (crisis chat is kept only
+  for the conversation, unless a counselor holds it).
+  """
+  purged: Boolean!
 
   """
   When the guest last sent it again.

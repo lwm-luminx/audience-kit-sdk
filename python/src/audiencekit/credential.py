@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from .config import API_VERSION, origin
@@ -20,13 +20,25 @@ class Credential:
     """
 
     token: str
-    user_id: str
+    user_id: str | None
+    """The signed-in person; ``None`` for a service session (a server acting for the audience)."""
     role: str
     endpoint: str
     audience_id: str | None = None
     venue_device_id: str | None = None
     expires_at: datetime | None = None
     api_version: str = API_VERSION
+
+    def expires_within(self, seconds: float) -> bool:
+        """Whether the session ends within ``seconds`` (never, for a session that only ends by signing out)."""
+        if self.expires_at is None:
+            return False
+        return self.expires_at <= datetime.now(timezone.utc) + timedelta(seconds=seconds)
+
+    @property
+    def is_service(self) -> bool:
+        """Whether this is a service session, traded from a service token."""
+        return self.role == "service" or self.user_id is None
 
     @property
     def origin(self) -> str:
@@ -37,7 +49,7 @@ class Credential:
     def from_json(cls, data: dict[str, Any]) -> Credential:
         return cls(
             token=str(data["token"]),
-            user_id=str(data["userId"]),
+            user_id=str(data["userId"]) if data.get("userId") is not None else None,
             role=str(data.get("role") or "member"),
             endpoint=str(data["endpoint"]),
             audience_id=data.get("audienceId"),

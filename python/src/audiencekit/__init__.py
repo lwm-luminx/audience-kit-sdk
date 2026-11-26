@@ -8,20 +8,32 @@ for event in client.events():
     print(event.name, event.start_at, event.venue_name)
 """
 
-from . import operations
+from . import cover_pass, operations
 from ._version import __version__
-from .client import AsyncClient, Client
+from .client import SERVICE_RENEW_BEFORE_SECONDS, AsyncClient, Client
 from .config import API_VERSION, CONSUMER_ENDPOINT, PRODUCTION_BASE_URL, Configuration, DeviceDescription
+from .cover_pass import cover_pass_code, is_cover_pass_code
 from .credential import Credential
 from .errors import AudienceKitError, GraphQLError
 from .models import (
+    INTIMATE_IMAGE_REASON,
+    REPORT_REASONS,
+    REPORT_TARGETS,
     RSVP,
+    Admission,
     AdmissionOffer,
+    Article,
+    ArticlesPage,
     Audience,
     AudienceTheme,
     Branding,
+    CalendarFeed,
+    ChatMessage,
+    CoatCheck,
+    Community,
     Coordinate,
     CoverCharge,
+    CoverPurchase,
     Event,
     EventPerson,
     EventSeries,
@@ -36,13 +48,19 @@ from .models import (
     PersonEvent,
     PersonEventInvolvement,
     PersonVenue,
+    Publication,
+    PublicListing,
+    PublicListingsPage,
+    ReportResult,
     SelfUser,
+    Subject,
     Tag,
     ThemeToken,
     TribeIdentification,
     Tribes,
     Troupe,
     Venue,
+    VenueCover,
 )
 from .operations import Operation
 from .schema import SchemaShape
@@ -50,18 +68,30 @@ from .schema import SchemaShape
 __all__ = [
     "API_VERSION",
     "CONSUMER_ENDPOINT",
+    "INTIMATE_IMAGE_REASON",
     "PRODUCTION_BASE_URL",
+    "REPORT_REASONS",
+    "REPORT_TARGETS",
     "RSVP",
+    "SERVICE_RENEW_BEFORE_SECONDS",
+    "Admission",
     "AdmissionOffer",
+    "Article",
+    "ArticlesPage",
     "AsyncClient",
     "Audience",
     "AudienceKitError",
     "AudienceTheme",
     "Branding",
+    "CalendarFeed",
+    "ChatMessage",
     "Client",
+    "CoatCheck",
+    "Community",
     "Configuration",
     "Coordinate",
     "CoverCharge",
+    "CoverPurchase",
     "Credential",
     "DeviceDescription",
     "Event",
@@ -80,14 +110,23 @@ __all__ = [
     "PersonEvent",
     "PersonEventInvolvement",
     "PersonVenue",
+    "PublicListing",
+    "PublicListingsPage",
+    "Publication",
+    "ReportResult",
     "SchemaShape",
     "SelfUser",
+    "Subject",
     "Tag",
     "ThemeToken",
     "TribeIdentification",
     "Tribes",
     "Troupe",
     "Venue",
+    "VenueCover",
     "__version__",
+    "cover_pass",
+    "cover_pass_code",
+    "is_cover_pass_code",
     "operations",
 ]

@@ -451,8 +451,30 @@ class AdmissionOffer:
 
 
 @dataclass(frozen=True)
+class CoatCheck:
+    """A venue's coat check on a night, per coat."""
+
+    amount: Money
+    fee: Money
+    total: Money
+    night: str
+    payable: bool
+
+    @classmethod
+    def from_json(cls, data: JSON) -> CoatCheck:
+        return cls(
+            amount=Money.from_json(_dict(data.get("amount")) or {}),
+            fee=Money.from_json(_dict(data.get("fee")) or {}),
+            total=Money.from_json(_dict(data.get("total")) or {}),
+            night=str(data.get("night", "")),
+            payable=bool(data.get("payable", False)),
+        )
+
+
+@dataclass(frozen=True)
 class CoverCharge:
-    """The cover at a venue on a night."""
+    """The cover at a venue on a night. ``scale_*`` are set on a sliding scale, ``coat_check`` when it has one (both
+    only in ``venue_cover``)."""
 
     amount: Money
     fee: Money
@@ -462,10 +484,25 @@ class CoverCharge:
     from_: str | None = None
     event_id: str | None = None
     event_name: str | None = None
+    coat_check: CoatCheck | None = None
+    scale_min: Money | None = None
+    scale_max: Money | None = None
+    scale_suggested: Money | None = None
+
+    @property
+    def is_sliding_scale(self) -> bool:
+        return self.scale_min is not None and self.scale_max is not None
 
     @classmethod
     def from_json(cls, data: JSON) -> CoverCharge:
         event = _dict(data.get("event")) or {}
+        coat = _dict(data.get("coatCheck"))
+        scale = _dict(data.get("scale")) or {}
+
+        def money(value: Any) -> Money | None:
+            found = _dict(value)
+            return Money.from_json(found) if found else None
+
         return cls(
             amount=Money.from_json(_dict(data.get("amount")) or {}),
             fee=Money.from_json(_dict(data.get("fee")) or {}),
@@ -475,6 +512,10 @@ class CoverCharge:
             from_=_str(data.get("from")),
             event_id=_str(event.get("id")),
             event_name=_str(event.get("name")),
+            coat_check=CoatCheck.from_json(coat) if coat else None,
+            scale_min=money(scale.get("min")),
+            scale_max=money(scale.get("max")),
+            scale_suggested=money(scale.get("suggested")),
         )
 
 
@@ -718,3 +759,421 @@ class Branding:
             facebook_login_config_id=_str(facebook.get("loginConfigId")) or _str(data.get("facebookLoginConfigId")),
             raw=data,
         )
+
+
+# Members: cover and chat
+
+
+@dataclass(frozen=True)
+class Admission:
+    """A cover or coat check pass. ``pass_secret`` (the buyer's only) makes the door code: ``cover_pass_code()``."""
+
+    id: str
+    status: str
+    kind: str = "COVER"
+    night: str | None = None
+    quantity: int = 1
+    tier: str | None = None
+    claim_check_number: int | None = None
+    amount: Money | None = None
+    fee: Money | None = None
+    total: Money | None = None
+    is_refundable: bool = False
+    pass_secret: str | None = None
+    scan_count: int = 0
+    checked_in_at: datetime | None = None
+    created_at: datetime | None = None
+    venue_id: str | None = None
+    venue_name: str | None = None
+    event_id: str | None = None
+    event_name: str | None = None
+    raw: JSON = field(default_factory=dict, repr=False, compare=False)
+
+    @property
+    def is_paid(self) -> bool:
+        return self.status == "PAID"
+
+    @classmethod
+    def from_json(cls, data: JSON) -> Admission:
+        venue, event = _dict(data.get("venue")) or {}, _dict(data.get("event")) or {}
+
+        def money(key: str) -> Money | None:
+            found = _dict(data.get(key))
+            return Money.from_json(found) if found else None
+
+        claim = data.get("claimCheckNumber")
+        return cls(
+            id=str(data["id"]),
+            status=str(data.get("status", "PENDING")),
+            kind=str(data.get("kind") or "COVER"),
+            night=_str(data.get("night")),
+            quantity=int(data.get("quantity") or 1),
+            tier=_str(data.get("tier")),
+            claim_check_number=claim if isinstance(claim, int) else None,
+            amount=money("amount"),
+            fee=money("fee"),
+            total=money("total"),
+            is_refundable=bool(data.get("isRefundable", False)),
+            pass_secret=_str(data.get("passSecret")),
+            scan_count=int(data.get("scanCount") or 0),
+            checked_in_at=parse_datetime(data.get("checkedInAt")),
+            created_at=parse_datetime(data.get("createdAt")),
+            venue_id=_str(venue.get("id")),
+            venue_name=_str(venue.get("name")),
+            event_id=_str(event.get("id")),
+            event_name=_str(event.get("name")),
+            raw=data,
+        )
+
+
+@dataclass(frozen=True)
+class CoverPurchase:
+    """What ``buy_cover`` returns: the pass, and what Stripe's payment sheet or Square's SDK needs to pay it."""
+
+    admission: Admission
+    provider: str | None = None
+    payment_intent_client_secret: str | None = None
+    publishable_key: str | None = None
+    stripe_account_id: str | None = None
+    square_application_id: str | None = None
+    square_location_id: str | None = None
+
+    @property
+    def is_square(self) -> bool:
+        return self.provider == "SQUARE"
+
+    @classmethod
+    def from_json(cls, data: JSON) -> CoverPurchase:
+        return cls(
+            admission=Admission.from_json(_dict(data.get("admission")) or {"id": ""}),
+            provider=_str(data.get("provider")),
+            payment_intent_client_secret=_str(data.get("paymentIntentClientSecret")),
+            publishable_key=_str(data.get("publishableKey")),
+            stripe_account_id=_str(data.get("stripeAccountId")),
+            square_application_id=_str(data.get("squareApplicationId")),
+            square_location_id=_str(data.get("squareLocationId")),
+        )
+
+
+@dataclass(frozen=True)
+class VenueCover:
+    """A venue's cover tonight and the signed-in person's pass and coat check for it. ``charge`` is ``None`` when
+    there's no cover tonight, or the audience doesn't have Ticketing and Cover."""
+
+    id: str
+    name: str | None = None
+    charge: CoverCharge | None = None
+    viewer_admission: Admission | None = None
+    viewer_coat_check: Admission | None = None
+
+    @classmethod
+    def from_json(cls, data: JSON) -> VenueCover:
+        cover = _dict((_dict(data.get("tickets")) or {}).get("cover")) or {}
+        charge, admission, coat = (_dict(cover.get(k)) for k in ("charge", "viewerAdmission", "viewerCoatCheck"))
+        return cls(
+            id=str(data["id"]),
+            name=_str(data.get("name")),
+            charge=CoverCharge.from_json(charge) if charge else None,
+            viewer_admission=Admission.from_json(admission) if admission else None,
+            viewer_coat_check=Admission.from_json(coat) if coat else None,
+        )
+
+
+@dataclass(frozen=True)
+class ChatMessage:
+    """A message in a venue's or locale's chat."""
+
+    id: str
+    body: str | None = None
+    name: str | None = None
+    user_id: str | None = None
+    avatar_url: str | None = None
+    photo_url: str | None = None
+    sent_at: datetime | None = None
+    role: str | None = None
+    kind: str | None = None
+    title: str | None = None
+    pinned: bool = False
+
+    @classmethod
+    def from_json(cls, data: JSON) -> ChatMessage:
+        return cls(
+            id=str(data["id"]),
+            body=_str(data.get("body")) or _str(data.get("message")),
+            name=_str(data.get("name")),
+            user_id=_str(data.get("userId")),
+            avatar_url=_str(data.get("avatarUrl")),
+            photo_url=_str(data.get("photoUrl")),
+            sent_at=parse_datetime(data.get("sentAt")),
+            role=_str(data.get("role")),
+            kind=_str(data.get("kind")),
+            title=_str(data.get("title")),
+            pinned=bool(data.get("pinned", False)),
+        )
+
+
+# Soapbox (news)
+
+
+@dataclass(frozen=True)
+class Subject:
+    """A listing an article is about, or a publication's locale or person: its ID and name."""
+
+    id: str
+    name: str | None = None
+
+    @classmethod
+    def list(cls, value: Any) -> list[Subject]:
+        return [cls(id=str(v["id"]), name=_str(v.get("name"))) for v in _list(value) or [] if isinstance(v, dict)]
+
+
+@dataclass(frozen=True)
+class Publication:
+    """A Soapbox publication: a paper, a blog, a person's column. Articles carry only its summary fields."""
+
+    id: str
+    name: str
+    photo_url: str | None = None
+    trusted: bool = False
+    accepts_op_eds: bool = False
+    masthead: str | None = None
+    about: str | None = None
+    website_url: str | None = None
+    op_ed_guidelines: str | None = None
+    locale: Subject | None = None
+    person: Subject | None = None
+    ad_free_offered: bool = False
+    ad_free_tip_cents: int | None = None
+    ad_free_days: int | None = None
+
+    @classmethod
+    def from_json(cls, data: JSON) -> Publication:
+        locale, person = _dict(data.get("locale")), _dict(data.get("person"))
+        tip, days = data.get("adFreeTipCents"), data.get("adFreeDays")
+        return cls(
+            id=str(data["id"]),
+            name=str(data.get("name") or ""),
+            photo_url=_str(data.get("photoUrl")),
+            trusted=bool(data.get("trusted", False)),
+            accepts_op_eds=bool(data.get("acceptsOpEds", False)),
+            masthead=_str(data.get("masthead")),
+            about=_str(data.get("about")),
+            website_url=_str(data.get("websiteUrl")),
+            op_ed_guidelines=_str(data.get("opEdGuidelines")),
+            locale=Subject(str(locale["id"]), _str(locale.get("name"))) if locale else None,
+            person=Subject(str(person["id"]), _str(person.get("name"))) if person else None,
+            ad_free_offered=bool(data.get("adFreeOffered", False)),
+            ad_free_tip_cents=tip if isinstance(tip, int) else None,
+            ad_free_days=days if isinstance(days, int) else None,
+        )
+
+
+@dataclass(frozen=True)
+class Article:
+    """A Soapbox article. ``body`` (Markdown) and what it's about come with ``article(id)``, not in lists; a
+    ``teaser`` carries only the start, so link ``canonical_url`` for the rest."""
+
+    id: str
+    slug: str
+    title: str
+    byline: str
+    kind: str
+    publication: Publication
+    summary: str | None = None
+    published_at: datetime | None = None
+    edited: bool = False
+    pinned: bool = False
+    teaser: bool = False
+    canonical_url: str | None = None
+    disclosure: str | None = None
+    hero_photo_url: str | None = None
+    hero_alt_text: str | None = None
+    featured_nationally: bool = False
+    viewer_ad_free: bool = False
+    body: str | None = None
+    venues: list[Subject] = field(default_factory=list)
+    events: list[Subject] = field(default_factory=list)
+    people: list[Subject] = field(default_factory=list)
+    locales: list[Subject] = field(default_factory=list)
+    status: str | None = None
+    review_note: str | None = None
+    submitted_at: datetime | None = None
+    raw: JSON = field(default_factory=dict, repr=False, compare=False)
+
+    @classmethod
+    def from_json(cls, data: JSON) -> Article:
+        return cls(
+            id=str(data["id"]),
+            slug=str(data.get("slug") or ""),
+            title=str(data.get("title") or ""),
+            byline=str(data.get("byline") or ""),
+            kind=str(data.get("kind") or ""),
+            publication=Publication.from_json(_dict(data.get("publication")) or {"id": "", "name": ""}),
+            summary=_str(data.get("summary")),
+            published_at=parse_datetime(data.get("publishedAt")),
+            edited=bool(data.get("edited", False)),
+            pinned=bool(data.get("pinned", False)),
+            teaser=bool(data.get("teaser", False)),
+            canonical_url=_str(data.get("canonicalUrl")),
+            disclosure=_str(data.get("disclosure")),
+            hero_photo_url=_str(data.get("heroPhotoUrl")),
+            hero_alt_text=_str(data.get("heroAltText")),
+            featured_nationally=bool(data.get("featuredNationally", False)),
+            viewer_ad_free=bool(data.get("viewerAdFree", False)),
+            body=_str(data.get("body")),
+            venues=Subject.list(data.get("venues")),
+            events=Subject.list(data.get("events")),
+            people=Subject.list(data.get("people")),
+            locales=Subject.list(data.get("locales")),
+            status=_str(data.get("status")),
+            review_note=_str(data.get("reviewNote")),
+            submitted_at=parse_datetime(data.get("submittedAt")),
+            raw=data,
+        )
+
+
+@dataclass(frozen=True)
+class ArticlesPage:
+    """A page of articles, with the cursor for the next (``articles_page``)."""
+
+    articles: list[Article]
+    end_cursor: str | None = None
+    has_next_page: bool = False
+
+
+@dataclass(frozen=True)
+class CalendarFeed:
+    """The signed-in person's calendar subscription: every event they're going to and every event at venues they
+    follow. Treat ``url`` as a secret: anyone with it sees their plans."""
+
+    url: str
+    webcal_url: str
+    google_url: str
+    venue_ids: list[str] = field(default_factory=list)
+
+    def follows(self, venue_id: str) -> bool:
+        return venue_id in self.venue_ids
+
+    @classmethod
+    def from_json(cls, data: JSON) -> CalendarFeed:
+        return cls(
+            url=str(data.get("url") or ""),
+            webcal_url=str(data.get("webcalUrl") or ""),
+            google_url=str(data.get("googleUrl") or ""),
+            venue_ids=[s.id for s in Subject.list(data.get("venues"))],
+        )
+
+
+# Moderation
+
+REPORT_TARGETS = ("MESSAGE", "PERSON", "PHOTO", "PING", "PRIVATE_MESSAGE", "POST", "POST_COMMENT", "VENUE")
+"""What ``report_content`` reports, as the API's ``ReportTarget`` names it."""
+
+INTIMATE_IMAGE_REASON = "Intimate image shared without consent"
+"""The reason for an intimate image shared without consent. The API gives a report with it a 48-hour deadline (the US
+Take It Down Act), so keep the wording."""
+
+REPORT_REASONS = ("Spam", "Harassment or hate", "Sexual content", INTIMATE_IMAGE_REASON, "Scam or fraud", "Other")
+"""The reasons to offer when someone reports something, worded as the other SDKs word them."""
+
+
+@dataclass(frozen=True)
+class ReportResult:
+    reported: bool
+    blocked: bool
+
+
+# Public listings (REST)
+
+
+@dataclass(frozen=True)
+class PublicListing:
+    """A listing as the audience shows anyone (``GET /v1/public/listings``): plain text, ready for a template."""
+
+    kind: str
+    id: str
+    path: str | None = None
+    visibility: str | None = None
+    title: str | None = None
+    description: str | None = None
+    address: str | None = None
+    phone: str | None = None
+    website: str | None = None
+    listed: bool | None = None
+    image: str | None = None
+    start_at: datetime | None = None
+    end_at: datetime | None = None
+    venue_name: str | None = None
+    ticket_url: str | None = None
+    is_canceled: bool | None = None
+    cover_cents: int | None = None
+    raw: JSON = field(default_factory=dict, repr=False, compare=False)
+
+    @property
+    def is_public(self) -> bool:
+        """Whether anyone may see it in full; "community" listings show in full only to members."""
+        return self.visibility in (None, "public")
+
+    @classmethod
+    def from_json(cls, data: JSON) -> PublicListing:
+        listed, canceled, cover = data.get("listed"), data.get("is_canceled"), data.get("cover_cents")
+        return cls(
+            kind=str(data.get("kind") or ""),
+            id=str(data.get("id") or ""),
+            path=_str(data.get("path")),
+            visibility=_str(data.get("visibility")),
+            title=_str(data.get("title")),
+            description=_str(data.get("description")),
+            address=_str(data.get("address")),
+            phone=_str(data.get("phone")),
+            website=_str(data.get("website")),
+            listed=listed if isinstance(listed, bool) else None,
+            image=_str(data.get("image")),
+            start_at=parse_datetime(data.get("start_at")),
+            end_at=parse_datetime(data.get("end_at")),
+            venue_name=_str(data.get("venue_name")),
+            ticket_url=_str(data.get("ticket_url")),
+            is_canceled=canceled if isinstance(canceled, bool) else None,
+            cover_cents=cover if isinstance(cover, int) else None,
+            raw=data,
+        )
+
+
+@dataclass(frozen=True)
+class PublicListingsPage:
+    """One page of public listings: up to 500 venues, then events, then posts."""
+
+    listings: list[PublicListing]
+    page_count: int = 1
+    next_page: int | None = None
+
+    @classmethod
+    def from_json(cls, data: Any) -> PublicListingsPage:
+        body = data if isinstance(data, dict) else {}
+
+        def number(value: Any) -> int | None:
+            if isinstance(value, bool):
+                return None
+            if isinstance(value, int):
+                return value
+            return int(value) if isinstance(value, str) and value.isdigit() else None
+
+        return cls(
+            listings=[
+                PublicListing.from_json(item) for item in _list(body.get("listings")) or [] if isinstance(item, dict)
+            ],
+            page_count=number(body.get("page_count")) or 1,
+            next_page=number(body.get("next_page")),
+        )
+
+
+@dataclass(frozen=True)
+class Community:
+    """Everything the audience lists, read in one go (``community()``); a part whose module it lacks is empty."""
+
+    audience: Audience | None
+    locales: list[Locale]
+    venues: list[Venue]
+    people: list[Person]
+    events: list[Event]
+    event_series: list[EventSeries]

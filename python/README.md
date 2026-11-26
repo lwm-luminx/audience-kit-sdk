@@ -8,6 +8,12 @@ calls. Typed throughout (`py.typed`).
 It carries the same documents and models as the Swift and Kotlin SDKs in this repository, so an app or a service built
 with it reads the API the way the apps do, with the same tolerance for audiences that haven't installed a module.
 
+- [Building a website](docs/websites.md): service tokens, the public listings, the community, news and caching.
+- [Signing people in](docs/sign-in.md): Facebook, Google, Apple and App Review codes, one session per browser.
+- [Reference](docs/reference.md): every call, model and helper.
+- [Examples](examples/README.md): a listings page, a news digest, Facebook sign-in, member actions and a community
+  export, each a program you can run.
+
 ## Installation
 
 ```sh
@@ -43,6 +49,29 @@ The same calls on asyncio:
 async with AsyncClient(Configuration(host="hotmess.social"), credential=credential) as client:
     venues = await client.venues()
 ```
+
+### Servers and jobs: service tokens
+
+A server that reads as the audience, with no one signed in, uses a service token from the audience's console:
+
+```python
+client = Client.from_environment()  # AUDIENCEKIT_TOKEN=akst_…, AUDIENCEKIT_HOST=hotmess.social
+
+for listing in client.public_listings():  # needs the public:read scope
+    print(listing.kind, listing.title)
+
+community = client.community()  # the audience, locales, venues, people, events and series
+```
+
+The client trades the token for an hour-long session and renews it before it runs out. See
+[Building a website](docs/websites.md).
+
+### News, cover, chat and the calendar
+
+Audiences with Soapbox carry news (`articles()`, `article(id)`, `articles_about("venue", id)`, `publications()`); a
+signed-in member can buy cover (`venue_cover()`, `buy_cover()`, `cover_pass_code()` for the door), chat
+(`send_chat_message()`), add events to their calendar (`create_calendar_feed()`) and report or block
+(`report_content()`, `block_user()`). Every call is in the [reference](docs/reference.md).
 
 ### Your own operations
 
@@ -94,7 +123,7 @@ version's entry to [`CHANGELOG.md`](CHANGELOG.md). Once a change that raises the
 `python-release` workflow builds the sdist and wheel, uploads them to PyPI with
 [trusted publishing](https://docs.pypi.org/trusted-publishers/) (PyPI's publisher names `lwm-luminx/audience-kit-sdk`,
 workflow `python-release.yml`, environment `pypi`), and tags the commit `python-<version>` (the prefix keeps it apart
-from the Swift package's bare `0.42.0` tags, which Swift Package Manager resolves).
+from the Swift package's bare version tags, which Swift Package Manager resolves).
 
 ## License
 

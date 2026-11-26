@@ -201,3 +201,281 @@ def schema_fields(types: list[str]) -> str:
         for index, name in enumerate(types)
     )
     return f"query SchemaFields {{ {selections} }}"
+
+
+# Members: RSVP, cover, chat
+
+RSVP_FIELDS = "count mine mineSource"
+PROFILE_FIELDS = "id name avatarUrl"
+VENUE_COVER_CHARGE_FIELDS = (
+    f"{COVER_CHARGE_FIELDS} "
+    f"coatCheck {{ amount {{ {MONEY_FIELDS} }} fee {{ {MONEY_FIELDS} }} total {{ {MONEY_FIELDS} }} night payable }} "
+    f"scale {{ min {{ {MONEY_FIELDS} }} max {{ {MONEY_FIELDS} }} suggested {{ {MONEY_FIELDS} }} }}"
+)
+"""A venue's cover tonight, with its coat check and sliding scale."""
+ADMISSION_FIELDS = (
+    f"id status kind night quantity tier claimCheckNumber amount {{ {MONEY_FIELDS} }} fee {{ {MONEY_FIELDS} }} "
+    f"total {{ {MONEY_FIELDS} }} isRefundable passSecret scanCount checkedInAt createdAt "
+    f"profile {{ {PROFILE_FIELDS} }} venue {{ id name photoUrl }} event {{ id name }}"
+)
+"""An ``Admission``, with the pass secret the buyer makes the door code from."""
+PURCHASE_FIELDS = (
+    f"admission {{ {ADMISSION_FIELDS} }} provider paymentIntentClientSecret publishableKey stripeAccountId "
+    "squareApplicationId squareLocationId"
+)
+CHAT_MESSAGE_FIELDS = "id body message name userId avatarUrl photoUrl sentAt role kind title pinned"
+
+VENUE_TICKET_TYPES = ["Venue", "VenueTickets"]
+
+CANCEL_RSVP = f"""
+mutation CancelRSVP($eventId: ID!) {{
+  cancelRsvp(input: {{ eventId: $eventId }}) {{ event {{ id rsvp {{ {RSVP_FIELDS} }} }} }}
+}}
+"""
+
+ADMISSIONS = f"""
+query Admissions {{
+  me {{ cover {{ admissions {{ nodes {{ {ADMISSION_FIELDS} }} }} }} }}
+}}
+"""
+
+
+def venue_cover(shape: SchemaShape) -> str:
+    """A venue's cover tonight and the signed-in person's pass; only the venue without Ticketing and Cover."""
+    cover = (
+        f" tickets {{ cover {{ charge {{ {VENUE_COVER_CHARGE_FIELDS} }} viewerAdmission {{ {ADMISSION_FIELDS} }} "
+        f"viewerCoatCheck {{ {ADMISSION_FIELDS} }} }} }}"
+        if shape.has("Venue", "tickets") and shape.has("VenueTickets", "cover")
+        else ""
+    )
+    return f"query VenueCover($id: ID!) {{\n  venues {{ venue(id: $id) {{ id name{cover} }} }}\n}}"
+
+
+BUY_COVER = f"""
+mutation BuyCover($venueId: ID!, $amount: MoneyInput) {{
+  buyCover(input: {{ venueId: $venueId, amount: $amount }}) {{ {PURCHASE_FIELDS} }}
+}}
+"""
+
+BUY_COAT_CHECK = f"""
+mutation BuyCoatCheck($venueId: ID!, $quantity: Int) {{
+  buyCoatCheck(input: {{ venueId: $venueId, quantity: $quantity }}) {{ {PURCHASE_FIELDS} }}
+}}
+"""
+
+PAY_COVER = f"""
+mutation PayCover($admissionId: ID!, $sourceId: String!, $verificationToken: String) {{
+  payCover(input: {{ admissionId: $admissionId, sourceId: $sourceId, verificationToken: $verificationToken }}) {{
+    admission {{ {ADMISSION_FIELDS} }}
+  }}
+}}
+"""
+
+CONFIRM_COVER = f"""
+mutation ConfirmCover($admissionId: ID!) {{
+  confirmCover(input: {{ admissionId: $admissionId }}) {{ admission {{ {ADMISSION_FIELDS} }} }}
+}}
+"""
+
+REFUND_ADMISSION = f"""
+mutation RefundAdmission($admissionId: ID!) {{
+  refundAdmission(input: {{ admissionId: $admissionId }}) {{ admission {{ {ADMISSION_FIELDS} }} }}
+}}
+"""
+
+SEND_CHAT_MESSAGE = f"""
+mutation SendMyChatMessage($input: ChatMessageSendOwnInput!) {{
+  sendMyChatMessage(input: $input) {{ message {{ {CHAT_MESSAGE_FIELDS} }} }}
+}}
+"""
+
+REMOVE_CHAT_MESSAGE = """
+mutation RemoveMyChatMessage($messageId: ID!) {
+  removeMyChatMessage(input: { messageId: $messageId }) { deletedId }
+}
+"""
+
+
+# Soapbox (news)
+
+SOAPBOX_TYPES = ["Audience", "Venue", "Event", "Person", "Locale", "Article", "Publication"]
+"""The types the Soapbox documents depend on: the root's ``soapbox`` and each listing's ``articles``."""
+PUBLICATION_SUMMARY_FIELDS = "id name photoUrl trusted acceptsOpEds"
+ARTICLE_FIELDS = (
+    "id slug title summary byline kind publishedAt edited pinned teaser canonicalUrl disclosure heroPhotoUrl "
+    f"heroAltText publication {{ {PUBLICATION_SUMMARY_FIELDS} }}"
+)
+ARTICLE_SUBJECT_FIELDS = "venues { id name } events { id name } people { id name } locales { id name }"
+PUBLICATION_FIELDS = (
+    "id name masthead about websiteUrl photoUrl trusted acceptsOpEds opEdGuidelines locale { id name } "
+    "person { id name }"
+)
+OP_ED_FIELDS = f"{ARTICLE_FIELDS} status reviewNote submittedAt"
+
+
+def article_fields(shape: SchemaShape) -> str:
+    """The article fields this audience's API has: the tip to read without ads came later."""
+    if not shape.has("Article", "viewerAdFree") or not shape.has("Publication", "adFreeOffered"):
+        return ARTICLE_FIELDS
+    summary = f"{PUBLICATION_SUMMARY_FIELDS} adFreeOffered"
+    return ARTICLE_FIELDS.replace(PUBLICATION_SUMMARY_FIELDS, summary) + " viewerAdFree"
+
+
+def publication_fields(shape: SchemaShape) -> str:
+    if not shape.has("Publication", "adFreeOffered"):
+        return PUBLICATION_FIELDS
+    return f"{PUBLICATION_FIELDS} adFreeOffered adFreeTipCents adFreeDays viewerAdFree viewerAdFreeUntil"
+
+
+def _no_soapbox(name: str) -> str:
+    """The document for an audience without Soapbox: asks for nothing the models read, under the operation's name."""
+    return f"query {name} {{ id }}"
+
+
+def articles(shape: SchemaShape) -> str:
+    if not shape.has("Audience", "soapbox"):
+        return _no_soapbox("Articles")
+    return (
+        "query Articles($localeId: ID, $publicationId: ID, $first: Int) {\n"
+        "  soapbox { articles(localeId: $localeId, publicationId: $publicationId, first: $first) {\n"
+        f"    nodes {{ {article_fields(shape)} }}\n  }} }}\n}}"
+    )
+
+
+def articles_page(shape: SchemaShape) -> str:
+    if not shape.has("Audience", "soapbox"):
+        return _no_soapbox("ArticlesPage")
+    return (
+        "query ArticlesPage($localeId: ID, $publicationId: ID, $first: Int, $after: String) {\n"
+        "  soapbox { articles(localeId: $localeId, publicationId: $publicationId, first: $first, after: $after) {\n"
+        f"    nodes {{ {article_fields(shape)} }}\n    pageInfo {{ endCursor hasNextPage }}\n  }} }}\n}}"
+    )
+
+
+def national_articles(shape: SchemaShape) -> str:
+    if not shape.has("Audience", "soapbox") or not shape.has("Article", "featuredNationally"):
+        return _no_soapbox("NationalArticles")
+    return (
+        "query NationalArticles($localeId: ID, $first: Int) {\n"
+        "  soapbox { articles(national: true, localeId: $localeId, first: $first) {\n"
+        f"    nodes {{ {article_fields(shape)} featuredNationally }}\n  }} }}\n}}"
+    )
+
+
+def article(shape: SchemaShape) -> str:
+    if not shape.has("Audience", "soapbox"):
+        return _no_soapbox("Article")
+    return (
+        "query Article($id: ID!) {\n"
+        f"  soapbox {{ article(id: $id) {{ {article_fields(shape)} body {ARTICLE_SUBJECT_FIELDS} }} }}\n}}"
+    )
+
+
+def publications(shape: SchemaShape) -> str:
+    if not shape.has("Audience", "soapbox"):
+        return _no_soapbox("Publications")
+    return f"query Publications {{\n  soapbox {{ publications {{ {publication_fields(shape)} }} }}\n}}"
+
+
+def publication(shape: SchemaShape) -> str:
+    if not shape.has("Audience", "soapbox"):
+        return _no_soapbox("Publication")
+    return f"query Publication($id: ID!) {{\n  soapbox {{ publication(id: $id) {{ {publication_fields(shape)} }} }}\n}}"
+
+
+def my_op_eds(shape: SchemaShape) -> str:
+    if not shape.has("Audience", "soapbox"):
+        return _no_soapbox("MyOpEds")
+    return f"query MyOpEds {{\n  soapbox {{ myOpEds {{ {OP_ED_FIELDS} }} }}\n}}"
+
+
+ARTICLE_TOPICS = {
+    "venue": ("Venue", "venues { venue(id: $id) { ", " } }"),
+    "event": ("Event", "events { event(id: $id) { ", " } }"),
+    "person": ("Person", "people { person(id: $id) { ", " } }"),
+    "locale": ("Locale", "locale(id: $id) { ", " }"),
+}
+"""What an article can be about: the listing type, and how the document opens and closes around its articles."""
+
+
+def articles_about(topic: str, shape: SchemaShape) -> str:
+    """Live articles about a venue, event, person or locale ("In the news")."""
+    type_name, open_, close = ARTICLE_TOPICS[topic]
+    if not shape.has(type_name, "articles"):
+        return _no_soapbox("ArticlesAbout")
+    return (
+        "query ArticlesAbout($id: ID!, $first: Int) {\n  "
+        f"{open_}articles {{ list(first: $first) {{ nodes {{ {article_fields(shape)} }} }} }}{close}\n}}"
+    )
+
+
+SUBMIT_OP_ED = f"""
+mutation SubmitOpEd($publicationId: ID!, $title: String!, $body: String!, $summary: String, $byline: String) {{
+  submitOpEd(
+    input: {{ publicationId: $publicationId, title: $title, body: $body, summary: $summary, byline: $byline }}
+  ) {{
+    article {{ {OP_ED_FIELDS} }}
+  }}
+}}
+"""
+
+
+# Calendar subscription
+
+CALENDAR_FEED_FIELDS = "url webcalUrl googleUrl venues { id }"
+
+CALENDAR_FEED = f"""
+query CalendarFeed {{
+  me {{ calendarFeed {{ {CALENDAR_FEED_FIELDS} }} }}
+}}
+"""
+
+CREATE_CALENDAR_FEED = f"""
+mutation CreateCalendarFeed($reset: Boolean) {{
+  createCalendarFeed(input: {{ reset: $reset }}) {{ calendarFeed {{ {CALENDAR_FEED_FIELDS} }} }}
+}}
+"""
+
+SET_CALENDAR_FEED_VENUE = f"""
+mutation SetCalendarFeedVenue($venueId: ID!, $following: Boolean) {{
+  setCalendarFeedVenue(input: {{ venueId: $venueId, following: $following }}) {{
+    calendarFeed {{ {CALENDAR_FEED_FIELDS} }}
+  }}
+}}
+"""
+
+DELETE_CALENDAR_FEED = """
+mutation DeleteCalendarFeed {
+  deleteCalendarFeed(input: {}) { deleted }
+}
+"""
+
+
+# Moderation and the account
+
+REPORT_CONTENT = """
+mutation ReportContent($targetType: ReportTarget!, $targetId: ID!, $reason: String, $block: Boolean) {
+  reportContent(input: { targetType: $targetType, targetId: $targetId, reason: $reason, block: $block }) {
+    reported
+    blocked
+  }
+}
+"""
+
+BLOCK_USER = """
+mutation BlockUser($userId: ID!) {
+  blockUser(input: { userId: $userId }) { blockedUsers { id } }
+}
+"""
+
+UNBLOCK_USER = """
+mutation UnblockUser($userId: ID!) {
+  unblockUser(input: { userId: $userId }) { blockedUsers { id } }
+}
+"""
+
+DELETE_ACCOUNT = """
+mutation DeleteAccount($confirm: Boolean!) {
+  deleteAccount(input: { confirm: $confirm }) { deleted }
+}
+"""

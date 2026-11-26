@@ -81,11 +81,11 @@ audience's console. Keep it in the environment:
 // AUDIENCEKIT_TOKEN=akst_… AUDIENCEKIT_HOST=hotmess.social
 const client = AudienceKitClient.fromEnvironment();
 const listings = await client.publicListings();   // needs the public:read scope
-const { venues, events } = await client.community();
 ```
 
 The client trades the token for an hour-long session and renews it itself. `useServiceToken(token)` does the same with
-a token from elsewhere, and `useBearerToken(apiKey)` sends an application API key as is. See
+a token from elsewhere. A service token reads the public listings; for the GraphQL reads (`community()`, `events()`,
+news), `useBearerToken(apiKey)` sends an application API key as is (or set it as `AUDIENCEKIT_TOKEN`). See
 [Building a website](docs/websites.md).
 
 ## Session ends

@@ -2,15 +2,15 @@
 //!
 //! Reads an [AudienceKit](https://audiencekit.com) audience's community: its locales, venues, people (DJs,
 //! performers, hosts, promoters), events and recurring series, over the audience's GraphQL API, plus the public
-//! listings its websites show. Built for agents and servers such as goose's `goosed`: async on tokio and reqwest, a
+//! listings its websites show, and its Soapbox news. Built for agents and servers such as goose's `goosed`: async on tokio and reqwest, a
 //! [`Client`] that is cheap to clone and share, and models that serialize straight to JSON.
 //!
 //! ```no_run
 //! # async fn run() -> audiencekit::Result<()> {
 //! use audiencekit::{Client, EventQuery};
 //!
-//! // An audience service token (akst_…), minted in the audience's console.
-//! let client = Client::builder().service_token("akst_…").build()?;
+//! // An application API key from the audience's console. (A service token, akst_…, reads the public listings.)
+//! let client = Client::builder().host("hotmess.social").auth(audiencekit::Auth::Bearer("…".into())).build()?;
 //! let community = client.community().await?;
 //! println!("{} venues, {} upcoming events", community.venues.len(), community.events.len());
 //!
@@ -39,5 +39,5 @@ pub use config::{Configuration, Environment};
 pub use credential::Credential;
 pub use error::{Error, GraphQLError, Result, codes};
 pub use models::*;
-pub use operations::{Document, EventQuery, EventWindow, Operation};
+pub use operations::{ArticleQuery, ArticleTopic, Document, EventQuery, EventWindow, Operation};
 pub use schema::SchemaShape;

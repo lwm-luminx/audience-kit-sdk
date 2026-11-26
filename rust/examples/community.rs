@@ -3,11 +3,11 @@
 //! extension its secrets:
 //!
 //! ```sh
-//! AUDIENCEKIT_TOKEN=akst_… cargo run --example community > community.json
+//! AUDIENCEKIT_TOKEN=<application API key> AUDIENCEKIT_HOST=hotmess.social cargo run --example community > community.json
 //! ```
 //!
 //! With `--public`, prints the public listings instead (venues, events and posts as the audience's websites show
-//! them), which a `public:read` service token can read today.
+//! them), which a `public:read` service token reads.
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

@@ -2,6 +2,13 @@
 
 The Rust crate's own versions, separate from the Swift and Kotlin SDKs' [CHANGELOG.md](../CHANGELOG.md).
 
+## 0.2.0 (2026-11-26)
+
+Soapbox news: `articles()`, `articles_page()` (with the cursor for "Show more"), `national_articles()`, `article()`
+with its body and what it is about, `articles_about()` for a venue, event, person or locale, `publications()`,
+`local_publications()` and `publication()`, each empty for an audience without Soapbox. Guides in `docs/`, and
+`listings_page` and `news_digest` examples that the tests run.
+
 ## 0.1.0 (2026-11-25)
 
 First release on crates.io.

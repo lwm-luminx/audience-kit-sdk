@@ -35,6 +35,19 @@ private let responderAlertJSON = #"""
     let json = #"{"id":"s1","state":"OPEN","place":null,"concerns":[],"description":null,"summary":"No details yet","seen":false,"seenByMe":false,"acknowledgedByName":null,"acknowledgedAt":null,"escalatedAt":null,"remindedAt":null,"closedAt":null,"outcome":null,"staffNote":null,"supportSharedAt":null,"supportNote":null,"createdAt":"2026-10-23T03:15:00Z","reporter":null,"event":null,"messages":[{"id":"m1","body":"Hi","fromStaff":false,"senderName":"Alex","createdAt":"2026-10-23T03:16:00Z"}]}"#
     let alert = try JSONDecoder().decode(StaffSafetyAlert.self, from: Data(json.utf8))
     #expect(alert.venue == nil && alert.acknowledgedByResponder == nil && alert.messages.first?.resource == nil)
+    #expect(alert.messages.first?.staffOnly == false)
+}
+
+@Test func aStaffOnlyNoteDecodesAndSendsAsInternal() async throws {
+    let json = #"{"id":"m2","body":"Bouncer is near","fromStaff":true,"senderName":"Dee","createdAt":"2026-11-26T03:01:00Z","internal":true}"#
+    #expect(try JSONDecoder().decode(StaffSafetyAlert.Message.self, from: Data(json.utf8)).staffOnly)
+    let stub = Stub { _ in .json(status: 200, body: #"{"data":{"sendSafetyAlertMessage":{"safetyAlert":\#(responderAlertJSON)}}}"#) }
+    let client = responderClient(stub)
+    _ = try await client.sendMessage(id: "s2", body: "Bouncer is near", staffOnly: true)
+    let (query, _, input) = try lastRequest(stub)
+    #expect(query.contains("internal") && input["internal"] as? Bool == true)
+    _ = try await client.sendMessage(id: "s2", body: "I'm here")
+    #expect(try lastRequest(stub).input["internal"] == nil)
 }
 
 @Test func aResponderSaysWhatTheyCover() throws {

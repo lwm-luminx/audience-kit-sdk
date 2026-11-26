@@ -17062,6 +17062,11 @@ type SafetyAlertMessage {
   id: ID!
 
   """
+  A staff-only note (sendSafetyAlertMessage internal: true): staff and safety responders only. The guest never gets one.
+  """
+  internal: Boolean!
+
+  """
   A community resource staff or a responder shared (shareSafetyAlertResource); the body says the same in text.
   """
   resource: CommunityResource

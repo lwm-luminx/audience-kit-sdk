@@ -17,6 +17,36 @@ public struct StaffSafetyAlert: Decodable, Sendable, Identifiable, Hashable {
         /// A community resource staff or a responder shared (shareSafetyAlertResource); the body says the same in
         /// text. Nil from an API before resource sharing, and in Velvet's reads, which don't ask for it.
         public let resource: SharedResource?
+        /// A staff-only note (API `internal`): staff and responders see it, in the incident's staff room; the guest
+        /// never does. False from an API before staff-only notes.
+        public let staffOnly: Bool
+
+        enum CodingKeys: String, CodingKey {
+            case id, body, fromStaff, senderName, createdAt, resource
+            case staffOnly = "internal"
+        }
+
+        public init(id: String, body: String, fromStaff: Bool, senderName: String, createdAt: String,
+                    resource: SharedResource? = nil, staffOnly: Bool = false) {
+            self.id = id
+            self.body = body
+            self.fromStaff = fromStaff
+            self.senderName = senderName
+            self.createdAt = createdAt
+            self.resource = resource
+            self.staffOnly = staffOnly
+        }
+
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = try container.decode(String.self, forKey: .id)
+            body = try container.decode(String.self, forKey: .body)
+            fromStaff = try container.decode(Bool.self, forKey: .fromStaff)
+            senderName = try container.decode(String.self, forKey: .senderName)
+            createdAt = try container.decode(String.self, forKey: .createdAt)
+            resource = try container.decodeIfPresent(SharedResource.self, forKey: .resource)
+            staffOnly = try container.decodeIfPresent(Bool.self, forKey: .staffOnly) ?? false
+        }
     }
 
     /// A community resource shared in the thread: a shelter, food, a clinic. `sensitive` ones (a DV service) must
@@ -214,7 +244,7 @@ extension VenueManagementClient {
     static let safetyAlertFields = """
         id state place concerns description summary seen seenByMe acknowledgedByName acknowledgedAt escalatedAt \
         remindedAt closedAt outcome staffNote supportSharedAt supportNote createdAt reporter { id name avatarUrl } \
-        event { id name } messages { id body fromStaff senderName createdAt }
+        event { id name } messages { id body fromStaff senderName createdAt internal }
         """
 
     /// The venue's alerts, newest first: the ones still open or picked up, and the ones closed in the last 12 hours.
@@ -300,11 +330,14 @@ extension VenueManagementClient {
         return try await safetyAlertMutation("acknowledgeSafetyAlert", "mutation VelvetAcknowledgeSafetyAlert($input: SafetyAlertAcknowledgeInput!) { acknowledgeSafetyAlert(input: $input) { safetyAlert { \(Self.safetyAlertFields) } } }", input)
     }
 
-    /// Sends a message to the guest in the alert's private thread.
+    /// Sends a message to the guest in the alert's private thread, or with `staffOnly` a note only staff and
+    /// responders see (the incident's staff room).
     @discardableResult
-    public func sendSafetyAlertMessage(id: String, body: String) async throws -> StaffSafetyAlert {
-        try await safetyAlertMutation("sendSafetyAlertMessage", "mutation VelvetSendSafetyAlertMessage($input: SafetyAlertMessageSendInput!) { sendSafetyAlertMessage(input: $input) { safetyAlert { \(Self.safetyAlertFields) } } }",
-                                      ["id": .string(id), "body": .string(body)])
+    public func sendSafetyAlertMessage(id: String, body: String, staffOnly: Bool = false) async throws -> StaffSafetyAlert {
+        var input: [String: GraphQLValue] = ["id": .string(id), "body": .string(body)]
+        if staffOnly { input["internal"] = .bool(true) }
+        return try await safetyAlertMutation("sendSafetyAlertMessage", "mutation VelvetSendSafetyAlertMessage($input: SafetyAlertMessageSendInput!) { sendSafetyAlertMessage(input: $input) { safetyAlert { \(Self.safetyAlertFields) } } }",
+                                             input)
     }
 
     /// Shares "Need support?" with the guest, with a note if you like.

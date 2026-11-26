@@ -1,5 +1,5 @@
 import Foundation
-import AudienceKit
+import AudienceCore
 import StaffKitCore
 
 /// A request to be a safety responder (the API's doc/SAFETY_ALERTS.md, "Applying"), with the accreditation the
@@ -92,7 +92,7 @@ public struct SafetyResponderApplyClient: Sendable {
     static let applicationFields = "id audienceId audienceName name email kind credential credentialOther licenseNumber issuedBy note status reviewNote createdAt reviewedAt"
 
     /// Whether this sign-in can apply now: signed in on the platform with no audience chosen.
-    public var canApply: Bool { session.canUseOwnListings }
+    public var canApply: Bool { get async { await session.canUseOwnListings } }
 
     /// The communities they belong to, and their applications, newest first.
     public func overview() async throws -> (communities: [ResponderCommunity], applications: [SafetyResponderApplication]) {

@@ -131,7 +131,7 @@ private let applicationJSON = #"{"id":"a1","audienceId":"audience","audienceName
     }
     let session = AudienceManagementSession(baseURL: stub.baseURL, credentialStore: InMemoryCredentialStore(credential: makeCredential(audienceID: nil, on: stub.baseURL)), session: stub.session)
     let client = SafetyResponderApplyClient(session: session)
-    #expect(client.canApply)
+    #expect(await client.canApply)
     let overview = try await client.overview()
     #expect(overview.communities.map(\.name) == ["Hot Mess"] && overview.applications.isEmpty)
     #expect(try #require(stub.requests.last).path == "/v1/staffql")

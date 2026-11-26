@@ -50,7 +50,7 @@ public struct SafetyResponderClient: Sendable {
         id state place concerns description summary seen seenByMe acknowledgedByName acknowledgedByResponder \
         acknowledgedAt escalatedAt remindedAt closedAt outcome staffNote supportSharedAt supportNote createdAt \
         venue { id name locale { id name } } event { id name } \
-        messages { id body fromStaff senderName createdAt resource { \(resourceFields) } }
+        messages { id body fromStaff senderName createdAt internal resource { \(resourceFields) } }
         """
     static let responderFields = "kind hears onDuty everywhere locales { id name }"
 
@@ -121,9 +121,12 @@ public struct SafetyResponderClient: Sendable {
         return try await mutation("acknowledgeSafetyAlert", "mutation ArbiterAcknowledgeSafetyAlert($input: SafetyAlertAcknowledgeInput!) { acknowledgeSafetyAlert(input: $input) { safetyAlert { \(Self.alertFields) } } }", input)
     }
 
+    /// A message to the guest, or with `staffOnly` a note only staff and responders see (the incident's staff room).
     @discardableResult
-    public func sendMessage(id: String, body: String) async throws -> StaffSafetyAlert {
-        try await mutation("sendSafetyAlertMessage", "mutation ArbiterSendSafetyAlertMessage($input: SafetyAlertMessageSendInput!) { sendSafetyAlertMessage(input: $input) { safetyAlert { \(Self.alertFields) } } }", ["id": .string(id), "body": .string(body)])
+    public func sendMessage(id: String, body: String, staffOnly: Bool = false) async throws -> StaffSafetyAlert {
+        var input: [String: GraphQLValue] = ["id": .string(id), "body": .string(body)]
+        if staffOnly { input["internal"] = .bool(true) }
+        return try await mutation("sendSafetyAlertMessage", "mutation ArbiterSendSafetyAlertMessage($input: SafetyAlertMessageSendInput!) { sendSafetyAlertMessage(input: $input) { safetyAlert { \(Self.alertFields) } } }", input)
     }
 
     /// Shares "Need support?" (crisis and support lines), with a note if you like.

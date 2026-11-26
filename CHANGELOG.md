@@ -3,6 +3,13 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.104.0 (2026-11-26)
+
+- StaffKit: staff-only notes in a safety alert's thread (API doc/SAFETY_ALERTS.md, "The thread and its two rooms").
+  `StaffSafetyAlert.Message.staffOnly` (API `internal`, false from an older API) marks a note the guest never sees,
+  and `SafetyResponderClient.sendMessage(id:body:staffOnly:)` and `sendSafetyAlertMessage(id:body:staffOnly:)` send
+  one. `StaffSafetyAlert.Message` has a public initializer, for showing a line before the API answers.
+
 ## 0.103.0 (2026-11-26)
 
 - StaffKit: applying to be a safety responder (API doc/SAFETY_ALERTS.md, "Applying"). `SafetyResponderApplyClient`, on

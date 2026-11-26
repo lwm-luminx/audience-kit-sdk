@@ -9,4 +9,9 @@ require "rubocop/rake_task"
 
 RuboCop::RakeTask.new
 
+require "yard"
+
+# The API reference from the YARD comments, in doc/ (rubydoc.info builds the same from each release).
+YARD::Rake::YardocTask.new(:yard)
+
 task default: %i[spec rubocop]

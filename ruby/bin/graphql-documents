@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Writes every GraphQL document the gem can send, built for an audience with every module, to a directory as
+# <OperationName>.graphql, so the repository's schema check (scripts/graphql/check.mjs) can validate them:
+#   bin/graphql-documents build/graphql
+
+$LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
+require "fileutils"
+require "audience-kit"
+
+directory = ARGV.first or abort("usage: bin/graphql-documents <directory>")
+FileUtils.mkdir_p(directory)
+documents = Audience::Kit::Queries.all
+documents.each { |name, document| File.write(File.join(directory, "#{name}.graphql"), document) }
+puts "Wrote #{documents.size} documents to #{directory}."

@@ -22,3 +22,54 @@ RSpec/SpecFilePathFormat:
 
 RSpec/MultipleDescribes:
   Enabled: false
+
+Layout/LineLength:
+  Max: 120
+  Exclude:
+    - spec/**/*
+
+# The SDK's surface is wide by design: one method per API call, one reader per field.
+Metrics/ClassLength:
+  Exclude:
+    - lib/audience-kit/session.rb
+    - lib/audience-kit/models.rb
+
+# delete_account, register_device and the like answer whether the API did it, as in the other SDKs.
+Naming/PredicateMethod:
+  Enabled: false
+
+# Specs walk through a flow (sign in, call, check what was sent) in one example, like the other SDKs' tests.
+RSpec/MultipleExpectations:
+  Enabled: false
+
+RSpec/ExampleLength:
+  Enabled: false
+
+RSpec/DescribeClass:
+  Exclude:
+    - spec/audience/kit/helpers_spec.rb
+
+RSpec/NestedGroups:
+  Max: 4
+
+# Ports of the other SDKs' calls: sign-in and request helpers take the API's optional fields as keywords, and the
+# document builders and error mapping read best as one method each.
+Metrics/ParameterLists:
+  CountKeywordArgs: false
+
+Metrics/ModuleLength:
+  Exclude:
+    - lib/audience-kit/queries.rb
+    - lib/audience-kit/operations.rb
+
+Metrics/MethodLength:
+  Max: 30
+
+Metrics/AbcSize:
+  Max: 32
+
+Metrics/CyclomaticComplexity:
+  Max: 18
+
+Metrics/PerceivedComplexity:
+  Max: 16

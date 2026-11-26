@@ -32,10 +32,15 @@ public struct StaffSafetyAlert: Decodable, Sendable, Identifiable, Hashable {
         public let sensitive: Bool
     }
 
-    /// Where it was sent, for a responder's list across venues.
+    /// Where it was sent, for a responder's list across venues, with its locale (for the resources to share).
     public struct VenueRef: Decodable, Sendable, Hashable {
+        public struct LocaleRef: Decodable, Sendable, Hashable {
+            public let id: String
+            public let name: String?
+        }
         public let id: String
         public let name: String?
+        public let locale: LocaleRef?
     }
 
     public struct Reporter: Decodable, Sendable, Hashable {

@@ -8,10 +8,10 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
 - StaffKitServices: safety responders, the social workers and moderators who back up venue staff on safety alerts
   from Arbiter (API doc/SAFETY_ALERTS.md, "Responders"). `SafetyResponderClient` reads the alerts the caller covers
   (`alerts(localeID:)`, the whole community or their locales; admins every venue), their own settings
-  (`responder()`, `SafetyResponder`: kind, coverage, when they're pushed) and changes them (`setDuty`), and acts on an
+  (`responder()`, `SafetyResponder`: kind, coverage, when they're pushed) and changes them (`setDuty`), registers Arbiter for pushes (`registerDevice`), and acts on an
   alert as venue staff do (`see`, `acknowledge`, `sendMessage`, `shareSupport`, `close`), plus `shareResource`, which
   puts a community resource (`resources(localeID:)`) in the thread and its chat room. `StaffSafetyAlert` gains
-  `venue`, `acknowledgedByResponder` and each message's shared `resource` (`SharedResource`, with `sensitive`), all
+  `venue` (with its locale), `acknowledgedByResponder` and each message's shared `resource` (`SharedResource`, with `sensitive`), all
   optional so Velvet's reads are unchanged. `SafetyAlertPush.isForResponder` tells a responder's push apart. The
   staff and consumer schemas are refreshed from the API's next branch.
 

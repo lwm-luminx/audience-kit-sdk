@@ -49,7 +49,7 @@ public struct SafetyResponderClient: Sendable {
     static let alertFields = """
         id state place concerns description summary seen seenByMe acknowledgedByName acknowledgedByResponder \
         acknowledgedAt escalatedAt remindedAt closedAt outcome staffNote supportSharedAt supportNote createdAt \
-        venue { id name } event { id name } \
+        venue { id name locale { id name } } event { id name } \
         messages { id body fromStaff senderName createdAt resource { \(resourceFields) } }
         """
     static let responderFields = "kind hears onDuty everywhere locales { id name }"
@@ -87,6 +87,14 @@ public struct SafetyResponderClient: Sendable {
         struct Response: Decodable, Sendable { let communityResources: [StaffSafetyAlert.SharedResource] }
         return try await session.graphQL("query ArbiterCommunityResources($localeId: ID!) { communityResources(localeId: $localeId) { \(Self.resourceFields) } }",
                                          variables: ["localeId": .string(localeID)], as: Response.self).communityResources
+    }
+
+    /// Stores this device's APNs token on the session, so the responder's alerts push Arbiter. `appID` is the app's
+    /// bundle ID, which the push is addressed to.
+    public func registerDevice(token: String, appID: String, sandbox: Bool) async throws {
+        _ = try await session.graphQL(RoomsClient.registerDeviceMutation, variables: ["input": .object([
+            "notificationToken": .string(token), "appId": .string(appID), "sandbox": .bool(sandbox)
+        ])], as: GraphQLValue.self)
     }
 
     @discardableResult

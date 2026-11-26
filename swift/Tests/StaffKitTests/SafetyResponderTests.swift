@@ -17,7 +17,7 @@ private let responderAlertJSON = #"""
 {"id":"s2","state":"ACKNOWLEDGED","place":"BAR","concerns":["UNWELL"],"description":null,"summary":"Bar · They don’t feel well",
  "seen":true,"seenByMe":true,"acknowledgedByName":"Dee","acknowledgedByResponder":true,"acknowledgedAt":"2026-11-26T03:00:00Z",
  "escalatedAt":"2026-11-26T02:59:00Z","remindedAt":null,"closedAt":null,"outcome":null,"staffNote":null,"supportSharedAt":null,
- "supportNote":null,"createdAt":"2026-11-26T02:57:00Z","venue":{"id":"v1","name":"Club Try-Angles"},"event":null,
+ "supportNote":null,"createdAt":"2026-11-26T02:57:00Z","venue":{"id":"v1","name":"Club Try-Angles","locale":{"id":"l1","name":"Salt Lake"}},"event":null,
  "messages":[{"id":"m1","body":"Try here\nFood Bank\nCall 555-0100","fromStaff":true,"senderName":"Dee","createdAt":"2026-11-26T03:01:00Z",
    "resource":{"id":"r1","title":"Food Bank","phone":"555-0100","textNumber":null,"address":null,"url":null,"intakeNote":"No ID needed.","sensitive":false}}]}
 """#
@@ -25,7 +25,7 @@ private let responderAlertJSON = #"""
 @Test func aResponderAlertDecodesWithoutItsReporter() throws {
     let alert = try JSONDecoder().decode(StaffSafetyAlert.self, from: Data(responderAlertJSON.utf8))
     #expect(alert.reporter == nil)
-    #expect(alert.venue?.name == "Club Try-Angles")
+    #expect(alert.venue?.name == "Club Try-Angles" && alert.venue?.locale?.id == "l1")
     #expect(alert.acknowledgedByResponder == true)
     #expect(alert.messages.first?.resource?.title == "Food Bank")
     #expect(alert.messages.first?.resource?.sensitive == false)
@@ -97,6 +97,8 @@ private let responderAlertJSON = #"""
     #expect(query.contains("mutation ArbiterShareSafetyAlertResource($input: SafetyAlertResourceShareInput!)"))
     #expect(input["resourceId"] as? String == "r1" && input["note"] as? String == "Try here")
     _ = try await client.close(id: "s2", outcome: "SORTED", note: nil)
+    try await client.registerDevice(token: "abc", appID: "com.audiencekit.Arbiter", sandbox: true)
+    #expect(try lastRequest(stub).input["appId"] as? String == "com.audiencekit.Arbiter")
     #expect(try lastRequest(stub).input["note"] == nil)
 }
 

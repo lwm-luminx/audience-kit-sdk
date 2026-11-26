@@ -121,6 +121,12 @@ public struct SafetyResponderClient: Sendable {
         return try await mutation("acknowledgeSafetyAlert", "mutation ArbiterAcknowledgeSafetyAlert($input: SafetyAlertAcknowledgeInput!) { acknowledgeSafetyAlert(input: $input) { safetyAlert { \(Self.alertFields) } } }", input)
     }
 
+    /// Tells AudienceKit this device took a screenshot of the alert (the crisis audit log, and a staff-only note).
+    @discardableResult
+    public func reportScreenshot(id: String) async throws -> StaffSafetyAlert {
+        try await mutation("reportSafetyAlertScreenshot", "mutation ArbiterReportSafetyAlertScreenshot($input: SafetyAlertScreenshotReportInput!) { reportSafetyAlertScreenshot(input: $input) { safetyAlert { \(Self.alertFields) } } }", ["id": .string(id)])
+    }
+
     /// A message to the guest, or with `staffOnly` a note only staff and responders see (the incident's staff room).
     @discardableResult
     public func sendMessage(id: String, body: String, staffOnly: Bool = false) async throws -> StaffSafetyAlert {

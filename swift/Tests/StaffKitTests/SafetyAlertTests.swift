@@ -47,3 +47,13 @@ private let alertJSON = #"""
     }
     #expect(SafetyAlertMode.atVenue.title(venueName: "Club Blue") == "When I’m at Club Blue")
 }
+
+@Test func aRetractionPushNamesTheAlertAndWhatToForget() {
+    let all = SafetyAlertRetraction(userInfo: ["kind": "safety_alert_retract", "alert_id": "s1", "scope": "all"])
+    #expect(all == SafetyAlertRetraction(alertID: "s1", scope: .all))
+    #expect(SafetyAlertRetraction(userInfo: ["kind": "safety_alert_retract", "alert_id": "s1", "scope": "thread"])?.scope == .thread)
+    #expect(SafetyAlertRetraction(userInfo: ["kind": "safety_alert", "alert_id": "s1"]) == nil)
+    #expect(all?.matches(userInfo: ["kind": "safety_alert", "alert_id": "s1"]) == true)
+    #expect(all?.matches(userInfo: [:], threadIdentifier: "safety_alert:s1") == true)
+    #expect(all?.matches(userInfo: ["alert_id": "s2"]) == false)
+}

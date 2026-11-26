@@ -3,6 +3,16 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.107.0 (2026-11-26)
+
+- StaffKit: YouTube videos as playlist tracks, and gathering their licenses (API doc/MEDIA_LICENSES.md). Many queer
+  artists release a song only on YouTube, with no ISRC for a venue's music service or PRO license to cover.
+  `VenueManagementClient.addMediaPlaylistLinks(playlistID:links:position:title:)` adds YouTube videos or Spotify
+  tracks to a playlist from their links; `mediaPlaylistTracks(playlistID:)` reads its tracks (`MediaTrack`: YouTube
+  link and channel, `youtubeOnly`, rights holder, `MediaLicenseStatus`); `mediaLicenses(_:)` lists the ones to gather
+  (needed and requested by default) and `setMediaLicense(itemID:status:rightsHolder:note:)` records where one
+  stands. Needs the API's `addMediaPlaylistLinks` and `MediaItem` license fields (audience_kit_api #974).
+
 ## 0.106.0 (2026-11-26)
 
 - StaffKit: Backstage's departure timeline. `TalentManagementClient.showNightDepartures()` reads, by event, where each

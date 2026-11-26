@@ -10891,6 +10891,21 @@ type MediaItem {
   kind: MediaItemKind!
 
   """
+  Notes on gathering its license: who was asked, terms.
+  """
+  licenseNote: String @endpoint(in: [STAFF])
+
+  """
+  Where gathering its license stands; null when not tracked.
+  """
+  licenseStatus: MediaLicenseStatus @endpoint(in: [STAFF])
+
+  """
+  When its license status last changed.
+  """
+  licenseUpdatedAt: ISO8601DateTime @endpoint(in: [STAFF])
+
+  """
   Shared lyric timings for its Spotify track (times and digests, never words); null when untimed.
   """
   lyricTiming: LyricTiming
@@ -10990,6 +11005,32 @@ type MediaItem {
   When it came out.
   """
   year: Int
+
+  """
+  The YouTube channel that posted its video.
+  """
+  youtubeChannel: String
+
+  """
+  That channel's page.
+  """
+  youtubeChannelUrl: String
+
+  """
+  Its YouTube video id.
+  """
+  youtubeId: String
+
+  """
+  On YouTube with no Spotify track or ISRC: no catalog a venue license covers
+  knows it, so its rights are asked for directly.
+  """
+  youtubeOnly: Boolean!
+
+  """
+  Its YouTube page.
+  """
+  youtubeUrl: String
 }
 
 """
@@ -11085,6 +11126,39 @@ enum MediaKind {
   A one-off television broadcast, such as a Tony Awards telecast.
   """
   TV_SPECIAL
+}
+
+"""
+Where gathering the license to play a media item stands
+(MediaItem.license_status). A song released only on YouTube has no ISRC and
+isn't in the catalogs a venue's music service or PRO licenses cover, so its
+rights are asked for directly.
+"""
+enum MediaLicenseStatus {
+  """
+  The rights holder said no.
+  """
+  DECLINED
+
+  """
+  Licensed to play.
+  """
+  GRANTED
+
+  """
+  Its rights holder still needs asking.
+  """
+  NEEDED
+
+  """
+  Covered another way, or won't be played in public.
+  """
+  NOT_NEEDED
+
+  """
+  Asked; waiting on an answer.
+  """
+  REQUESTED
 }
 
 """

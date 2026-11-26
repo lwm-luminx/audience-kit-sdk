@@ -59,10 +59,13 @@ private func socialAccounts(_ stub: Stub) -> SocialAccountsClient {
     #expect(input["id"] as? String == "i1")
 }
 
-@Test func onlyPlatformsWithAPublishingConfigurationLinkPages() {
-    #expect(ManagementPlatform.production.canLinkSocialAccounts)
+@Test func eachPlatformLinksPagesWithItsOwnPublishingConfiguration() {
     #expect(ManagementPlatform.production.facebookPublishLoginConfigurationID == "1658512575778916")
-    #expect(!ManagementPlatform.next.canLinkSocialAccounts)
+    #expect(ManagementPlatform.next.facebookPublishLoginConfigurationID == "1160883476308008")
+    #expect(ManagementPlatform.next.canLinkSocialAccounts)
+    let unconfigured = ManagementPlatform(baseURL: ManagementPlatform.next.baseURL, host: "example", facebookAppID: "1",
+                                          facebookLoginConfigurationID: "2")
+    #expect(!unconfigured.canLinkSocialAccounts)
 }
 
 @Test func linkingOpensTheDialogWithThePublishingConfiguration() {

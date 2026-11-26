@@ -10,7 +10,7 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   posting accounts (`LinkedSocialAccounts`, `LinkedSocialAccount`), links the Page with the code from Facebook's
   dialog (`linkFacebook(_:code:redirectURI:facebookAppID:pageID:)`; the API exchanges it) and unlinks an account.
   `ManagementPlatform.facebookPublishLoginConfigurationID` is the publishing Login for Business configuration
-  (production 1658512575778916; none yet on next, where `canLinkSocialAccounts` is false), and
+  (production 1658512575778916 on AudienceKit - Platform, next 1160883476308008 on AudienceKit - Next; `canLinkSocialAccounts` is false for a platform without one), and
   `FacebookSignIn.forLinkingPages(platform:)` opens the dialog with it. Needs the API's `facebookCode` and
   `redirectUri` on `connectSocialFacebook` (audience_kit_api #979).
 

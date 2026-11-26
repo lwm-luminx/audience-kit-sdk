@@ -32,7 +32,8 @@ public struct ManagementPlatform: Sendable, Hashable {
 
     public static let next = ManagementPlatform(
         baseURL: URL(string: "https://api.next.audiencekit.com")!, host: "admin.next.audiencekit.com",
-        facebookAppID: "915436455177328", facebookLoginConfigurationID: "1489636529653307"
+        facebookAppID: "915436455177328", facebookLoginConfigurationID: "1489636529653307",
+        facebookPublishLoginConfigurationID: "1160883476308008"
     )
 
     /// Whether listings can link their Facebook Page and Instagram account for posting on this platform.

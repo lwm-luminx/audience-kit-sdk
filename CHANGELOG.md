@@ -3,7 +3,7 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
-## 0.109.0 (2026-11-27)
+## 0.110.0 (2026-11-27)
 
 - Swift, Kotlin and Node (node 0.5.0): every client paces its own requests and backs off when the API asks it to, so no app timer
   or retry loop can storm the API (on 2026-11-26 one address sent ~895k requests in a day, nearly all answered
@@ -13,6 +13,13 @@ One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/C
   until `Retry-After` has passed, or, without one, for 1, 2, 4… seconds up to two minutes after each 429 in a row
   (with up to 25% jitter). A cached answer stands in where there is one. `pausedUntil()` says when it ends. Kotlin's
   `HttpResponse` and Node's `HttpResponse` gain `headers` (the default transports fill them in).
+
+## 0.109.0 (2026-11-27)
+
+- Reviews of a venue, event or person: Swift `reviews(of:)`, Kotlin `reviews(topic)`, newest first. A review that is a
+  line quoted from a news article (the API's `featureArticleLink` quotes, e.g. City Weekly's guide to Salt Lake's LGBTQ
+  bars) carries that `article`: `isQuote`, and `sourceName` for the publication to credit; open the article to read
+  the rest. Empty on APIs without reviews, and for locales.
 
 ## 0.108.1 (2026-11-26)
 

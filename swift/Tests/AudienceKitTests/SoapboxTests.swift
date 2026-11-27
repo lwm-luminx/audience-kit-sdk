@@ -256,3 +256,44 @@ private func withoutSoapbox(_ request: RecordedRequest) -> StubResponse {
     for status in ArticleStatus.allCases { #expect(!SoapboxCopy.status(status).isEmpty) }
     #expect(SoapboxCopy.writeOpEd == "Write an op-ed")
 }
+
+@Test func aVenuesReviewsDecodeWithTheArticleTheyQuote() async throws {
+    let reviews = #"{"reviews":[{"id":"r-1","body":"The oldest gay bar in Utah.","publishedAt":"2027-06-01T16:00:00Z","article":"# +
+        articleJSON + #"},{"id":"r-2","body":"Great patio.","publishedAt":null,"article":null}]}"#
+    let stub = Stub { request in
+        let data = if request.query.contains("events {") {
+            #"{"events":{"event":"# + reviews + "}}"
+        } else {
+            #"{"venues":{"venue":"# + reviews + "}}"
+        }
+        return .json(status: 200, body: #"{"data":"# + data + "}")
+    }
+    let client = soapboxClient(stub)
+
+    let found = try await client.reviews(of: .venue("v-1"))
+    #expect(found.map(\.id) == ["r-1", "r-2"])
+    #expect(found[0].isQuote)
+    #expect(found[0].sourceName == "QSaltLake")
+    #expect(!found[1].isQuote)
+    #expect(found[1].sourceName == nil)
+    #expect(try await client.reviews(of: .event("e-1")).count == 2)
+    #expect(try await client.reviews(of: .locale("l-1")).isEmpty)
+    #expect(stub.requests.map(\.operationName) == ["Reviews", "Reviews"])
+    #expect(stub.requests[0].query.contains("venues { venue(id: $id) { reviews { id body publishedAt article {"))
+    #expect(stub.requests[0].variables["id"] as? String == "v-1")
+}
+
+@Test func anAPIWithoutReviewsGetsNone() async throws {
+    let stub = Stub { request in
+        if request.operationName == "SchemaFields" { return withoutSoapbox(request) }
+        if request.query.contains("reviews") {
+            return .json(status: 200, body: #"""
+            {"errors":[{"message":"Field 'reviews' doesn't exist on type 'Venue'","extensions":{"code":"undefinedField"}}]}
+            """#)
+        }
+        return .json(status: 200, body: #"{"data":{"id":"00000000-0000-4000-8000-000000000071"}}"#)
+    }
+
+    #expect(try await soapboxClient(stub).reviews(of: .venue("v-1")).isEmpty)
+    #expect(stub.requests.last?.query == "query Reviews { id }")
+}

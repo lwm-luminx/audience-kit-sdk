@@ -3,6 +3,13 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.109.0 (2026-11-27)
+
+- Reviews of a venue, event or person: Swift `reviews(of:)`, Kotlin `reviews(topic)`, newest first. A review that is a
+  line quoted from a news article (the API's `featureArticleLink` quotes, e.g. City Weekly's guide to Salt Lake's LGBTQ
+  bars) carries that `article`: `isQuote`, and `sourceName` for the publication to credit; open the article to read
+  the rest. Empty on APIs without reviews, and for locales.
+
 ## 0.108.1 (2026-11-26)
 
 - Swift: `AudienceKitClient` refreshes a session token only in its last 7 days (was 30). Staff sessions last 30

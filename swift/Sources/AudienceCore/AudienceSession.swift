@@ -89,6 +89,9 @@ public actor AudienceSession {
     /// The policy for calls that don't pass one. ``GraphQLCachePolicy/networkOnly`` unless the app sets another, so
     /// with a `cache` every query falls back to its last good answer when the API fails.
     public nonisolated let defaultCachePolicy: GraphQLCachePolicy
+    /// Paces this session's requests and backs off when the API answers 429 (``RequestPacer``), so no timer
+    /// or retry loop in the app can flood the API.
+    private var pacer: RequestPacer
 
     public init(
         configuration: AudienceKitConfiguration,
@@ -97,9 +100,11 @@ public actor AudienceSession {
         monitor: (any GraphQLMonitor)? = nil,
         deviceAttestor: (any DeviceAttestor)? = AppAttestAttestor.platformDefault,
         cache: (any GraphQLCache)? = nil,
-        defaultCachePolicy: GraphQLCachePolicy = .networkOnly
+        defaultCachePolicy: GraphQLCachePolicy = .networkOnly,
+        pacer: RequestPacer = RequestPacer()
     ) {
         self.configuration = configuration
+        self.pacer = pacer
         self.credentialStore = credentialStore
         self.session = session
         self.monitor = monitor
@@ -682,6 +687,7 @@ public actor AudienceSession {
         -> (Data, HTTPURLResponse)
     {
         let urlRequest = try makeURLRequest(request, token: token, baseURL: baseURL ?? configuration.baseURL)
+        try await waitForPacer()
 
         let data: Data
         let response: URLResponse
@@ -694,7 +700,29 @@ public actor AudienceSession {
         guard let http = response as? HTTPURLResponse else {
             throw AudienceKitError.decoding("The response wasn't HTTP.")
         }
+        pacer.observe(status: http.statusCode, retryAfter: http.value(forHTTPHeaderField: "Retry-After"))
         return (data, http)
+    }
+
+    /// Waits for the pacer to let a request out, or fails it at once while the API has asked this session to wait.
+    private func waitForPacer() async throws {
+        while true {
+            switch pacer.admit() {
+            case .send:
+                return
+            case .wait(let seconds):
+                try await Task.sleep(nanoseconds: UInt64(max(seconds, 0.01) * 1_000_000_000))
+            case .paused(let retryAfter):
+                let seconds = Int(retryAfter.rounded(.up))
+                throw AudienceKitError.http(status: 429, code: AudienceKitError.Code.rateLimited,
+                                            message: "The server asked this app to slow down. Trying again in \(seconds)s.")
+            }
+        }
+    }
+
+    /// When the API has asked this session to wait until, if it still has (a 429, or a 503 with a `Retry-After`).
+    public func pausedUntil() -> Date? {
+        pacer.pausedUntil()
     }
 
     private func makeURLRequest(_ request: APIRequest, token: String?, baseURL: URL) throws -> URLRequest {

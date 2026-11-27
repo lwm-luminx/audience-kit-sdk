@@ -47,3 +47,4 @@ export * from "./models.js";
 export * as Queries from "./queries.js";
 export * as Velvet from "./velvet/index.js";
 export * as Website from "./website/index.js";
+export { RequestPacer, type PacerAdmission, type RequestPacerOptions } from "./pacer.js";

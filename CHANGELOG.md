@@ -3,6 +3,17 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.109.0 (2026-11-27)
+
+- Swift, Kotlin and Node (node 0.5.0): every client paces its own requests and backs off when the API asks it to, so no app timer
+  or retry loop can storm the API (on 2026-11-26 one address sent ~895k requests in a day, nearly all answered
+  429). `RequestPacer` (one per `AudienceKitClient`, settable at init) lets up to 20 requests out at once, refilling
+  at 8 a second, and makes the rest wait their turn. After a 429, or a 503 with a `Retry-After`, every request fails
+  at once with a rate-limited error (Swift `RATE_LIMITED`, Kotlin and Node HTTP 429) without reaching the network,
+  until `Retry-After` has passed, or, without one, for 1, 2, 4… seconds up to two minutes after each 429 in a row
+  (with up to 25% jitter). A cached answer stands in where there is one. `pausedUntil()` says when it ends. Kotlin's
+  `HttpResponse` and Node's `HttpResponse` gain `headers` (the default transports fill them in).
+
 ## 0.108.1 (2026-11-26)
 
 - Swift: `AudienceKitClient` refreshes a session token only in its last 7 days (was 30). Staff sessions last 30

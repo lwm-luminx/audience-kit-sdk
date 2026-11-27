@@ -869,10 +869,11 @@ private func makeClient(
         }
         let (client, _) = makeClient(stub)
 
+        // The 429 last: after it the session waits (RequestPacer) and sends nothing more.
         for (path, code, status) in [("/v1/a", AudienceKitError.Code.conflict, 409),
-                                     ("/v1/b", AudienceKitError.Code.rateLimited, 429),
                                      ("/v1/c", AudienceKitError.Code.internalError, 503),
-                                     ("/v1/d", "TEAPOT", 418)] {
+                                     ("/v1/d", "TEAPOT", 418),
+                                     ("/v1/b", AudienceKitError.Code.rateLimited, 429)] {
             do {
                 _ = try await client.data(for: APIRequest(path: path))
                 Issue.record("expected an error for \(path)")

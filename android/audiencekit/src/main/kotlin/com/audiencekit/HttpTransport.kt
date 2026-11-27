@@ -21,7 +21,12 @@ public class HttpRequest(
 public class HttpResponse(
     public val status: Int,
     public val body: ByteArray,
-)
+    /** Response headers, by name as sent (look `Retry-After` up with [header]). */
+    public val headers: Map<String, String> = emptyMap(),
+) {
+    /** A header's value, whatever its case. */
+    public fun header(name: String): String? = headers.entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value
+}
 
 /**
  * Sends the client's HTTP requests. The default, [UrlConnectionTransport], needs no dependencies;
@@ -72,6 +77,9 @@ public class UrlConnectionTransport(
         val status = responseCode
         val stream = if (status >= 400) errorStream else inputStream
         val body = stream?.use { it.readBytes() } ?: ByteArray(0)
-        return HttpResponse(status, body)
+        val headers = headerFields.orEmpty().mapNotNull { (name, values) ->
+            name?.let { it to values.orEmpty().joinToString(", ") }
+        }.toMap()
+        return HttpResponse(status, body, headers)
     }
 }

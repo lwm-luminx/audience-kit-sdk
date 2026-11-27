@@ -7,7 +7,7 @@ describe("the fetch transport", () => {
   it("sends the request through fetch and reads the text", async () => {
     const fetchImpl = vi.fn(async (_url: string, init: RequestInit) => new Response("ok", { status: 201 }));
     const transport = new FetchTransport({ fetch: fetchImpl });
-    expect(await transport.execute(request)).toEqual({ status: 201, body: "ok" });
+    expect(await transport.execute(request)).toMatchObject({ status: 201, body: "ok" });
     const [url, init] = fetchImpl.mock.calls[0]!;
     expect(url).toBe(request.url);
     expect(init).toMatchObject({ method: "POST", headers: request.headers, body: "{}", redirect: "follow" });
@@ -23,7 +23,7 @@ describe("the fetch transport", () => {
       return new Response("ok");
     } as typeof fetch;
     try {
-      expect(await new FetchTransport().execute(request)).toEqual({ status: 200, body: "ok" });
+      expect(await new FetchTransport().execute(request)).toMatchObject({ status: 200, body: "ok" });
       expect(receiver === undefined || receiver === globalThis).toBe(true);
     } finally {
       globalThis.fetch = original;

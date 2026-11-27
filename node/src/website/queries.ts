@@ -46,7 +46,7 @@ export const eventPage = `query Event($id: ID!) {
 export const personPage = `query Person($id: ID!) {
   people {
     person(id: $id) {
-      ${PERSON_FIELDS} bannerUrl
+      ${PERSON_FIELDS} bannerUrl description
       events { upcoming { nodes { ${EVENT_FIELDS} } } }
       profile { socialLinks { nodes { ${LINK_FIELDS} } } }
       music { links { nodes { ${LINK_FIELDS} } } tracks { nodes { id title provider providerUrl streamUrl artworkUrl } } }

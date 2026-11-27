@@ -1,6 +1,6 @@
 {
   "name": "audience-kit",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Node.js and TypeScript client for the AudienceKit API: sign people in, then read an audience's venues, people, locales, events, cover and chat over GraphQL.",
   "license": "SEE LICENSE IN LICENSE",
   "author": "Love Wins Media, Inc.",

@@ -51,6 +51,10 @@ a change to one language only runs (and only edits) that language's CI: `swift-k
 documents against the schema), keeps the repository's 85% line-coverage floor, and tags releases with a prefix
 (`php/<version>`, `python-<version>`, `rust-<version>`), never bare, since bare tags are the Swift package's.
 
+## Maintainer
+
+Maintained by [Rick Mark](https://rickmark.me) for Love Wins Media, Inc. I evaluate where dual-use lines are drawn and argue fixes from the defender's side. Security reports: open a private advisory on this repository.
+
 ## License
 
 Source-available, not open source. The SDK is published under the [AudienceKit SDK License](LICENSE) 1.2,

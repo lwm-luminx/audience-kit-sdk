@@ -3,6 +3,12 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## 0.108.1 (2026-11-26)
+
+- Swift: `AudienceKitClient` refreshes a session token only in its last 7 days (was 30). Staff sessions last 30
+  days, so every staff token was due as soon as it was issued: each session refreshed on its first call and then
+  hourly, about 46 `POST /v1/token/refresh` a minute across the apps.
+
 ## 0.108.0 (2026-11-26)
 
 - StaffKit: Link Facebook and Link Instagram, for posting as a listing's Facebook Page and the Instagram professional

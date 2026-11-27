@@ -271,4 +271,44 @@ class SoapboxTest {
         for (status in ArticleStatus.entries) assertTrue(SoapboxCopy.status(status).isNotEmpty())
         assertEquals("Write an op-ed", SoapboxCopy.WRITE_OP_ED)
     }
+    @Test
+    fun aVenuesReviewsDecodeWithTheArticleTheyQuote() = runTest {
+        val reviews = """{"reviews":[{"id":"r-1","body":"The oldest gay bar in Utah.","publishedAt":null,""" +
+            """"article":$ARTICLE_JSON},{"id":"r-2","body":"Great patio.","article":null}]}"""
+        val stub = StubTransport { request ->
+            val data = if ("events {" in request.document()) """{"events":{"event":$reviews}}"""
+            else """{"venues":{"venue":$reviews}}"""
+            StubTransport.json(200, """{"data":$data}""")
+        }
+        val client = soapboxClient(stub)
+
+        val found = client.reviews(ArticleTopic.Venue("v-1"))
+        assertEquals(listOf("r-1", "r-2"), found.map { it.id })
+        assertTrue(found[0].isQuote)
+        assertEquals("QSaltLake", found[0].sourceName)
+        assertNull(found[1].sourceName)
+        assertEquals(2, client.reviews(ArticleTopic.Event("e-1")).size)
+        assertEquals(emptyList(), client.reviews(ArticleTopic.Locale("l-1")))
+        assertEquals(listOf("Reviews", "Reviews"), stub.requests.map { it.operation() })
+        assertTrue("venues { venue(id: \$id) { reviews { id body publishedAt article {" in stub.requests[0].document())
+        assertEquals("v-1", stub.requests[0].variable("id")!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun anApiWithoutReviewsGetsNone() = runTest {
+        val stub = StubTransport { request ->
+            when {
+                request.operation() == "SchemaFields" -> withoutSoapbox(request)
+                "reviews" in request.document() -> StubTransport.json(
+                    200,
+                    """{"errors":[{"message":"Field 'reviews' doesn't exist on type 'Venue'",""" +
+                        """"extensions":{"code":"undefinedField"}}]}""",
+                )
+                else -> StubTransport.json(200, """{"data":{"id":"b0f8b66a-e636-495d-9475-0f5317ea08e2"}}""")
+            }
+        }
+
+        assertEquals(emptyList(), soapboxClient(stub).reviews(ArticleTopic.Venue("v-1")))
+        assertEquals("query Reviews { id }", stub.requests.last().document())
+    }
 }

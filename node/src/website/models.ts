@@ -70,6 +70,8 @@ export interface Track {
 
 export interface Person extends PersonReference {
   bannerUrl?: PhotoURL | null;
+  /** Their bio, or what an organization does, in their own words. */
+  description?: string | null;
   music?: { links: Connection<SocialLink>; tracks: Connection<Track> };
   events?: { upcoming: Connection<Event> };
 }

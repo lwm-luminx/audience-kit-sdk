@@ -3,6 +3,11 @@
 One changelog for the whole SDK from 0.24.0 on. Earlier releases are in [swift/CHANGELOG.md](swift/CHANGELOG.md)
 (through 0.23.0) and [android/CHANGELOG.md](android/CHANGELOG.md) (through 0.19.0).
 
+## Node 0.5.1 (2026-11-27)
+
+- Node only: the website's person page (`Website.Queries.personPage`, `Website.Person`) reads a person's `description`,
+  which hotmess.social shows on their page. `graphql/schema.graphql` is refreshed from production's consumer schema.
+
 ## 0.110.0 (2026-11-27)
 
 - Swift, Kotlin and Node (node 0.5.0): every client paces its own requests and backs off when the API asks it to, so no app timer

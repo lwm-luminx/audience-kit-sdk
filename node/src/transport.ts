@@ -15,6 +15,8 @@ export interface HttpRequest {
 export interface HttpResponse {
   status: number;
   body: string;
+  /** Response headers, lowercased names (the client reads `retry-after`). */
+  headers?: Record<string, string>;
 }
 
 /**
@@ -57,7 +59,11 @@ export class FetchTransport implements HttpTransport {
         signal: controller.signal,
         redirect: "follow",
       });
-      return { status: response.status, body: await response.text() };
+      const headers: Record<string, string> = {};
+      response.headers?.forEach?.((value, name) => {
+        headers[name.toLowerCase()] = value;
+      });
+      return { status: response.status, body: await response.text(), headers };
     } finally {
       clearTimeout(timer);
       request.signal?.removeEventListener("abort", onAbort);

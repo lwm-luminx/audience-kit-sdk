@@ -1,3 +1,4 @@
+import { RequestPacer } from "./pacer.js";
 import { AudienceKitError, type GraphQLErrorEntry } from "./errors.js";
 import {
   ENVIRONMENT_HEADER,
@@ -99,6 +100,11 @@ export interface AudienceKitClientOptions {
   transport?: HttpTransport;
   /** Told about every GraphQL operation the client runs. */
   monitor?: GraphQLMonitor;
+  /**
+   * Paces requests and backs off when the API answers 429 (`RequestPacer`), so no timer or retry loop can flood
+   * the API. One per client by default.
+   */
+  pacer?: RequestPacer;
 }
 
 /** The environment variables `AudienceKitClient.fromEnvironment` reads. */
@@ -144,6 +150,8 @@ export class AudienceKitClient {
   private readonly tokenStore: TokenStore;
   private readonly transport: HttpTransport;
   private readonly monitor: GraphQLMonitor | null;
+  /** Paces this client's requests and backs off on 429 (`RequestPacer`). */
+  readonly pacer: RequestPacer;
   private readonly listeners = new Set<SessionListener>();
   private resolvedAudienceId: string | null = null;
   /** The fields each type has in an audience's schema, by "audience|endpoint|type" (`schemaFields`). */
@@ -159,6 +167,7 @@ export class AudienceKitClient {
     this.tokenStore = options.tokenStore ?? new InMemoryTokenStore();
     this.transport = options.transport ?? new FetchTransport();
     this.monitor = options.monitor ?? null;
+    this.pacer = options.pacer ?? new RequestPacer();
   }
 
   /**
@@ -1204,11 +1213,16 @@ export class AudienceKitClient {
   }
 
   private async perform(request: APIRequest, token: string | null): Promise<HttpResponse> {
+    await this.pacer.acquire();
+    let response: HttpResponse;
     try {
-      return await this.transport.execute(this.makeHttpRequest(request, token));
+      response = await this.transport.execute(this.makeHttpRequest(request, token));
     } catch (error) {
       throw AudienceKitError.network(error);
     }
+    const headers = response.headers ?? {};
+    this.pacer.observe(response.status, headers["retry-after"] ?? headers["Retry-After"]);
+    return response;
   }
 
   private makeHttpRequest(request: APIRequest, token: string | null): HttpRequest {

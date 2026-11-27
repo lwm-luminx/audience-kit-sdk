@@ -103,6 +103,11 @@ public class AudienceKitClient(
      * [cache] every query falls back to its last good answer when the API fails.
      */
     defaultCachePolicy: GraphQLCachePolicy = GraphQLCachePolicy.NetworkOnly,
+    /**
+     * Paces this client's requests and backs off when the API answers 429 ([RequestPacer]), so no timer or
+     * retry loop in the app can flood the API.
+     */
+    public val pacer: RequestPacer = RequestPacer(),
 ) {
     public val defaultCachePolicy: GraphQLCachePolicy =
         if (cache == null) GraphQLCachePolicy.NetworkOnly else defaultCachePolicy
@@ -1035,11 +1040,14 @@ public class AudienceKitClient(
         token: String? = if (request.authenticated) storedToken() else null,
     ): HttpResponse {
         val httpRequest = makeHttpRequest(request, token)
-        return try {
+        pacer.acquire()
+        val response = try {
             transport.execute(httpRequest)
         } catch (e: IOException) {
             throw AudienceKitException.Network(e)
         }
+        pacer.observe(response.status, response.header("Retry-After"))
+        return response
     }
 
     private fun makeHttpRequest(request: APIRequest, token: String?): HttpRequest {
